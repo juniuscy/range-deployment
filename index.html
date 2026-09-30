@@ -1,6 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="theme-color" content="#17212B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Deployment">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+  /* ============ ONE THING TO CHANGE ============
+     Paste your Apps Script Web app link (ends with /exec) between the quotes below. */
+  window.API_URL = 'https://script.google.com/macros/s/AKfycbzb-XRSwI2xNkKb0X3A8JWZzJJk_ygdLs6KZK3E2RWEWenyt9QAGperqDNKRJdiOZTp-w/exec';
+  if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }
+</script>
+
 <base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -249,23 +263,6 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .clock.away{background:var(--steel-soft);border-color:var(--steel)}
 .demo{background:var(--wait-soft);color:var(--wait);text-align:center;font-size:13px;padding:5px}
 </style>
-<meta name="theme-color" content="#17212B">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Range Deploy">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<!--
-  ============================================================
-  ONE THING TO CHANGE: paste your web app link (the one ending in /exec)
-  between the quotes on the API_URL line below, then save this file.
-  ============================================================
--->
-<script>
-  window.API_URL = 'https://script.google.com/macros/s/AKfycbzb-XRSwI2xNkKb0X3A8JWZzJJk_ygdLs6KZK3E2RWEWenyt9QAGperqDNKRJdiOZTp-w/exec';
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
-</script>
 </head>
 <body>
 <div id="app"><div class="loading">Loading&#x2026;</div></div>
@@ -292,15 +289,36 @@ window.onerror = function (msg, src, line) {
 const API_URL = /^https:/.test(String(window.API_URL || '')) && /\/exec$/.test(window.API_URL) ? window.API_URL : '';
 const GAS = !!(window.google && google.script && google.script.run);
 const LIVE = GAS || !!API_URL;
-function call(fn, ...args){
-  if (!GAS && API_URL) {
-    return fetch(API_URL, {
-      method: 'POST', credentials: 'omit', redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // keeps it a simple request
-      body: JSON.stringify({ fn, args })
-    }).then(r => r.json()).catch(() => { throw new Error('Could not reach the server. Check your connection and try again.'); })
-      .then(o => { if (!o.ok) throw new Error(o.error); return o.result; });
+const READ_FNS = ['adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
+  'getHome','getLoginInfo','getMyOil','getMyOilHistory','getMyRequests','getMySchedule','getWeek','resume'];
+function apiOnce(fn, args){
+  return fetch(API_URL, {
+    method: 'POST', credentials: 'omit', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   /* keeps it a simple request */
+    body: JSON.stringify({ fn, args })
+  }).then(r => r.text()).then(t => {
+    try { return JSON.parse(t); } catch(e) { const x = new Error('BADREPLY'); x.net = true; throw x; }
+  }, () => { const x = new Error('NONET'); x.net = true; throw x; });
+}
+async function apiCall(fn, args){
+  const read = READ_FNS.indexOf(fn) >= 0;
+  const tries = read ? 3 : 1;
+  let o = null, last = null;
+  for (let i = 0; i < tries; i++) {
+    try { o = await apiOnce(fn, args); break; }
+    catch(e) { last = e; if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1))); }
   }
+  if (!o) {
+    if (!read) throw new Error('No reply from the server, so this may or may not have been saved. Refresh and check before trying again.');
+    throw new Error(last && last.message === 'BADREPLY'
+      ? 'Google is busy or the app is being updated. Wait a minute and try again.'
+      : 'Could not reach the server. Check your connection and try again.');
+  }
+  if (!o.ok) throw new Error(o.error);
+  return o.result;
+}
+function call(fn, ...args){
+  if (!GAS && API_URL) return apiCall(fn, args);
   return new Promise((res, rej) => {
     if (!LIVE) {
       setTimeout(() => { try { res(MOCK[fn](...args)); } catch(e){ rej(e); } }, 200);
@@ -376,6 +394,7 @@ async function boot(){
   if (saved) {
     try { return signedIn(await call('resume', saved)); } catch(e) { saveToken(''); }
   }
+  if (API_URL) { S.loginInfo = { auto:null }; return renderLogin(); }   // hosted page: nothing to ask the server first
   try {
     const info = await call('getLoginInfo');
     S.loginInfo = info;
@@ -506,10 +525,21 @@ const loading = () => V().innerHTML = '<div class="loading">Loading\u2026</div>'
    My days
    ============================================================ */
 async function viewHome(){
-  loading();
   S.mcache = {};                                        // re-read the month view from the sheet too
+  const key = 'rdp_home_' + S.me.name;
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) {}
+  if (cached && cached.today === S.today) { drawHome(cached, true); } else loading();
   try {
     const h = await call('getHome', S.token);
+    h.today = S.today;
+    try { localStorage.setItem(key, JSON.stringify(h)); } catch(e) {}
+    if (S.view !== 'home') return;                      // user moved on while it loaded
+    drawHome(h, false);
+  } catch(e){ fail(e); }
+}
+function drawHome(h, stale){
+  {
     const b = h.balances;
     let lib = '';
     if (h.lib) {
@@ -518,7 +548,7 @@ async function viewHome(){
       else if (left <= 45) lib = `<div class="note">Your LIB expires on ${nice(h.lib)}, in ${left} day${left===1?'':'s'}.</div>`;
     }
     V().innerHTML = `
-      <h2>Hi ${esc(h.me.name)}</h2>
+      <h2>Hi ${esc(h.me.name)}${stale ? ' <span class="small muted" style="font:500 14px var(--body)">updating...</span>' : ''}</h2>
       ${h.attendance ? clockCard(h.attendance) : ''}
       <div class="strip" style="${hasOil() ? '' : 'grid-template-columns:1fr'}">
         ${hasOil() ? `<div><b>${fmtN(b.oilAvailable)}</b><span>Off days left${b.oilReserved ? ' (+'+fmtN(b.oilReserved)+' on hold)' : ''}</span></div>` : ''}
@@ -539,7 +569,7 @@ async function viewHome(){
     });
     drawSched();
     if (canManage()) refreshPendingDot();
-  } catch(e){ fail(e); }
+  }
 }
 /* ---------- clock-in card on My Deploy ---------- */
 function clockCard(a){
