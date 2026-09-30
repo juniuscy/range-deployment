@@ -900,6 +900,8 @@ function waText(day){
     L.push('', b('DUTIES'));
     du.forEach(x => L.push(x.duty + ' - ' + (x.main || '-') + (x.spare ? ' (Spare: ' + x.spare + ')' : '')));
   }
+  const freeA = freeOn(day, 'APO');
+  L.push('', b('UNDEPLOYED APO'), freeA.length ? freeA.join(', ') : 'NIL');
   const medics = (S.staff || []).filter(p => p.role === 'Medic' || p.role === 'Backup Medic').map(p => p.name);
   const aw = day.absences.filter(a => !NOT_AWAY.includes(a.label.toUpperCase().replace(/\s+/g, '')))
     .map(a => ({ label:a.label, text:a.text.split(/\s*,\s*/).filter(x => !namesIn(x).some(n => medics.includes(n))).join(', ') }))
