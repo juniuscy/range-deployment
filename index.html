@@ -147,6 +147,7 @@ textarea{min-height:80px;resize:vertical}
 .k.duty{background:var(--steel-soft);color:var(--steel)}
 .k.medic{background:var(--go-soft);color:var(--go)}
 .k.away{background:var(--wait-soft);color:var(--wait)}
+.k.ext,.day.dep .k.ext{background:var(--ext);color:var(--ink)}
 .k.pending{background:var(--wait-soft);color:var(--wait)}
 .it .x{display:block;font-size:14px;color:var(--muted)}
 .free{color:var(--muted);font-size:15px;padding-top:4px}
@@ -644,7 +645,7 @@ async function drawSched(){
 }
 const wdate = w => esc(String(w).replace(/^(\d{4}-\d{2}-\d{2})/, m => nice(m)));
 const fmtN = n => (n == null ? '\u2013' : (Math.round(n*2)/2).toString());
-const KLABEL = { range:'Range', duty:'Duty', medic:'Medic', away:'Away', pending:'Request' };
+const KLABEL = { range:'Range', duty:'Duty', medic:'Medic', away:'Away', pending:'Request', ext:'EXT' };
 function dayRow(d){
   const dt = pd(d.date);
   const items = d.items.length
@@ -705,18 +706,21 @@ function drawBoard(wk){
     const medics = d.medics.filter(x => ed || x.who);
     const freeE = freeOn(d, 'APO'), freeM = freeOn(d, 'Medic'), freeMg = freeOn(d, 'Manager'), freeBk = freeOn(d, 'Backup Medic');
     const undepRow = `<tr class="undep"><td>Undeployed</td><td colspan="2">
-        <div><b>APO</b> - ${freeE.length ? esc(freeE.join(', ')) : '<span class="muted">none</span>'}</div>
+        <div><b>APO</b> - ${freeE.length ? esc(freeE.map(n => n + ((d.report || {})[n] ? ' (' + hrs(d.report[n]) + ')' : '')).join(', ')) : '<span class="muted">none</span>'}</div>
         <div><b>Medics</b> - ${freeM.length ? esc(freeM.join(', ')) : '<span class="muted">none</span>'}</div>
         <div><b>Managers</b> (reserve) - ${freeMg.length ? esc(freeMg.join(', ')) : '<span class="muted">none</span>'}</div>
         <div><b>Backup medics</b> - ${freeBk.length ? esc(freeBk.join(', ')) : '<span class="muted">none</span>'}</div></td></tr>`;
     const dutyT = `<h3>Duties</h3><div class="scroll"><table class="t"><tr><th>Duty</th><th>Main</th><th>Spare</th></tr>
       ${duties.map(x => { const ppl = x.mainPeople.concat(x.sparePeople), bad = ppl.some(n => away[n]);
-        return `<tr data-slot="duty|${esc(x.duty)}" class="${bad ? 'clash' : ppl.indexOf(me)>=0 ? 'mine' : ''}"><td>${esc(x.duty)}</td><td>${esc(x.main)}${whyLine(x.mainPeople)}</td><td>${esc(x.spare)}${whyLine(x.sparePeople)}</td></tr>`; }).join('')}
+        const dx = ppl.map(n => (d.report || {})[n]).filter(Boolean)[0];
+        return `<tr data-slot="duty|${esc(x.duty)}" class="${bad ? 'clash' : ppl.indexOf(me)>=0 ? 'mine' : ''}"><td>${esc(x.duty)}${dx ? ` <span class="extag">EXT ${esc(hrs(dx))}</span>` : ''}</td><td>${esc(x.main)}${whyLine(x.mainPeople)}</td><td>${esc(x.spare)}${whyLine(x.sparePeople)}</td></tr>`; }).join('')}
       ${undepRow}</table></div>`;
     const medicT = medics.length ? `<h3>Medics</h3><div class="scroll"><table class="t"><tr><th>Role</th><th>Name</th><th>At</th></tr>
       ${medics.map(x => { const bad = x.people.some(n => away[n]);
         return `<tr data-slot="medic|${esc(x.role)}" class="${bad ? 'clash' : x.people.indexOf(me)>=0 ? 'mine' : ''}"><td>${esc(x.role)}</td><td>${esc(x.who)}${whyLine(x.people)}</td><td>${esc(x.loc)}</td></tr>`; }).join('')}</table></div>` : '';
-    const awayT = d.absences.length ? `<h3>Away and notes</h3><div class="scroll"><table class="t">
+    const rgs = reportGroups(d);
+    const awayT = (d.absences.length || rgs.length) ? `<h3>Away and notes</h3><div class="scroll"><table class="t">
+      ${rgs.map(g => `<tr class="${g.names.indexOf(me)>=0?'mine':''}"><th style="width:34%"><span class="extag">EXT</span> Report ${esc(hrs(g.t))}</th><td>${esc(g.names.join(', '))}</td></tr>`).join('')}
       ${d.absences.map(x => `<tr class="${x.people.indexOf(me)>=0?'mine':''}"><th style="width:34%">${esc(x.label)}</th><td>${esc(x.text)}</td></tr>`).join('')}</table></div>` : '';
     const editbar = admin ? `<div class="editbar">
         <span class="small muted">${ed ? 'Tap a range, duty or medic row to change who is posted. Undeployed staff are listed under Duties.' : ''}</span>
@@ -901,6 +905,12 @@ function rmkNoExt(rmk){
   return String(rmk || '').replace(/(^|[^A-Za-z])EXT([^A-Za-z]|$)/i, '$1$2').replace(/\d{1,2}[:.]?\d{2}\s*(HRS)?/i, '').replace(/\s+/g, ' ').trim();
 }
 const hrs = hm => String(hm || '').replace(':', '') + 'hrs';
+/* { '12:00': [names] } from the day's report times (OTHERS "... 1200HRS" and EXT ranges) */
+function reportGroups(day){
+  const rp = day.report || {}, g = {};
+  Object.keys(rp).forEach(n => { (g[rp[n]] = g[rp[n]] || []).push(n); });
+  return Object.keys(g).sort().map(t => ({ t, names: g[t] }));
+}
 function waText(day){
   const L = [], b = t => '*' + t + '*';
   const dt = pd(day.date);
@@ -922,8 +932,11 @@ function waText(day){
     L.push('', b('DUTIES'));
     du.forEach(x => L.push(x.duty + ' - ' + (x.main || '-') + (x.spare ? ' (Spare: ' + x.spare + ')' : '')));
   }
-  const freeA = freeOn(day, 'APO');
+  const rp = day.report || {};
+  const freeA = freeOn(day, 'APO').map(n => n + (rp[n] ? ' (' + hrs(rp[n]) + ')' : ''));
   L.push('', b('UNDEPLOYED APO'), freeA.length ? freeA.join(', ') : 'NIL');
+  const rg = reportGroups(day);
+  if (rg.length) { L.push('', b('EXT HOURS')); rg.forEach(g => L.push(hrs(g.t).toUpperCase() + ' - ' + g.names.join(', '))); }
   const medics = (S.staff || []).filter(p => p.role === 'Medic' || p.role === 'Backup Medic').map(p => p.name);
   const aw = day.absences.filter(a => !NOT_AWAY.includes(a.label.toUpperCase().replace(/\s+/g, '')))
     .map(a => ({ label:a.label, text:a.text.split(/\s*,\s*/).filter(x => !namesIn(x).some(n => medics.includes(n))).join(', ') }))
