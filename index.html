@@ -1464,6 +1464,7 @@ function attText(a){
   const by = st => rows.filter(r => r.status === st);
   const present = rows.filter(r => r.status === 'Present' || r.status === 'Present (Late)');
   const L = [
+    '*OPS SUPPORT*',
     'Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')',
     'Total strength: ' + rows.length,
     'Present: ' + present.length,
