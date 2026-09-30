@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Range Deployment</title>
+<meta name="theme-color" content="#17212B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Range Deploy">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #17212B; overflow: hidden; }
+  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #EEF1EC; }
+  #splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: #17212B; color: #EEF1EC; font: 16px/1.4 Arial, sans-serif; text-align: center; padding: 24px; }
+  #splash img { width: 96px; height: 96px; border-radius: 22px; }
+  #splash b { font-size: 22px; }
+  #splash a { color: #22C55E; }
+  #help { display: none; max-width: 320px; font-size: 14px; color: #C9D3DC; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+<!--
+  ============================================================
+  ONE THING TO CHANGE: paste your web app link (the one ending in /exec)
+  between the quotes on the APP_URL line below, then save this file.
+  ============================================================
+-->
+<script>
+  var APP_URL = 'https://script.google.com/macros/s/AKfycbzb-XRSwI2xNkKb0X3A8JWZzJJk_ygdLs6KZK3E2RWEWenyt9QAGperqDNKRJdiOZTp-w/exec';
+</script>
+
+<div id="splash">
+  <img src="icon-192.png" alt="">
+  <b>Range Deployment</b>
+  <span id="msg">Loading...</span>
+  <div id="help">Taking a while? <a id="direct" href="#">Open the app directly</a></div>
+</div>
+<iframe id="app" class="hide" title="Range Deployment Portal" allow="clipboard-write"></iframe>
+
+<script>
+  (function () {
+    var frame = document.getElementById('app'), splash = document.getElementById('splash');
+    if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(APP_URL)) {
+      document.getElementById('msg').innerHTML =
+        'The web app link has not been added yet.<br>Open index.html and paste your /exec link into APP_URL.';
+      return;
+    }
+    document.getElementById('direct').href = APP_URL;
+    frame.onload = function () { frame.classList.remove('hide'); splash.classList.add('hide'); };
+    frame.src = APP_URL;
+    setTimeout(function () { document.getElementById('help').style.display = 'block'; }, 12000);
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+  })();
+</script>
+</body>
+</html>
