@@ -1,62 +1,1831 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Range Deployment</title>
+<title>Range Deployment Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#17212B;        /* range board slate */
+  --paper:#EEF1EC;      /* field grey */
+  --card:#FFFFFF;
+  --line:#D3DAD2;
+  --muted:#5B6874;
+  --steel:#2C5378;      /* you / selected */
+  --steel-soft:#E3ECF4;
+  --flag:#B3261E;       /* range red flag: alerts, rejected */
+  --flag-soft:#F9E3E1;
+  --go:#2E7A4C;         /* approved */
+  --go-soft:#E1F0E6;
+  --wait:#A26A0A;       /* pending */
+  --wait-soft:#F6EBD5;
+  --dep:#22C55E;        /* bright green: you are deployed */
+  --dep-soft:#DCFCE7;
+  --r-sm:6px; --r-md:10px;
+  --cond:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow","Segoe UI",Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.45 var(--body);-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--steel);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- shell ---------- */
+.top{background:var(--ink);color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;position:sticky;top:0;z-index:5}
+.top-in{max-width:880px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.brand{font:700 20px/1 var(--cond);letter-spacing:.02em}
+.who{margin-left:auto;font-size:14px;opacity:.85;text-align:right}
+.who button{background:none;border:0;color:#fff;text-decoration:underline;padding:0 0 0 8px;cursor:pointer;font-size:14px}
+main{max-width:880px;margin:0 auto;padding:16px 16px 110px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav.tabs .in{max-width:880px;margin:0 auto;display:flex}
+nav.tabs button{flex:1;min-width:0;background:none;border:0;padding:10px 2px 12px;font:600 15px/1.1 var(--cond);letter-spacing:.02em;color:var(--muted);cursor:pointer;border-top:3px solid transparent}
+nav.tabs button[aria-current="page"]{color:var(--ink);border-top-color:var(--steel)}
+nav.tabs button{line-height:1.05;min-height:52px;display:flex;align-items:center;justify-content:center;text-align:center;gap:2px}
+@media (max-width:420px){nav.tabs button{font-size:13px;letter-spacing:0;padding-left:1px;padding-right:1px}}
+nav.tabs .dot[hidden]{display:none}
+nav.tabs .dot{display:inline-block;min-width:18px;padding:1px 5px;border-radius:9px;background:var(--flag);color:#fff;font:600 12px/16px var(--body);margin-left:4px}
+@media (min-width:760px){
+  nav.tabs{position:sticky;top:56px;bottom:auto;border-top:0;border-bottom:1px solid var(--line)}
+  nav.tabs button{border-top:0;border-bottom:3px solid transparent;padding:12px 4px}
+  nav.tabs button[aria-current="page"]{border-bottom-color:var(--steel)}
+  main{padding-bottom:40px}
+}
+
+h1,h2,h3{font-family:var(--cond);font-weight:700;line-height:1.1;margin:0}
+h2{font-size:26px;margin:4px 0 12px}
+h3{font-size:19px;margin:22px 0 8px}
+p{margin:0 0 10px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;margin-bottom:14px}
+
+/* ---------- form bits ---------- */
+label.f{display:block;margin:0 0 14px}
+label.f>span{display:block;font-weight:600;font-size:14px;margin-bottom:5px}
+input[type=text],input[type=password],input[type=date],input[type=time],select,textarea{
+  width:100%;padding:11px 12px;border:1px solid #B9C3BA;border-radius:var(--r-sm);background:#fff;min-height:46px}
+textarea{min-height:80px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:10px 18px;border-radius:var(--r-sm);border:1px solid var(--ink);background:var(--ink);color:#fff;font-weight:600;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--ink)}
+.btn.go{background:var(--go);border-color:var(--go)}
+.btn.no{background:#fff;color:var(--flag);border-color:var(--flag)}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.5;cursor:wait}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid #B9C3BA;background:#fff;border-radius:999px;padding:8px 14px;cursor:pointer;font-size:15px}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.note{border-left:4px solid var(--wait);background:var(--wait-soft);padding:10px 12px;border-radius:0 var(--r-sm) var(--r-sm) 0;margin:0 0 12px;font-size:15px}
+.note.red{border-color:var(--flag);background:var(--flag-soft)}
+.note.blue{border-color:var(--steel);background:var(--steel-soft)}
+.pill{display:inline-block;white-space:nowrap;font:600 13px/1 var(--body);padding:5px 9px;border-radius:999px}
+.pill.Pending{background:var(--wait-soft);color:var(--wait)}
+.pill.Approved{background:var(--go-soft);color:var(--go)}
+.pill.Rejected{background:var(--flag-soft);color:var(--flag)}
+.pill.Cancelled{background:#E6E9E6;color:var(--muted)}
+
+/* ---------- login ---------- */
+.login{max-width:420px;margin:8vh auto 0}
+.login h1{font-size:40px;margin-bottom:6px}
+.login .sec{padding:20px}
+
+/* ---------- balances strip ---------- */
+.strip{display:grid;grid-template-columns:repeat(2,1fr);background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:14px}
+.strip div{padding:12px 14px;border-left:1px solid var(--line)}
+.strip div:first-child{border-left:0}
+.strip b{display:block;font:700 30px/1 var(--cond);font-variant-numeric:tabular-nums}
+.strip span{font-size:13px;color:var(--muted)}
+
+/* ---------- my days ---------- */
+.days{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.day{display:grid;grid-template-columns:64px 1fr;border-top:1px solid var(--line)}
+.day:first-child{border-top:0}
+.day .d{padding:12px 0 12px 14px;font-family:var(--cond)}
+.day .d b{display:block;font-size:26px;line-height:1}
+.day .d span{font-size:14px;color:var(--muted);font-weight:600}
+.day.dep{background:var(--dep-soft)}
+.day.dep .d{background:var(--dep)}
+.day.dep .d span{color:var(--ink)}
+.day .tdy{display:block;font:600 12px/1.2 var(--body);color:var(--steel);margin-top:3px;font-style:normal}
+.day.dep .tdy{color:var(--ink)}
+.day.dep .k.range,.day.dep .k.duty,.day.dep .k.medic{background:var(--ink);color:var(--dep)}
+.dsel button.medep{box-shadow:inset 0 -5px var(--dep)}
+.legend{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);margin:0 0 10px}
+.legend i{width:16px;height:16px;border-radius:4px;background:var(--dep);display:inline-block}
+.monbar{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.monbar b{flex:1;text-align:center;font:700 21px/1 var(--cond)}
+.monbar .btn{min-height:40px;padding:6px 14px}
+.toggle{display:flex;gap:8px;align-items:center;font-size:15px;margin:0 0 10px}
+.toggle input{width:20px;height:20px}
+.day .e{padding:10px 14px 10px 4px}
+.it{margin:2px 0 6px}
+.it strong{font-family:var(--cond);font-size:18px;margin-right:6px}
+.it .k{font-size:12px;font-weight:600;padding:2px 6px;border-radius:4px;margin-right:6px;vertical-align:2px}
+.k.range{background:var(--ink);color:#fff}
+.k.duty{background:var(--steel-soft);color:var(--steel)}
+.k.medic{background:var(--go-soft);color:var(--go)}
+.k.away{background:var(--wait-soft);color:var(--wait)}
+.k.pending{background:var(--wait-soft);color:var(--wait)}
+.it .x{display:block;font-size:14px;color:var(--muted)}
+.free{color:var(--muted);font-size:15px;padding-top:4px}
+
+/* ---------- board ---------- */
+.wkbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.wkbar h2{margin:0;flex:1;text-align:center;font-size:22px}
+.wkbar .btn{min-height:40px;padding:6px 14px}
+.dsel{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
+.dsel button{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 0 7px;cursor:pointer;font-family:var(--cond)}
+.dsel button b{display:block;font-size:22px;line-height:1}
+.dsel button span{font-size:13px;color:var(--muted);font-weight:600}
+.dsel button i{display:block;font-style:normal;font-size:12px;color:var(--muted);font-family:var(--body)}
+.dsel button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.dsel button[aria-pressed="true"] span,.dsel button[aria-pressed="true"] i{color:#C9D3DC}
+.daytitle{font:600 15px/1.3 var(--body);color:var(--muted);margin:-4px 0 12px}
+
+.boardlist{display:grid;gap:8px}
+@media (min-width:640px){.boardlist{grid-template-columns:1fr 1fr}}
+.rg{display:grid;grid-template-columns:78px 1fr;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;min-height:74px}
+.rg .code{background:var(--ink);color:#fff;font:700 22px/1 var(--cond);display:flex;align-items:center;justify-content:center;letter-spacing:.01em}
+.rg.idle{background:transparent;border-style:dashed}
+.rg.idle .code{background:transparent;color:#9AA5AE;border-right:1px dashed var(--line)}
+.rg.mine{border-color:var(--dep);box-shadow:0 0 0 3px var(--dep) inset;background:var(--dep-soft)}
+.rg.mine .code{background:var(--dep);color:var(--ink)}
+.rg .body{padding:9px 12px}
+.rg .ppl{font-weight:600}
+.rg .ppl em{font-style:normal;color:var(--muted);font-weight:500}
+.rg .meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:14px;color:var(--muted);margin-top:3px}
+.rg .meta span b{color:var(--ink);font-weight:600}
+.rg.idle .body{color:#9AA5AE;display:flex;align-items:center}
+
+table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;font-size:15px}
+.t th,.t td{text-align:left;padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+.t th{font:600 14px var(--body);color:var(--muted);background:#F6F8F5;border-top:0}
+.t tr.mine td{background:var(--dep-soft)}
+.t tr.mine td:first-child,.t tr.mine th:first-child{box-shadow:inset 5px 0 var(--dep)}
+.t td.num{font-variant-numeric:tabular-nums;text-align:right}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* ---------- requests ---------- */
+.req{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px}
+.req .h{display:flex;align-items:flex-start;gap:10px}
+.req .h b{font:700 19px/1.15 var(--cond);flex:1}
+.req .when{font-weight:600;margin:4px 0 2px}
+.req .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.req .acts input{flex:1 1 100%}
+.req ul{margin:6px 0 0;padding-left:18px;font-size:14px}
+
+.oilpick label{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.oilpick label:first-child{border-top:0}
+.oilpick input{width:20px;height:20px;flex:none}
+
+.sub{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:#fff;padding:11px 16px;border-radius:var(--r-sm);max-width:92vw;z-index:20;transition:.2s;pointer-events:none;font-size:15px}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--flag)}
+.loading{padding:40px 0;text-align:center;color:var(--muted)}
+.edit-on .rg{cursor:pointer}
+.edit-on .rg:hover{border-color:var(--steel)}
+.edit-on .rg .body::after{content:"Tap to change";display:block;font-size:12px;color:var(--steel);margin-top:4px;font-weight:600}
+.edit-on .rg.idle .body{flex-direction:column;align-items:flex-start;justify-content:center}
+.t tr.undep td{background:#F4F7F3;line-height:1.6}
+.edit-on .t tr[data-slot]{cursor:pointer}
+.edit-on .t tr[data-slot] td:last-child::after{content:"  Edit";color:var(--steel);font-weight:600;font-size:13px}
+.editbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:-2px 0 12px;flex-wrap:wrap}
+.editbar .btn{min-height:40px;padding:6px 14px}
+.freebox{background:var(--go-soft);border-radius:var(--r-md);padding:10px 12px;margin-bottom:12px;font-size:15px}
+.freebox b{font-family:var(--cond);font-size:17px;margin-right:6px}
+.sheet-bg{position:fixed;inset:0;background:rgba(23,33,43,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--card);width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:14px 14px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom))}
+@media (min-width:640px){.sheet-bg{align-items:center}.sheet{border-radius:14px}}
+.sheet h3{margin:0 0 4px;font-size:24px}
+.sheet .src{font-size:14px;color:var(--muted);margin-bottom:14px}
+.sheet .chips .chip{padding:6px 11px;font-size:14px}
+.sheet .acts{display:flex;gap:8px;margin-top:16px}
+.sheet .acts .btn{flex:1}
+/* My OIL: one colour per state */
+.oilsum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.oilsum div{border-radius:var(--r-md);padding:10px 8px;text-align:center}
+.oilsum b{display:block;font:700 28px/1 var(--cond);font-variant-numeric:tabular-nums}
+.oilsum span{font-size:13px;font-weight:600}
+.st-unused{background:var(--dep-soft);color:#14532D}
+.st-half{background:var(--wait-soft);color:#7A4E05}
+.st-hold{background:var(--steel-soft);color:var(--steel)}
+.st-used{background:#E6E9E6;color:var(--muted)}
+.oilrow{display:grid;grid-template-columns:8px 1fr auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;margin-bottom:8px}
+.oilrow .bar{background:#B8C0B9}
+.oilrow.st-unused .bar{background:var(--dep)}
+.oilrow.st-half .bar{background:#E0A021}
+.oilrow.st-hold .bar{background:var(--steel)}
+.oilrow{color:var(--ink)}
+.oilrow.st-unused,.oilrow.st-half,.oilrow.st-hold,.oilrow.st-used{background:var(--card)}
+.oilrow .mid{padding:10px 12px}
+.oilrow .mid b{font:700 18px/1.2 var(--cond)}
+.oilrow .mid .x{font-size:14px;color:var(--muted)}
+.oilrow .tag{align-self:center;margin-right:12px;font:600 13px/1 var(--body);padding:6px 10px;border-radius:999px;white-space:nowrap}
+.oilrow.st-used .mid b{color:var(--muted)}
+.chip.pk{display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.15;border-radius:12px;padding:7px 12px}
+.chip.pk .sub{font-size:12px;color:var(--muted);font-weight:600}
+.chip.pk .sub:empty{display:none}
+.chip.pk[aria-pressed="true"] .sub{color:var(--dep)}
+.rg.clash{border-color:var(--flag);box-shadow:0 0 0 3px var(--flag) inset;background:var(--flag-soft)}
+.rg.clash .code{background:var(--flag);color:#fff}
+.rg .why,.t .why{color:var(--flag);font-weight:600;font-size:14px;margin-top:2px}
+.t tr.clash td{background:var(--flag-soft)}
+.t tr.clash td:first-child{box-shadow:inset 5px 0 var(--flag)}
+.dsel button{position:relative}
+.dsel button.hasclash::after{content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--flag);box-shadow:0 0 0 2px var(--card)}
+.clock{border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;border:1px solid var(--line);background:var(--card)}
+.clock > b{display:block;font:700 20px/1.2 var(--cond)}
+.clock > span{font-size:14px}
+.clock.ok{background:var(--dep-soft);border-color:var(--dep)}
+.clock.late{background:var(--wait-soft);border-color:#E0A021}
+.clock.away{background:var(--steel-soft);border-color:var(--steel)}
+.demo{background:var(--wait-soft);color:var(--wait);text-align:center;font-size:13px;padding:5px}
+</style>
 <meta name="theme-color" content="#17212B">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Range Deploy">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<style>
-  html, body { margin: 0; height: 100%; background: #17212B; overflow: hidden; }
-  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #EEF1EC; }
-  #splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 18px; background: #17212B; color: #EEF1EC; font: 16px/1.4 Arial, sans-serif; text-align: center; padding: 24px; }
-  #splash img { width: 96px; height: 96px; border-radius: 22px; }
-  #splash b { font-size: 22px; }
-  #splash a { color: #22C55E; }
-  #help { display: none; max-width: 320px; font-size: 14px; color: #C9D3DC; }
-  .hide { display: none !important; }
-</style>
-</head>
-<body>
 <!--
   ============================================================
   ONE THING TO CHANGE: paste your web app link (the one ending in /exec)
-  between the quotes on the APP_URL line below, then save this file.
+  between the quotes on the API_URL line below, then save this file.
   ============================================================
 -->
 <script>
-  var APP_URL = 'https://script.google.com/macros/s/AKfycbzb-XRSwI2xNkKb0X3A8JWZzJJk_ygdLs6KZK3E2RWEWenyt9QAGperqDNKRJdiOZTp-w/exec';
+  window.API_URL = 'https://script.google.com/macros/s/AKfycbzb-XRSwI2xNkKb0X3A8JWZzJJk_ygdLs6KZK3E2RWEWenyt9QAGperqDNKRJdiOZTp-w/exec';
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 </script>
-
-<div id="splash">
-  <img src="icon-192.png" alt="">
-  <b>Range Deployment</b>
-  <span id="msg">Loading...</span>
-  <div id="help">Taking a while? <a id="direct" href="#">Open the app directly</a></div>
-</div>
-<iframe id="app" class="hide" title="Range Deployment Portal" allow="clipboard-write"></iframe>
+</head>
+<body>
+<div id="app"><div class="loading">Loading&#x2026;</div></div>
+<script>
+/* If anything goes wrong while starting, show it on the page instead of a blank screen */
+window.onerror = function (msg, src, line) {
+  var el = document.getElementById('app');
+  if (el) el.innerHTML = '<main class="login"><h1>Something went wrong</h1><div class="note red">' +
+    String(msg).replace(/[<>&]/g, '') + (line ? ' (line ' + line + ')' : '') +
+    '</div><p>Send a screenshot of this to whoever set up the app.</p></main>';
+};
+</script>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
-  (function () {
-    var frame = document.getElementById('app'), splash = document.getElementById('splash');
-    if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(APP_URL)) {
-      document.getElementById('msg').innerHTML =
-        'The web app link has not been added yet.<br>Open index.html and paste your /exec link into APP_URL.';
+(function () {   // private scope: nothing here can clash with Google's own page code
+"use strict";
+/* ============================================================
+   API bridge. Runs against Apps Script when deployed; falls back
+   to sample data from the Sep 21-27, 2026 tab when opened locally.
+   ============================================================ */
+// Two ways to run: served by Apps Script (google.script.run), or hosted elsewhere (e.g. GitHub Pages)
+// talking to the Apps Script API link set in window.API_URL. The second never sends Google sign-ins.
+const API_URL = /^https:/.test(String(window.API_URL || '')) && /\/exec$/.test(window.API_URL) ? window.API_URL : '';
+const GAS = !!(window.google && google.script && google.script.run);
+const LIVE = GAS || !!API_URL;
+function call(fn, ...args){
+  if (!GAS && API_URL) {
+    return fetch(API_URL, {
+      method: 'POST', credentials: 'omit', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // keeps it a simple request
+      body: JSON.stringify({ fn, args })
+    }).then(r => r.json()).catch(() => { throw new Error('Could not reach the server. Check your connection and try again.'); })
+      .then(o => { if (!o.ok) throw new Error(o.error); return o.result; });
+  }
+  return new Promise((res, rej) => {
+    if (!LIVE) {
+      setTimeout(() => { try { res(MOCK[fn](...args)); } catch(e){ rej(e); } }, 200);
       return;
     }
-    document.getElementById('direct').href = APP_URL;
-    frame.onload = function () { frame.classList.remove('hide'); splash.classList.add('hide'); };
-    frame.src = APP_URL;
-    setTimeout(function () { document.getElementById('help').style.display = 'block'; }, 12000);
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
-  })();
+    google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args);
+  });
+}
+
+const S = { token:null, me:null, types:[], today:null, view:'home', monday:null, dayIdx:0, adminTab:'pending', cache:{} };
+const $ = (s, el=document) => el.querySelector(s);
+const canManage = () => S.me && (S.me.role === 'Admin' || S.me.role === 'Manager');   // same rights
+const hasOil = () => S.me && S.me.role !== 'Admin';                                       // admin: no off days
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function pd(s){ const p = String(s).slice(0,10).split('-').map(Number); return new Date(p[0], p[1]-1, p[2], 12); }
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function addD(s, n){ const d = pd(s); d.setDate(d.getDate()+n); return ymd(d); }
+function mondayOf(s){ const d = pd(s); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return ymd(d); }
+function dowIdx(s){ return (pd(s).getDay()+6)%7; }
+function nice(s){ const d = pd(s); return DOW[dowIdx(s)]+' '+d.getDate()+' '+MON[d.getMonth()]; }
+function span(a, b){ return a === b || !b ? nice(a) : nice(a)+' to '+nice(b); }
+function nDays(a, b){ return Math.round((pd(b) - pd(a)) / 864e5) + 1; }
+
+function setStaff(list){
+  S.staff = list;
+  S.pats = [];
+  list.forEach(p => [p.name].concat(p.aliases || []).forEach(a => {
+    const c = String(a).toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+    if (c) S.pats.push({ re: new RegExp('(^| )' + c + '(?= |$)', 'g'), len: c.length, name: p.name });
+  }));
+  S.pats.sort((a, b) => b.len - a.len);
+}
+function namesIn(text){
+  let t = String(text || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+  const found = [];
+  if (!t) return found;
+  S.pats.forEach(p => { p.re.lastIndex = 0; if (p.re.test(t)) { if (!found.includes(p.name)) found.push(p.name); p.re.lastIndex = 0; t = t.replace(p.re, '$1_'); } });
+  return found;
+}
+
+let toastT;
+function toast(msg, err){
+  const t = $('#toast'); t.textContent = msg; t.className = 'on' + (err ? ' err' : '');
+  clearTimeout(toastT); toastT = setTimeout(() => t.className = '', 3200);
+}
+function fail(e){
+  const m = (e && e.message) || String(e);
+  if (m.indexOf('SESSION_EXPIRED') >= 0) { S.token = null; saveToken(''); toast('Your session ended. Sign in again.', true); return renderLogin(); }
+  toast(m.replace(/^Error:\s*/, ''), true);
+}
+function busy(btn, on){ if (btn) { btn.disabled = on; } }
+
+/* ============================================================
+   Sign in
+   ============================================================ */
+async function boot(){
+  if (!LIVE && !(SNAP.staff && SNAP.staff.length) && 'API_URL' in window) {
+    $('#app').innerHTML = `<main class="login"><h1>Range Deployment Portal</h1>
+      <div class="note blue">The app link has not been added yet. Open <b>index.html</b>, paste your web app link (ending in /exec) into the <b>API_URL</b> line near the top, and save.</div></main>`;
+    return;
+  }
+  if (!LIVE && !(SNAP.staff && SNAP.staff.length)) {
+    $('#app').innerHTML = `<main class="login"><h1>Range Deployment Portal</h1>
+      <div class="note blue">This is the live app file. It only works once it's pasted into Google Apps Script and deployed, and then it shows your real staff and deployment from the Google Sheet.</div>
+      <p>To look around on this computer, open <b>Preview.html</b> instead. It has a snapshot of your workbook.</p></main>`;
+    return;
+  }
+  $('#app').innerHTML = '<div class="loading">Loading\u2026</div>';
+  let saved = '';
+  try { saved = API_URL ? (localStorage.getItem('rdp_token') || '') : ''; } catch(e) {}
+  if (saved) {
+    try { return signedIn(await call('resume', saved)); } catch(e) { saveToken(''); }
+  }
+  try {
+    const info = await call('getLoginInfo');
+    S.loginInfo = info;
+    if (info.auto) return signedIn(info.auto);
+    renderLogin();
+  } catch(e){
+    const m = String((e && e.message) || e).replace(/[<>&]/g, '');
+    $('#app').innerHTML = `<main class="login"><h1>Range Deployment Portal</h1>
+      <div class="note red"><b>The app couldn't load.</b><br>${m}</div>
+      <p class="small muted">If you are signed in to more than one Google account in this browser, open the link in an Incognito / Private window and try again.</p>
+      <button class="btn" onclick="boot()">Try again</button></main>`;
+  }
+}
+
+function renderLogin(){
+  let last = '';
+  try { last = localStorage.getItem('rdp_name') || ''; } catch(e) {}
+  $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview using a snapshot of your workbook (Aug 2026 to Mar 2027). Nothing here is saved.</div>') + `
+  <main class="login">
+    <h1>Range Deployment Portal</h1>
+    <p class="muted">Ammo officers and medics: see your postings, check your off days, and apply for leave.</p>
+    <div class="sec">
+      <label class="f"><span>Your name</span>
+        <input id="lg-name" type="text" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="As on the roster, e.g. LEONARD" value="${esc(last)}"></label>
+      <label class="f"><span>PIN</span>
+        <input id="lg-pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" placeholder="4 to 6 digits"></label>
+      <p class="small muted">New here? Ask your admin for your first PIN. After 5 wrong PINs the account is locked until an admin unlocks it.</p>
+      <button class="btn block" id="lg-go">Sign in</button>
+    </div>
+  </main>`;
+  const go = async () => {
+    const b = $('#lg-go'); busy(b, true);
+    const name = $('#lg-name').value.trim();
+    try {
+      const r = await call('login', name, $('#lg-pin').value);
+      try { localStorage.setItem('rdp_name', name.toUpperCase()); } catch(e) {}
+      if (r.mustChange) return firstPin(r);
+      signedIn(r);
+    } catch(e){ fail(e); busy(b, false); }
+  };
+  $('#lg-go').onclick = go;
+  $('#lg-pin').onkeydown = e => { if (e.key === 'Enter') go(); };
+  (last ? $('#lg-pin') : $('#lg-name')).focus();
+}
+
+/* First sign-in with a PIN from the admin: choose your own */
+function firstPin(r){
+  $('#app').innerHTML = `<main class="login">
+    <h1>Choose your own PIN</h1>
+    <p class="muted">Hi ${esc(r.me.name)}. You signed in with a PIN from your admin. Pick your own 4 to 6 digit PIN; only you will know it.</p>
+    <div class="sec">
+      <label class="f"><span>PIN from your admin</span><input id="fp-c" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></label>
+      <label class="f"><span>New PIN</span><input id="fp-n" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></label>
+      <label class="f"><span>New PIN again</span><input id="fp-n2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></label>
+      <button class="btn block" id="fp-go">Save my PIN</button>
+    </div></main>`;
+  S.token = r.token;
+  $('#fp-go').onclick = async e => {
+    if ($('#fp-n').value !== $('#fp-n2').value) return toast('The two new PINs are different.', true);
+    busy(e.target, true);
+    try { await call('changeMyPin', r.token, $('#fp-c').value, $('#fp-n').value); toast('PIN saved'); signedIn(r); }
+    catch(x){ fail(x); busy(e.target, false); }
+  };
+  $('#fp-c').focus();
+}
+
+/* Change PIN any time, from the header */
+function changePin(){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Change PIN</h3>
+    <label class="f"><span>Current PIN</span><input id="cp-c" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></label>
+    <label class="f"><span>New PIN</span><input id="cp-n" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></label>
+    <label class="f"><span>New PIN again</span><input id="cp-n2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></label>
+    <div class="acts"><button class="btn ghost" id="cp-x">Cancel</button><button class="btn" id="cp-go">Save</button></div></div>`;
+  document.body.appendChild(bg);
+  $('#cp-x', bg).onclick = () => bg.remove();
+  $('#cp-go', bg).onclick = async e => {
+    if ($('#cp-n', bg).value !== $('#cp-n2', bg).value) return toast('The two new PINs are different.', true);
+    busy(e.target, true);
+    try { await call('changeMyPin', S.token, $('#cp-c', bg).value, $('#cp-n', bg).value); bg.remove(); toast('PIN changed'); }
+    catch(x){ fail(x); busy(e.target, false); }
+  };
+  $('#cp-c', bg).focus();
+}
+
+const saveToken = t => { try { t ? localStorage.setItem('rdp_token', t) : localStorage.removeItem('rdp_token'); } catch(e) {} };
+function signedIn(r){
+  saveToken(r.token);
+  Object.assign(S, { token:r.token, me:r.me, types:r.types, today:r.today, edit:false });
+  setStaff(r.staff || []);
+  S.monday = mondayOf(r.today); S.dayIdx = dowIdx(r.today);
+  renderShell(); go(S.me.role === 'Admin' ? 'board' : 'home');
+}
+
+/* ============================================================
+   Shell + navigation
+   ============================================================ */
+function renderShell(){
+  // The Admin account only plans and manages: no personal tabs
+  const tabs = S.me.role === 'Admin' ? [['board','Deployment Plan']]
+    : [['home','My Deploy'],['board','Deployment Plan'],['oil','My OIL'],['apply','Apply'],['requests','Requests']];
+  if (canManage()) tabs.push(['admin','Admin']);
+  $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
+  <header class="top"><div class="top-in">
+    <div class="brand">Range Deployment</div>
+    <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
+  </div></header>
+  <nav class="tabs" aria-label="Sections"><div class="in">
+    ${tabs.map(([k,l]) => `<button data-v="${k}">${l}${k==='admin' ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
+  </div></nav>
+  <main id="view"></main>`;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => go(b.dataset.v));
+  $('#out').onclick = () => { S.token = null; saveToken(''); renderLogin(); };
+  $('#pinbtn').onclick = changePin;
+}
+
+function go(v){
+  S.view = v;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.v === v ? 'page' : 'false'));
+  window.scrollTo(0, 0);
+  return ({ home:viewHome, board:viewBoard, oil:viewMyOil, apply:viewApply, requests:viewRequests, admin:viewAdmin })[v]();
+}
+const V = () => $('#view');
+const loading = () => V().innerHTML = '<div class="loading">Loading\u2026</div>';
+
+/* ============================================================
+   My days
+   ============================================================ */
+async function viewHome(){
+  loading();
+  S.mcache = {};                                        // re-read the month view from the sheet too
+  try {
+    const h = await call('getHome', S.token);
+    const b = h.balances;
+    let lib = '';
+    if (h.lib) {
+      const left = nDays(S.today, h.lib) - 1;
+      if (left < 0) lib = `<div class="note red">Your LIB expired on ${nice(h.lib)}. Book your LIB test with your admin.</div>`;
+      else if (left <= 45) lib = `<div class="note">Your LIB expires on ${nice(h.lib)}, in ${left} day${left===1?'':'s'}.</div>`;
+    }
+    V().innerHTML = `
+      <h2>Hi ${esc(h.me.name)}</h2>
+      ${h.attendance ? clockCard(h.attendance) : ''}
+      <div class="strip" style="${hasOil() ? '' : 'grid-template-columns:1fr'}">
+        ${hasOil() ? `<div><b>${fmtN(b.oilAvailable)}</b><span>Off days left${b.oilReserved ? ' (+'+fmtN(b.oilReserved)+' on hold)' : ''}</span></div>` : ''}
+        <div><b>${b.pending}</b><span>Waiting for approval</span></div>
+      </div>
+      ${lib}
+      <h3>My schedule</h3>
+      <div class="sub" role="group" aria-label="Period">
+        <button class="chip" data-m="14" aria-pressed="${S.hmode !== 'month'}">Next 14 days</button>
+        <button class="chip" data-m="month" aria-pressed="${S.hmode === 'month'}">Full schedule by month</button></div>
+      <div id="sched"></div>`;
+    S.next14 = h.upcoming;
+    wireClock();
+    document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
+      S.hmode = b.dataset.m;
+      document.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b));
+      drawSched();
+    });
+    drawSched();
+    if (canManage()) refreshPendingDot();
+  } catch(e){ fail(e); }
+}
+/* ---------- clock-in card on My Deploy ---------- */
+function clockCard(a){
+  const d = pd(a.date);
+  const when = DOW[dowIdx(a.date)] + ' ' + d.getDate() + ' ' + MON[d.getMonth()];
+  if (a.clockIn) return `<div class="clock ${a.late ? 'late' : 'ok'}"><b>Clocked in at ${esc(a.clockIn)}</b>
+    <span>${when}${a.late ? ', after ' + esc(a.lateAfter) + ' (late)' : ''}</span></div>`;
+  if (a.status && a.status !== 'Present' && a.status !== 'Present (Late)')
+    return `<div class="clock away"><b>Marked ${esc(a.status)} today</b><span>${when}. Set by your admin.</span></div>`;
+  return `<div class="clock todo">
+    ${a.leave ? `<div class="small" style="margin-bottom:8px">The plan shows you on <b>${esc(a.leave.cat)}</b> today (${esc(a.leave.text)}). Only clock in if you are at work.</div>` : ''}
+    <button class="btn block" id="clk">Clock in for ${when}</button>
+    <span class="small muted" style="display:block;margin-top:6px">Late after ${esc(a.lateAfter)}</span></div>`;
+}
+function wireClock(){
+  const b = $('#clk'); if (!b) return;
+  b.onclick = async () => {
+    busy(b, true);
+    try {
+      const a = await call('clockIn', S.token);
+      b.closest('.clock').outerHTML = clockCard(a);
+      toast('Clocked in at ' + a.clockIn + (a.late ? ' (late)' : ''), a.late);
+    } catch(e){ fail(e); busy(b, false); }
+  };
+}
+
+const isDep = d => d.items.some(i => i.kind === 'range' || i.kind === 'duty' || i.kind === 'medic');
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+async function drawSched(){
+  const box = $('#sched'); if (!box) return;
+  const legend = `<div class="legend"><i></i>Green days are days you're deployed</div>`;
+  if (S.hmode !== 'month') {
+    box.innerHTML = legend + `<div class="days">${S.next14.map(dayRow).join('')}</div>`;
+    return;
+  }
+  if (!S.month) S.month = S.today.slice(0, 7);
+  const key = S.month;
+  const [y, m] = key.split('-').map(Number);
+  const first = key + '-01';
+  const last = ymd(new Date(y, m, 0, 12));
+  S.mcache = S.mcache || {};
+  const bar = `<div class="monbar"><button class="btn ghost" id="mp">Prev</button><b>${MONL[m-1]} ${y}</b><button class="btn ghost" id="mn">Next</button></div>
+    <label class="toggle"><input type="checkbox" id="onlydep" ${S.onlyDep ? 'checked' : ''}>Show only days I'm deployed</label>`;
+  const wire = () => {
+    $('#mp').onclick = () => { S.month = ymd(new Date(y, m-2, 1, 12)).slice(0, 7); drawSched(); };
+    $('#mn').onclick = () => { S.month = ymd(new Date(y, m, 1, 12)).slice(0, 7); drawSched(); };
+    $('#onlydep').onchange = e => { S.onlyDep = e.target.checked; drawSched(); };
+  };
+  box.innerHTML = bar + '<div class="loading">Loading the month\u2026</div>';
+  wire();
+  try {
+    const days = S.mcache[key] || await call('getMySchedule', S.token, first, last);
+    S.mcache[key] = days;
+    if (S.month !== key || S.hmode !== 'month' || $('#sched') !== box) return;
+    const dep = days.filter(isDep).length;
+    const shown = S.onlyDep ? days.filter(isDep) : days;
+    const noTabs = days.every(d => d.noTab);
+    box.innerHTML = bar + legend +
+      `<p class="small muted">${noTabs ? 'No weekly tabs exist for this month yet.' : `Deployed on ${dep} day${dep === 1 ? '' : 's'} this month.`}</p>` +
+      (shown.length ? `<div class="days">${shown.map(dayRow).join('')}</div>` : `<div class="sec"><p>No deployed days this month.</p></div>`);
+    wire();
+  } catch(e){ fail(e); }
+}
+const wdate = w => esc(String(w).replace(/^(\d{4}-\d{2}-\d{2})/, m => nice(m)));
+const fmtN = n => (n == null ? '\u2013' : (Math.round(n*2)/2).toString());
+const KLABEL = { range:'Range', duty:'Duty', medic:'Medic', away:'Away', pending:'Request' };
+function dayRow(d){
+  const dt = pd(d.date);
+  const items = d.items.length
+    ? d.items.map(i => `<div class="it"><span class="k ${i.kind}">${KLABEL[i.kind]}</span><strong>${esc(i.what)}</strong>${i.detail ? `<span class="x">${esc(i.detail)}</span>` : ''}</div>`).join('')
+    : `<div class="free">${d.noTab ? 'No weekly tab yet' : 'No posting'}</div>`;
+  return `<div class="day${d.date === S.today ? ' today' : ''}${isDep(d) ? ' dep' : ''}"><div class="d"><b>${dt.getDate()}</b><span>${DOW[dowIdx(d.date)]}</span>${d.date === S.today ? '<i class="tdy">Today</i>' : ''}</div>
+    <div class="e">${d.title && /\(/.test(d.title) ? `<div class="small muted">${esc(d.title.replace(/^\w+\s*/, ''))}</div>` : ''}${items}</div></div>`;
+}
+
+/* ============================================================
+   Board (weekly roster)
+   ============================================================ */
+async function viewBoard(){
+  loading();
+  try {
+    const key = S.monday;
+    const wk = await call('getWeek', S.token, key);    // always read fresh from the sheet
+    S.cache[key] = wk;
+    drawBoard(wk);
+  } catch(e){ fail(e); }
+}
+function moveWeek(n){ S.monday = addD(S.monday, 7*n); viewBoard(); }
+function drawBoard(wk){
+  const end = addD(wk.monday, 6);
+  const admin = canManage();
+  const head = `<div class="wkbar">
+      <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
+      <h2>${pd(wk.monday).getDate()} ${MON[pd(wk.monday).getMonth()]} to ${pd(end).getDate()} ${MON[pd(end).getMonth()]}</h2>
+      <button class="btn ghost" id="wn" aria-label="Next week">Next</button></div>
+      <div style="text-align:right;margin:-4px 0 10px"><button class="btn ghost" id="wr" style="min-height:34px;padding:4px 12px;font-size:14px">Refresh from sheet</button></div>`;
+  if (!wk.days.length) {
+    V().innerHTML = head + `<div class="note blue">There's no weekly tab for this week yet. Once the tab is added to the workbook, it shows up here.</div>`;
+  } else {
+    const d = wk.days[S.dayIdx];
+    const me = S.me.name;
+    const ed = admin && S.edit;
+    const sel = wk.days.map((x, i) => {
+      const n = x.ranges.filter(r => r.active).length;
+      const medep = x.ranges.some(r => r.people.includes(me)) || x.duties.some(y => y.mainPeople.concat(y.sparePeople).includes(me)) || x.medics.some(y => y.people.includes(me));
+      const nc = clashesOn(x).length;
+      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${medep ? 'medep' : ''}${nc ? ' hasclash' : ''}" ${nc ? `title="${nc} to cover"` : ''}><span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
+    }).join('');
+    const away = awayOn(d);
+    const dayClash = clashesOn(d);
+    const whyLine = names => names.filter(n => away[n]).map(n => `<div class="why">\u26A0 ${esc(away[n].join(', '))}</div>`).join('');
+    const ranges = d.ranges.map(r => {
+      const slot = `data-slot="range|${esc(r.range)}"`;
+      if (!r.active) return `<div class="rg idle" ${slot}><div class="code">${esc(r.range)}</div><div class="body">Not in use</div></div>`;
+      const mine = r.people.indexOf(me) >= 0;
+      const meta = [['TF', r.tf], ['Unit', r.unit], ['', r.dur], ['', r.rmk]].filter(m => m[1])
+        .map(m => `<span>${m[0] ? m[0]+' ' : ''}<b>${esc(m[1])}</b></span>`).join('');
+      const bad = r.people.some(n => away[n]);
+      return `<div class="rg${bad ? ' clash' : mine ? ' mine' : ''}" ${slot}><div class="code">${esc(r.range)}</div><div class="body">
+        <div class="ppl">${esc(r.emp || 'No APO')}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
+        ${whyLine(r.people)}<div class="meta">${meta}</div></div></div>`;
+    }).join('');
+    const duties = d.duties.filter(x => ed || x.main || x.spare);
+    const medics = d.medics.filter(x => ed || x.who);
+    const freeE = freeOn(d, 'APO'), freeM = freeOn(d, 'Medic'), freeMg = freeOn(d, 'Manager'), freeBk = freeOn(d, 'Backup Medic');
+    const undepRow = `<tr class="undep"><td>Undeployed</td><td colspan="2">
+        <div><b>APO</b> - ${freeE.length ? esc(freeE.join(', ')) : '<span class="muted">none</span>'}</div>
+        <div><b>Medics</b> - ${freeM.length ? esc(freeM.join(', ')) : '<span class="muted">none</span>'}</div>
+        <div><b>Managers</b> (reserve) - ${freeMg.length ? esc(freeMg.join(', ')) : '<span class="muted">none</span>'}</div>
+        <div><b>Backup medics</b> - ${freeBk.length ? esc(freeBk.join(', ')) : '<span class="muted">none</span>'}</div></td></tr>`;
+    const dutyT = `<h3>Duties</h3><div class="scroll"><table class="t"><tr><th>Duty</th><th>Main</th><th>Spare</th></tr>
+      ${duties.map(x => { const ppl = x.mainPeople.concat(x.sparePeople), bad = ppl.some(n => away[n]);
+        return `<tr data-slot="duty|${esc(x.duty)}" class="${bad ? 'clash' : ppl.indexOf(me)>=0 ? 'mine' : ''}"><td>${esc(x.duty)}</td><td>${esc(x.main)}${whyLine(x.mainPeople)}</td><td>${esc(x.spare)}${whyLine(x.sparePeople)}</td></tr>`; }).join('')}
+      ${undepRow}</table></div>`;
+    const medicT = medics.length ? `<h3>Medics</h3><div class="scroll"><table class="t"><tr><th>Role</th><th>Name</th><th>At</th></tr>
+      ${medics.map(x => { const bad = x.people.some(n => away[n]);
+        return `<tr data-slot="medic|${esc(x.role)}" class="${bad ? 'clash' : x.people.indexOf(me)>=0 ? 'mine' : ''}"><td>${esc(x.role)}</td><td>${esc(x.who)}${whyLine(x.people)}</td><td>${esc(x.loc)}</td></tr>`; }).join('')}</table></div>` : '';
+    const awayT = d.absences.length ? `<h3>Away and notes</h3><div class="scroll"><table class="t">
+      ${d.absences.map(x => `<tr class="${x.people.indexOf(me)>=0?'mine':''}"><th style="width:34%">${esc(x.label)}</th><td>${esc(x.text)}</td></tr>`).join('')}</table></div>` : '';
+    const editbar = admin ? `<div class="editbar">
+        <span class="small muted">${ed ? 'Tap a range, duty or medic row to change who is posted. Undeployed staff are listed under Duties.' : ''}</span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="wa">WhatsApp message</button>${ed ? '<button class="btn no" id="abs">Someone absent</button>' : ''}
+        <button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit deployment'}</button></span></div>` : '';
+    V().innerHTML = head + `<div class="dsel">${sel}</div>
+      <p class="daytitle">${nice(d.date)}${d.title && /\(/.test(d.title) ? ' ' + esc(d.title.replace(/^\w+\s*/, '')) : ''}</p>
+      ${dayClash.length ? `<div class="note red"><b>${dayClash.length} posting${dayClash.length === 1 ? '' : 's'} to cover</b> (deployed but away):
+        <ul style="margin:4px 0 0;padding-left:18px">${dayClash.map(c => `<li><b>${esc(c.where)}</b>: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>
+        ${admin ? '<div class="small" style="margin-top:6px">Tap <b>Edit deployment</b>, then the red range or row, to put someone else in.</div>' : ''}</div>` : ''}
+      ${editbar}
+      <div class="${ed ? 'edit-on' : ''}"><div class="boardlist">${ranges}</div>${dutyT}${medicT}</div>${awayT}`;
+    document.querySelectorAll('.dsel button').forEach(b => b.onclick = () => { S.dayIdx = +b.dataset.i; drawBoard(wk); });
+    if ($('#edt')) $('#edt').onclick = () => { S.edit = !S.edit; drawBoard(wk); };
+    if ($('#abs')) $('#abs').onclick = () => openAbsent({ day:d, onDone: w => drawBoard(w) });
+    if ($('#wa')) $('#wa').onclick = () => openWhatsApp(d);
+    if (ed) document.querySelectorAll('.edit-on [data-slot]').forEach(el => el.onclick = () => {
+      const [kind, label] = el.dataset.slot.split('|');
+      openSlotEditor(wk, d, kind, label);
+    });
+  }
+  $('#wr').onclick = () => viewBoard();
+  $('#wp').onclick = () => moveWeek(-1);
+  $('#wn').onclick = () => moveWeek(1);
+}
+
+/* Staff not posted and not listed as away on a given day */
+function busyOn(day){
+  const b = new Set();
+  day.ranges.forEach(r => r.people.forEach(n => b.add(n)));
+  day.duties.forEach(x => x.mainPeople.concat(x.sparePeople).forEach(n => b.add(n)));
+  day.medics.forEach(m => m.people.forEach(n => b.add(n)));
+  day.absences.forEach(a => a.people.forEach(n => b.add(n)));
+  return b;
+}
+/* Grouped name list for replacement drop-downs. Managers are always offered as the reserve. */
+function pickerOptions(day, pool, exclude){
+  exclude = exclude || [];
+  const busy = busyOn(day);
+  const by = role => (S.staff || []).filter(p => p.role === role && !exclude.includes(p.name)).map(p => p.name).sort();
+  const grp = (label, names, mark) => names.length ? `<optgroup label="${label}">${names.map(n =>
+    `<option value="${esc(n)}">${esc(n)}${mark && busy.has(n) ? ' (posted or away)' : ''}</option>`).join('')}</optgroup>` : '';
+  const mg = by('Manager');
+  if (pool === 'Medic') {
+    const m = by('Medic'), bk = by('Backup Medic');
+    return grp('Undeployed medics', m.filter(n => !busy.has(n))) + grp('Backup medics', bk, true) + grp('Medics posted or away', m.filter(n => busy.has(n)));
+  }
+  const a = by('APO');
+  return grp('Undeployed APO', a.filter(n => !busy.has(n))) + grp('Managers (reserve)', mg, true) + grp('APO posted or away', a.filter(n => busy.has(n)));
+}
+/* Names allowed in a slot: APO slots take APOs (and managers as reserve); medic slots take medics only */
+function namesFor(pool){
+  const ok = pool === 'Medic' ? ['Medic', 'Backup Medic'] : ['APO', 'Manager'];
+  return (S.staff || []).filter(p => ok.includes(p.role)).map(p => p.name).sort();
+}
+/* Who is away on a day, from the leave rows (AL, MC, OIL, UL, Course\u2026). "Off Day Earned" is not an absence. */
+const NOT_AWAY = ['OFFDAYEARNED'];
+function awayOn(day){
+  const m = {};
+  day.absences.forEach(a => {
+    if (NOT_AWAY.includes(a.label.toUpperCase().replace(/\s+/g, ''))) return;
+    a.people.forEach(n => {
+      const part = a.text.split(/\s*,\s*/).filter(x => namesIn(x).includes(n)).join(', ') || a.text;
+      (m[n] = m[n] || []).push(part);
+    });
+  });
+  return m;
+}
+/* Postings on that day whose person is also away */
+function clashesOn(day){
+  const away = awayOn(day), out = [];
+  const chk = (names, where) => names.forEach(n => { if (away[n]) out.push({ name:n, where, why:away[n].join(', ') }); });
+  day.ranges.forEach(r => chk(r.people, r.range));
+  day.duties.forEach(x => { chk(x.mainPeople, x.duty + ' main'); chk(x.sparePeople, x.duty + ' spare'); });
+  day.medics.forEach(m => chk(m.people, m.role));
+  return out;
+}
+function freeOn(day, role){
+  const b = busyOn(day);
+  return (S.staff || []).filter(p => p.role === role && !b.has(p.name)).map(p => p.name);
+}
+function clashes(day, text, kind, label, field){
+  const out = [];
+  namesIn(text).forEach(n => {
+    day.ranges.forEach(r => { if (r.people.includes(n) && !(kind === 'range' && label === r.range)) out.push(`${n} is also on ${r.range}`); });
+    day.duties.forEach(x => {
+      if (x.mainPeople.includes(n) && !(kind === 'duty' && label === x.duty && field === 'main')) out.push(`${n} is also ${x.duty} main`);
+      if (x.sparePeople.includes(n) && !(kind === 'duty' && label === x.duty && field === 'spare')) out.push(`${n} is also ${x.duty} spare`);
+    });
+    day.medics.forEach(m => { if (m.people.includes(n) && !(kind === 'medic' && label === m.role)) out.push(`${n} is also ${m.role}`); });
+    day.absences.forEach(a => { if (a.people.includes(n)) out.push(`${n} is under ${a.label}: ${a.text}`); });
+  });
+  return [...new Set(out)];
+}
+
+/* Bottom-sheet editor for one slot */
+function openSlotEditor(wk, day, kind, label){
+  let fields, src = '', pool;
+  if (kind === 'range') {
+    const r = day.ranges.find(x => x.range === label);
+    fields = [['emp', 'APO', r.emp], ['rmk', 'Remark (WD, AM, PM, M, CXL)', r.rmk]];
+    src = [r.sup && 'Officer ' + r.sup, r.tf && 'TF ' + r.tf, r.unit && 'Unit ' + r.unit].filter(Boolean).join('  |  ');
+    src = src ? src + '<br>Officer, TF and unit come from Initial Recce and stay as they are.' : 'No officer booked from Initial Recce for this range yet.';
+    pool = 'APO';
+  } else if (kind === 'duty') {
+    const x = day.duties.find(y => y.duty === label);
+    fields = [['main', 'Main', x.main], ['spare', 'Spare', x.spare]];
+    pool = 'APO';
+  } else {
+    const m = day.medics.find(y => y.role === label);
+    fields = [['name', 'Name', m.who], ['loc', 'Location', m.loc]];
+    pool = 'Medic';
+  }
+  const who = fields[0][0];
+  const free = freeOn(day, pool);
+  const freeMg = freeOn(day, pool === 'Medic' ? 'Backup Medic' : 'Manager');   // the reserve for this kind of slot
+  const names = namesFor(pool);
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-t">
+    <h3 id="ed-t">${esc(label)}, ${nice(day.date)}</h3>
+    <div class="src">${src}</div>
+    ${fields.map(([k, l, v]) => `<label class="f"><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${k === who ? 'list="ed-names"' : ''} autocomplete="off"></label>` +
+      (k === who ? `<label class="f" style="margin-top:-6px"><span class="small muted" style="font-weight:600">Or choose from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '')).join('')}
+    <datalist id="ed-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <div id="ed-warn"></div>
+    ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to fill in:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+    ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup medics' : 'Managers (reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+    <p class="small muted" style="margin-top:10px">Combos like "ONG / JAMES" are fine. Leave blank to clear the slot.</p>
+    ${namesIn(fields[0][2]).length ? `<button class="btn ghost block" id="ed-abs" style="margin-top:12px">Absent today (MC or urgent leave)? Mark and replace</button>` : ''}
+    <div class="acts"><button class="btn ghost" id="ed-x">Cancel</button>${fields[0][2] ? '<button class="btn no" id="ed-un">Undeploy</button>' : ''}<button class="btn" id="ed-ok">Save</button></div></div>`;
+  document.body.appendChild(bg);
+  const inp = $('#ed-' + who, bg);
+  const warn = () => {
+    const w = clashes(day, inp.value, kind, label, who);
+    $('#ed-warn', bg).innerHTML = w.length ? `<div class="note red"><b>Check this:</b><ul style="margin:4px 0 0;padding-left:18px">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+  };
+  inp.oninput = warn; warn();
+  $('#ed-pick', bg).onchange = e => { if (e.target.value) { inp.value = e.target.value; e.target.value = ''; warn(); } };
+  bg.querySelectorAll('[data-n]').forEach(c => c.onclick = () => { inp.value = c.dataset.n; warn(); });
+  const close = () => bg.remove();
+  $('#ed-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  if ($('#ed-abs', bg)) $('#ed-abs', bg).onclick = () => {
+    close();
+    openAbsent({ day, candidates: namesIn(fields[0][2]), onDone: w => drawBoard(w) });
+  };
+  if ($('#ed-un', bg)) $('#ed-un', bg).onclick = () => {
+    if (!confirm('Take ' + fields[0][2] + ' off ' + label + ' on ' + nice(day.date) + '?')) return;
+    inp.value = '';
+    $('#ed-ok', bg).click();
+  };
+  $('#ed-ok', bg).onclick = async e => {
+    busy(e.target, true);
+    let week = wk, warnings = [];
+    try {
+      for (const [k, , v] of fields) {
+        const nv = $('#ed-' + k, bg).value.trim().toUpperCase();
+        if (nv === String(v || '').toUpperCase()) continue;
+        const res = await call('adminSetSlot', S.token, day.date, { kind, label, field:k }, nv);
+        week = res.week; warnings = warnings.concat(res.warnings || []);
+      }
+      S.cache[week.monday] = week;
+      close();
+      drawBoard(week);
+      toast(warnings.length ? 'Saved. ' + warnings.join('. ') : (inp.value ? 'Saved to ' : 'Undeployed. Updated ') + (week.sheet || 'the weekly tab'), !!warnings.length);
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+  inp.focus();
+}
+
+/* ---------- WhatsApp daily message ---------- */
+function waText(day){
+  const L = [], b = t => '*' + t + '*';
+  const dt = pd(day.date);
+  const note = day.title && /\(/.test(day.title) ? ' ' + day.title.replace(/^\w+\s*/, '') : '';
+  L.push(b('DEPLOYMENT - ' + ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][dowIdx(day.date)].toUpperCase() + ', ' + dt.getDate() + ' ' + MONL[dt.getMonth()].toUpperCase() + ' ' + dt.getFullYear()) + note);
+  const rs = day.ranges.filter(r => r.active);
+  L.push('', b('RANGES'));
+  if (!rs.length) L.push('No ranges in use');
+  rs.forEach((r, i) => {
+    if (i) L.push('');                                    // blank line between ranges
+    L.push(b(r.range) + ' - ' + (r.emp ? b(r.emp) : 'No APO') + (r.sup ? ' (with ' + r.sup + ')' : ''));
+    const dur = r.dur && r.dur !== r.tf ? r.dur : '';   // the sheet sometimes repeats the TF here
+    const d = [r.tf, r.unit, [dur, r.rmk].filter(Boolean).join(' ')].filter(Boolean).join(' | ');
+    if (d) L.push('    ' + d);
+  });
+  const du = day.duties.filter(x => x.main || x.spare);
+  if (du.length) {
+    L.push('', b('DUTIES'));
+    du.forEach(x => L.push(x.duty + ' - ' + (x.main || '-') + (x.spare ? ' (Spare: ' + x.spare + ')' : '')));
+  }
+  const medics = (S.staff || []).filter(p => p.role === 'Medic' || p.role === 'Backup Medic').map(p => p.name);
+  const aw = day.absences.filter(a => !NOT_AWAY.includes(a.label.toUpperCase().replace(/\s+/g, '')))
+    .map(a => ({ label:a.label, text:a.text.split(/\s*,\s*/).filter(x => !namesIn(x).some(n => medics.includes(n))).join(', ') }))
+    .filter(a => a.text);
+  if (aw.length) {
+    L.push('', b('AWAY'));
+    aw.forEach(a => L.push(a.label + ' - ' + a.text));
+  }
+  return L.join('\n');
+}
+function openWhatsApp(day){
+  const cl = clashesOn(day).filter(c => !day.medics.some(m => m.role === c.where));
+  openWaSheet('WhatsApp message', nice(day.date) + '. Taken from the Deployment Plan; you can edit it before sending.',
+    cl.length ? `<div class="note red"><b>Not covered yet:</b><ul style="margin:4px 0 0;padding-left:18px">${cl.map(c => `<li>${esc(c.where)}: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>Fix these first if you can, then reopen this.</div>` : '',
+    waText(day));
+}
+function openWaSheet(title, sub, warnHtml, text){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
+    <h3>${esc(title)}</h3>
+    <div class="src">${esc(sub)}</div>
+    ${warnHtml || ''}
+    <textarea id="wa-t" style="min-height:320px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace">${esc(text)}</textarea>
+    <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy</button>
+      <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div></div>`;
+  document.body.appendChild(bg);
+  const t = $('#wa-t', bg), link = $('#wa-o', bg);
+  // built without a double slash in quotes: Google's page server mistakes it for a comment
+  const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
+  const setLink = () => link.href = WA + encodeURIComponent(t.value);
+  t.oninput = setLink; setLink();
+  $('#wa-x', bg).onclick = () => bg.remove();
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  $('#wa-c', bg).onclick = async () => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(t.value); ok = true; } catch(e) {}
+    if (!ok) { t.focus(); t.select(); try { ok = document.execCommand('copy'); } catch(e) {} }
+    toast(ok ? 'Copied. Paste it into your WhatsApp group.' : 'Select the text and copy it manually.', !ok);
+  };
+}
+
+/* ---------- same-day absence: mark away and hand over postings ---------- */
+function postingsOf(day, name){
+  const out = [];
+  day.ranges.forEach(r => { if (r.people.includes(name)) out.push({ slot:{ kind:'range', label:r.range, field:'emp' }, text:r.emp, title:r.range }); });
+  day.duties.forEach(x => {
+    if (x.mainPeople.includes(name)) out.push({ slot:{ kind:'duty', label:x.duty, field:'main' }, text:x.main, title:x.duty + ' main' });
+    if (x.sparePeople.includes(name)) out.push({ slot:{ kind:'duty', label:x.duty, field:'spare' }, text:x.spare, title:x.duty + ' spare' });
+  });
+  day.medics.forEach(m => { if (m.people.includes(name)) out.push({ slot:{ kind:'medic', label:m.role, field:'name' }, text:m.who, title:m.role }); });
+  return out;
+}
+/* Swap one person inside a cell like "CHEW / JAMES", keeping the others */
+function swapName(text, name, repl){
+  const parts = String(text || '').split(/\s*(\/|&|,)\s*/);
+  const out = []; let done = false;
+  for (let i = 0; i < parts.length; i += 2) {
+    const tok = parts[i], sep = i ? parts[i-1] : '';
+    if (!done && namesIn(tok).includes(name)) { done = true; if (repl) out.push([sep, repl.toUpperCase()]); }
+    else if (tok) out.push([sep, tok]);
+  }
+  return out.map((p, i) => (i ? ' ' + (p[0] || '/') + ' ' : '') + p[1]).join('').trim();
+}
+const ABS_TYPES = [['MC','MC'],['UL','Urgent leave'],['CL','Compassionate'],['OTHERS','Other']];
+
+/* o = { day, name?, candidates?, requestId?, reqType?, onDone(week) } */
+function openAbsent(o){
+  const day = o.day;
+  const posted = [...new Set(day.ranges.flatMap(r => r.people).concat(day.duties.flatMap(x => x.mainPeople.concat(x.sparePeople)), day.medics.flatMap(m => m.people)))];
+  const choices = o.name ? [o.name] : (o.candidates && o.candidates.length ? o.candidates : posted);
+  const st = { name: o.name || (choices.length === 1 ? choices[0] : ''), type: o.reqType || 'MC', session:'Full', reps:{} };
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  let lastRep = null;
+  const draw = () => {
+    const posts = st.name ? postingsOf(day, st.name) : [];
+    const person = (S.staff || []).find(p => p.name === st.name);
+    const picked = Object.values(st.reps);
+    const pool = person && (person.role === 'Medic' || person.role === 'Backup Medic') ? 'Medic' : 'APO';
+    const free = freeOn(day, pool).filter(n => !picked.includes(n));
+    const freeMg = freeOn(day, pool === 'Medic' ? 'Backup Medic' : 'Manager').filter(n => !picked.includes(n) && n !== st.name);
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
+      <h3>Absent on ${nice(day.date)}</h3>
+      <div class="src">${o.requestId ? 'Approves their request, writes it into the weekly tab, and hands their postings to someone else.' : 'Records them as away in the weekly tab and hands their postings to someone else in one step.'}</div>
+      <label class="f"><span>Who can't make it</span>${o.name ? `<input type="text" value="${esc(o.name)}" disabled>` :
+        `<select id="ab-n"><option value="">Choose</option>${choices.map(n => `<option ${n===st.name?'selected':''}>${esc(n)}</option>`).join('')}</select>`}</label>
+      ${o.requestId ? '' : `<label class="f"><span>Reason</span></label><div class="chips" style="margin:-8px 0 14px">${ABS_TYPES.map(([k,l]) =>
+        `<button class="chip" data-ty="${k}" aria-pressed="${k===st.type}">${l}</button>`).join('')}</div>
+        <div class="row2"><label class="f"><span>Last day away</span><input type="date" id="ab-e" value="${st.end || day.date}" min="${day.date}"></label>
+        ${(st.end || day.date) === day.date ? `<label class="f"><span>Part of day</span><select id="ab-s">${['Full','AM','PM'].map(x => `<option value="${x}" ${x===st.session?'selected':''}>${x==='Full'?'Full day':x+' only'}</option>`).join('')}</select></label>` : '<span></span>'}</div>
+        <label class="f"><span>Remark (optional)</span><input type="text" id="ab-r" placeholder="e.g. MC 2 days, called in 0630"></label>
+        ${st.end && st.end > day.date ? `<div class="note blue">The ${({ MC:'MC', UL:'UL', CL:'Compassionate Leave', OTHERS:'OTHERS' })[st.type] || 'MC'} row is filled for every day up to ${nice(st.end)}. The hand-over below is for ${nice(day.date)}; do later days from the Deployment Plan.</div>` : ''}`}
+      ${st.name ? (posts.length ? `<label class="f"><span>Hand over their postings</span></label>
+        ${posts.map((p, i) => {
+          const rep = st.reps[i] || '';
+          const nv = swapName(p.text, st.name, rep);
+          const w = rep ? clashes(day, rep, p.slot.kind, p.slot.label, p.slot.field) : [];
+          return `<div class="sec" style="margin:-4px 0 10px;padding:10px 12px">
+            <div style="font:700 18px var(--cond)">${esc(p.title)} <span class="small muted" style="font-family:var(--body);font-weight:400">now ${esc(p.text)}</span></div>
+            <select data-repsel="${i}" style="margin-top:6px"><option value="">${rep ? 'Change: ' + esc(rep) : 'Replace ' + esc(st.name) + ' with\u2026'}</option>${pickerOptions(day, pool, [st.name])}</select>
+            <input type="text" data-rep="${i}" list="ab-names" value="${esc(rep)}" placeholder="or type a name" autocomplete="off" style="margin-top:6px">
+            <div class="small muted" style="margin-top:4px">Cell becomes: <b>${nv ? esc(nv) : 'blank'}</b></div>
+            ${w.length ? `<div class="note red" style="margin:6px 0 0"><ul style="margin:0;padding-left:18px">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>`;
+        }).join('')}
+        <datalist id="ab-names">${namesFor(pool).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+        ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to fill the last box you touched:</p><div class="chips">${free.map(n => `<button class="chip" data-f="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+        ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup medics' : 'Managers (reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-f="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}`
+        : `<div class="note blue">${esc(st.name)} has no posting that day, so nothing needs covering.</div>`) : ''}
+      <div class="acts"><button class="btn ghost" id="ab-x">Cancel</button><button class="btn" id="ab-ok" ${st.name ? '' : 'disabled'}>${o.requestId ? 'Approve and hand over' : 'Mark absent and hand over'}</button></div></div>`;
+    $('#ab-x', bg).onclick = close;
+    if ($('#ab-n', bg)) $('#ab-n', bg).onchange = e => { st.name = e.target.value; st.reps = {}; draw(); };
+    bg.querySelectorAll('[data-ty]').forEach(b => b.onclick = () => { st.type = b.dataset.ty; keep(); draw(); });
+    if ($('#ab-s', bg)) $('#ab-s', bg).onchange = e => { st.session = e.target.value; };
+    if ($('#ab-e', bg)) $('#ab-e', bg).onchange = e => { keep(); st.end = e.target.value < day.date ? day.date : e.target.value; if (st.end > day.date) st.session = 'Full'; draw(); };
+    if ($('#ab-r', bg)) { $('#ab-r', bg).value = st.remark || ''; $('#ab-r', bg).oninput = e => st.remark = e.target.value; }
+    bg.querySelectorAll('[data-rep]').forEach(inp => {
+      inp.onfocus = () => lastRep = +inp.dataset.rep;
+      inp.onchange = () => { st.reps[inp.dataset.rep] = inp.value.trim().toUpperCase(); draw(); };
+    });
+    bg.querySelectorAll('[data-repsel]').forEach(sel => sel.onchange = () => {
+      if (!sel.value) return;
+      st.reps[sel.dataset.repsel] = sel.value; lastRep = +sel.dataset.repsel; draw();
+    });
+    bg.querySelectorAll('[data-f]').forEach(c => c.onclick = () => {
+      const i = lastRep == null ? posts.findIndex((p, k) => !st.reps[k]) : lastRep;
+      if (i < 0) return;
+      st.reps[i] = c.dataset.f; lastRep = i; draw();
+    });
+    $('#ab-ok', bg).onclick = async e => {
+      busy(e.target, true);
+      const changes = posts.map((p, i) => ({ slot:p.slot, value: swapName(p.text, st.name, st.reps[i] || '') }))
+        .filter((c, i) => c.value !== String(posts[i].text || '').toUpperCase());
+      try {
+        const res = await call('adminMarkAbsent', S.token, { date:day.date, end:st.end || day.date, name:st.name, type:st.type, session:st.session, remark:st.remark || '', requestId:o.requestId || '', changes });
+        S.cache = {}; S.mcache = {};
+        if (res.week) S.cache[res.week.monday] = res.week;
+        close();
+        const miss = (res.notWritten || []).map(w => w.error).join('; ');
+        toast(st.name + ' marked absent' + (changes.length ? ', postings handed over' : '') + (res.warnings && res.warnings.length ? '. Check: ' + res.warnings.join('. ') : '') + (miss ? '. Not written: ' + miss : ''), !!(miss || (res.warnings || []).length));
+        if (o.onDone) o.onDone(res.week);
+      } catch(x){ fail(x); busy(e.target, false); }
+    };
+  };
+  const keep = () => { if ($('#ab-r', bg)) st.remark = $('#ab-r', bg).value; };
+  bg.onclick = e => { if (e.target === bg) close(); };
+  draw();
+}
+
+/* ============================================================
+   My OIL
+   ============================================================ */
+const OIL_ST = {
+  unused: ['st-unused', 'Unused'],
+  half:   ['st-half', 'Half day left'],
+  hold:   ['st-hold', 'On hold'],
+  used:   ['st-used', 'Used']
+};
+function oilState(o){ return o.reserved ? 'hold' : o.remaining === 1 ? 'unused' : o.remaining === 0.5 ? 'half' : 'used'; }
+async function viewMyOil(){
+  loading();
+  try {
+    const list = (await call('getMyOilHistory', S.token)).map(o => Object.assign(o, { st: oilState(o) }));
+    const count = st => list.filter(o => o.st === st).length;
+    const left = list.reduce((a, o) => a + o.available, 0);
+    const f = S.oilView || 'all';
+    const shown = list.filter(o => f === 'all' || (f === 'left' ? o.st !== 'used' : o.st === 'used')).slice().reverse();
+    V().innerHTML = `
+      <h2>My OIL</h2>
+      <p class="muted">You have <b style="color:var(--ink)">${fmtN(left)} off day${left === 1 ? '' : 's'}</b> left to take.</p>
+      <div class="oilsum">
+        <div class="st-unused"><b>${count('unused')}</b><span>Unused</span></div>
+        <div class="st-half"><b>${count('half')}</b><span>Half left</span></div>
+        <div class="st-hold"><b>${count('hold')}</b><span>On hold</span></div>
+        <div class="st-used"><b>${count('used')}</b><span>Used</span></div>
+      </div>
+      <div class="sub" role="group" aria-label="Show">
+        ${[['all','All'],['left','Not fully used'],['used','Used']].map(([k,l]) => `<button class="chip" data-of="${k}" aria-pressed="${k===f}">${l}</button>`).join('')}
+      </div>
+      ${shown.length ? shown.map(o => {
+        const [cls, label] = OIL_ST[o.st];
+        const earned = o.date ? nice(o.date) + ' ' + pd(o.date).getFullYear() : esc(o.dateText);
+        const usedLine = o.taken ? `Used: ${esc(o.taken)}` : (o.st === 'hold' ? 'Waiting for approval' : 'Not used yet');
+        return `<div class="oilrow ${cls}"><div class="bar"></div>
+          <div class="mid"><b>${earned}</b>${o.activity ? ` <span class="x">${esc(o.activity)}</span>` : ''}
+            <div class="x">Earned ${o.no ? '#' + esc(o.no) : ''}${o.notes ? ', ' + esc(o.notes) : ''}</div>
+            <div class="x" style="color:var(--ink)">${usedLine}</div></div>
+          <span class="tag ${cls}">${label}</span></div>`;
+      }).join('') : `<div class="sec"><p>${list.length ? 'Nothing in this view.' : 'No off days recorded for you yet. Ask your admin if you worked a Saturday or range extension that is missing.'}</p></div>`}
+      ${left > 0 ? `<button class="btn block" id="oil-apply" style="margin-top:6px">Apply to use an off day</button>` : ''}`;
+    document.querySelectorAll('[data-of]').forEach(b => b.onclick = () => { S.oilView = b.dataset.of; viewMyOil(); });
+    if ($('#oil-apply')) $('#oil-apply').onclick = () => { F.type = 'OIL'; F.oilIds = []; go('apply'); };
+  } catch(e){ fail(e); }
+}
+
+/* ============================================================
+   Apply
+   ============================================================ */
+const F = { type:'AL', start:null, end:null, session:'Full', time:'', reason:'', oilIds:[], file:null };
+async function viewApply(){
+  if (!F.start) { F.start = addD(S.today, 1); F.end = F.start; }
+  let oil = [];
+  if (F.type === 'OIL') { loading(); try { oil = await call('getMyOil', S.token); } catch(e){ return fail(e); } }
+  const t = S.types.find(x => x.code === F.type) || S.types[0];
+  const single = F.start === F.end;
+  const days = !F.start || !F.end || F.end < F.start ? 0 : (single && F.session !== 'Full' ? 0.5 : nDays(F.start, F.end));
+  V().innerHTML = `
+    <h2>Apply</h2>
+    <div class="sec">
+      <label class="f"><span>What for</span></label>
+      <div class="chips" role="group" aria-label="Request type" style="margin:-8px 0 16px">
+        ${S.types.map(x => `<button class="chip" data-t="${x.code}" aria-pressed="${x.code===F.type}">${esc(x.label)}</button>`).join('')}
+      </div>
+      <div class="row2">
+        <label class="f"><span>From</span><input type="date" id="a-s" value="${F.start}"></label>
+        <label class="f"><span>To</span><input type="date" id="a-e" value="${F.end}" min="${F.start}"></label>
+      </div>
+      ${single ? `<label class="f"><span>Part of day</span><select id="a-ses">
+        ${['Full','AM','PM'].map(s => `<option value="${s}" ${s===F.session?'selected':''}>${s === 'Full' ? 'Full day' : s + ' only'}</option>`).join('')}</select></label>` : ''}
+      ${['MA','TRG','COURSE'].indexOf(F.type) >= 0 ? `<label class="f"><span>Time (optional)</span><input type="text" id="a-time" value="${esc(F.time)}" placeholder="e.g. 1400hrs"></label>` : ''}
+      ${F.type === 'OIL' ? oilPicker(oil, days) : ''}
+      <label class="f"><span>${t.needsReason ? 'Reason' : 'Reason (optional)'}</span>
+        <textarea id="a-r" maxlength="300" placeholder="${F.type==='MA' ? 'Clinic or appointment' : F.type==='COURSE' ? 'Course name' : 'Anything your admin should know'}">${esc(F.reason)}</textarea></label>
+      ${t.attach ? `<label class="f"><span>Attach MC or memo (optional, up to 5 MB)</span><input type="file" id="a-f" accept="image/*,application/pdf"></label>` : ''}
+      <p class="muted">${days ? `${fmtN(days)} day${days===1?'':'s'}: ${span(F.start, F.end)}` : 'Check the dates.'}</p>
+      <button class="btn block" id="a-go">Send request</button>
+    </div>`;
+  document.querySelectorAll('.chip').forEach(c => c.onclick = () => { F.type = c.dataset.t; F.oilIds = []; viewApply(); });
+  $('#a-s').onchange = e => { F.start = e.target.value; if (!F.end || F.end < F.start) F.end = F.start; viewApply(); };
+  $('#a-e').onchange = e => { F.end = e.target.value; viewApply(); };
+  if ($('#a-ses')) $('#a-ses').onchange = e => { F.session = e.target.value; viewApply(); };
+  if ($('#a-time')) $('#a-time').oninput = e => F.time = e.target.value;
+  $('#a-r').oninput = e => F.reason = e.target.value;
+  document.querySelectorAll('.oilpick input').forEach(cb => cb.onchange = () => {
+    F.oilIds = [...document.querySelectorAll('.oilpick input:checked')].map(x => x.value);
+  });
+  if ($('#a-f')) $('#a-f').onchange = e => readFile(e.target.files[0]);
+  $('#a-go').onclick = submitApply;
+}
+function oilPicker(oil, days){
+  if (!oil.length) return `<div class="note">You have no off days left to take. If you worked a Saturday or range extension that isn't listed, ask your admin to add it.</div>`;
+  return `<label class="f"><span>Which earned off day${days > 1 ? 's' : ''} to use</span></label>
+    <div class="sec oilpick" style="margin-top:-8px">${oil.map(o => `<label><input type="checkbox" value="${esc(o.id)}" ${F.oilIds.indexOf(o.id)>=0?'checked':''}>
+      <span><b>${o.date ? nice(o.date) : esc(o.label)}</b> <span class="muted small">${esc(o.activity)}${o.days === 0.5 ? ', half day left (AM or PM off only)' : ''}</span></span></label>`).join('')}</div>`;
+}
+function readFile(file){
+  F.file = null;
+  if (!file) return;
+  if (file.size > 5*1024*1024) { toast('That file is over 5 MB. Pick a smaller one.', true); $('#a-f').value=''; return; }
+  const r = new FileReader();
+  r.onload = () => F.file = { name:file.name, mime:file.type, data:r.result };
+  r.readAsDataURL(file);
+}
+async function submitApply(){
+  const b = $('#a-go'); busy(b, true);
+  try {
+    const res = await call('submitRequest', S.token, { type:F.type, start:F.start, end:F.end, session:F.start===F.end ? F.session : 'Full',
+      time:F.time, reason:F.reason, oilIds:F.oilIds, file:F.file });
+    Object.assign(F, { reason:'', time:'', oilIds:[], file:null, session:'Full' });
+    toast('Request sent');
+    S.cache = {};
+    await go('requests');
+    if (res.warnings && res.warnings.length) showWarnings(res.warnings);
+  } catch(e){ fail(e); busy(b, false); }
+}
+function showWarnings(w){
+  const box = document.createElement('div');
+  box.className = 'note';
+  box.innerHTML = `<b>Heads up:</b> you're on the roster on these days, so your admin will need to cover you.<ul>${w.map(x => `<li>${wdate(x)}</li>`).join('')}</ul>`;
+  V().prepend(box);
+}
+
+/* ============================================================
+   My requests
+   ============================================================ */
+async function viewRequests(){
+  loading();
+  try {
+    const list = await call('getMyRequests', S.token);
+    V().innerHTML = `<h2>My requests</h2>` + (list.length ? list.map(reqCard).join('') :
+      `<div class="sec"><p>You haven't applied for anything yet.</p><button class="btn" onclick="go('apply')">Apply for leave</button></div>`);
+    document.querySelectorAll('[data-cancel]').forEach(b => b.onclick = async () => {
+      if (!confirm('Cancel this request?')) return;
+      busy(b, true);
+      try { await call('cancelRequest', S.token, b.dataset.cancel); toast('Request cancelled'); S.cache = {}; viewRequests(); }
+      catch(e){ fail(e); busy(b, false); }
+    });
+  } catch(e){ fail(e); }
+}
+function reqCard(r){
+  const canCancel = r.status === 'Pending' || (r.status === 'Approved' && r.start > S.today);
+  return `<div class="req"><div class="h"><b>${esc(r.typeLabel)}</b><span class="pill ${r.status}">${r.status}</span></div>
+    <div class="when">${span(r.start, r.end)}${r.session && r.session !== 'Full' ? ' ('+r.session+')' : ''}, ${fmtN(r.days)} day${r.days===1?'':'s'}</div>
+    ${r.reason ? `<div class="small muted">${esc(r.reason)}</div>` : ''}
+    ${r.remark ? `<div class="small">Admin remark: ${esc(r.remark)}</div>` : ''}
+    ${r.attachment ? `<div class="small"><a href="${esc(r.attachment)}" target="_blank" rel="noopener">View attachment</a></div>` : ''}
+    ${canCancel ? `<div class="acts"><button class="btn ghost" data-cancel="${esc(r.id)}">Cancel request</button></div>` : ''}</div>`;
+}
+
+/* ============================================================
+   Admin
+   ============================================================ */
+async function refreshPendingDot(){
+  try {
+    const p = await call('adminPending', S.token);
+    const dot = $('#pcount'); if (!dot) return;
+    dot.hidden = !p.length; dot.textContent = p.length;
+  } catch(e){}
+}
+function viewAdmin(){
+  const subs = [['pending','Pending'],['att','Attendance'],['team','Team'],['staff','Staff'],['oil','Off days earned'],['lib','LIB'],['changes','Changes']];
+  V().innerHTML = `<h2>Admin</h2><div class="sub">${subs.map(([k,l]) =>
+    `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div><div id="adm"></div>`;
+  document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
+  ({ pending:admPending, att:admAtt, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
+}
+const A = () => $('#adm');
+
+async function admPending(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try {
+    const list = await call('adminPending', S.token);
+    const dot = $('#pcount'); if (dot) { dot.hidden = !list.length; dot.textContent = list.length; }
+    if (!list.length) { A().innerHTML = `<div class="sec"><p>Nothing waiting. New requests land here.</p></div>`; return; }
+    A().innerHTML = list.map(r => `<div class="req" id="q-${esc(r.id)}">
+      <div class="h"><b>${esc(r.name)}: ${esc(r.typeLabel)}</b><span class="pill Pending">Pending</span></div>
+      <div class="when">${span(r.start, r.end)}${r.session && r.session !== 'Full' ? ' ('+r.session+')' : ''}, ${fmtN(r.days)} day${r.days===1?'':'s'}${r.time ? ', '+esc(r.time) : ''}</div>
+      ${r.reason ? `<div class="small">${esc(r.reason)}</div>` : ''}
+      ${r.oilDates && r.oilDates.length ? `<div class="small muted">Clearing off days earned on ${r.oilDates.map(nice).join(', ')}</div>` : ''}
+      ${r.attachment ? `<div class="small"><a href="${esc(r.attachment)}" target="_blank" rel="noopener">View attachment</a></div>` : ''}
+      ${r.warnings.length ? `<div class="note red" style="margin:8px 0 0"><b>On the roster:</b><ul>${r.warnings.map(w => `<li>${wdate(w)}</li>`).join('')}</ul></div>` : ''}
+      ${r.othersAway.length ? `<div class="note" style="margin:8px 0 0"><b>Also away:</b><ul>${r.othersAway.map(w => `<li>${esc(w.replace(/\d{4}-\d{2}-\d{2}/g, m => nice(m)))}</li>`).join('')}</ul></div>` : ''}
+      <div class="acts"><input type="text" placeholder="Remark (optional)" data-rm="${esc(r.id)}">
+        <button class="btn go" data-ok="${esc(r.id)}">Approve</button>
+        ${r.warnings.length && r.type !== 'OIL' ? `<button class="btn ghost" data-rep="${esc(r.id)}">Approve and replace</button>` : ''}
+        <button class="btn no" data-no="${esc(r.id)}">Reject</button></div></div>`).join('');
+    const decide = async (id, ok, btn) => {
+      busy(btn, true);
+      try {
+        const res = await call('adminDecide', S.token, id, ok, $(`[data-rm="${id}"]`).value);
+        const miss = (res.notWritten || []).map(w => w.error).join('; ');
+        toast(res.status + (miss ? '. Not written to sheet: ' + miss : ''), !!miss);
+        S.cache = {}; admPending();
+      } catch(e){ fail(e); busy(btn, false); }
+    };
+    document.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => decide(b.dataset.ok, true, b));
+    document.querySelectorAll('[data-no]').forEach(b => b.onclick = () => decide(b.dataset.no, false, b));
+    document.querySelectorAll('[data-rep]').forEach(b => b.onclick = async () => {
+      const r = list.find(x => x.id === b.dataset.rep);
+      const first = (r.warnings[0] || '').slice(0, 10) || r.start;
+      busy(b, true);
+      try {
+        const m = mondayOf(first);
+        const wk = S.cache[m] || await call('getWeek', S.token, first);
+        S.cache[m] = wk;
+        busy(b, false);
+        if (!wk.days.length) return toast('No weekly tab for that week yet.', true);
+        openAbsent({ day: wk.days[dowIdx(first)], name: r.name, requestId: r.id, reqType: r.type, onDone: () => admPending() });
+        if (r.end > first) toast('This covers ' + nice(first) + '. Hand over later days from the Deployment Plan.');
+      } catch(e){ fail(e); busy(b, false); }
+    });
+  } catch(e){ fail(e); }
+}
+
+async function admTeam(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try {
+    const ORDER = { Manager:0, APO:1, Medic:2, 'Backup Medic':3 };
+    const FIRST = ['JAMES LAI'];                       // shown at the top of their group
+    const t = (await call('adminTeam', S.token)).sort((a, b) =>
+      ((ORDER[a.role] ?? 3) - (ORDER[b.role] ?? 3)) ||
+      ((FIRST.includes(b.name) ? 1 : 0) - (FIRST.includes(a.name) ? 1 : 0)) ||
+      a.name.localeCompare(b.name));
+    A().innerHTML = `<div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th class="num">Off days</th><th class="num">On hold</th><th class="num">Pending</th><th>LIB expiry</th></tr>
+      ${t.map(p => {
+        const libLate = p.lib && p.lib < S.today;
+        return `<tr><td><b>${esc(p.name)}</b></td><td>${esc(p.role)}</td><td class="num">${fmtN(p.oilAvailable)}</td><td class="num">${fmtN(p.oilReserved)}</td><td class="num">${p.pending}</td>
+          <td style="${libLate ? 'color:var(--flag);font-weight:600' : ''}">${p.lib ? nice(p.lib) + (libLate ? ' (expired)' : '') : ''}</td></tr>`;
+      }).join('')}</table></div>
+      <p class="small muted" style="margin-top:10px">On hold = off days a staff has asked to clear, waiting for your approval.</p>
+      <button class="btn ghost" id="rf">Reload staff list and weekly tabs</button>`;
+    $('#rf').onclick = async e => { busy(e.target, true); try { const n = await call('adminRefresh', S.token); toast(n + ' weekly tabs found'); S.cache = {}; } catch(x){ fail(x); } busy(e.target, false); };
+  } catch(e){ fail(e); }
+}
+
+async function admOil(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try {
+    const names = (S.staff || []).filter(p => p.role !== 'Admin').map(p => p.name).sort();
+    const list = await call('adminOil', S.token, S.oilFilter || '');
+    const from = addD(mondayOf(S.today), -28), to = addD(S.today, -1);
+    const status = o => o.reserved ? '<span class="pill Pending">On hold</span>'
+      : o.remaining === 1 ? '<span class="pill Approved">Not taken</span>'
+      : o.remaining === 0.5 ? '<span class="pill Pending">Half left</span>'
+      : '<span class="pill Cancelled">Taken</span>';
+    const totals = {};
+    list.forEach(o => { totals[o.name] = (totals[o.name] || 0) + o.available; });
+    const noTts = list.filter(o => o.needsTts).length;
+    const small = 'min-height:32px;padding:3px 9px;font-size:14px';
+    A().innerHTML = `
+      <p class="small muted">Reads and writes your <b>AMO OILs</b> tab. When you approve an off day, the date goes into OIL TAKEN; half days also get "balance 1/2 day" in Remarks.</p>
+      <div class="sec"><h3 style="margin-top:0">Add an earned off day</h3>
+        <p class="small muted">For range extensions, special duties or anything the scan doesn't pick up. Tick everyone who earned it; each gets a row at the end of their block in AMO OILs with the next number.</p>
+        <label class="f"><span>Date worked</span><input type="date" id="o-d" value="${to}" style="max-width:220px"></label>
+        <label class="f"><span>Who earned it</span></label>
+        <p class="small muted" style="margin:-8px 0 6px">Under each name is where they were posted on that date, taken from the Deployment Plan.</p>
+        ${pickGroups()}
+        <p class="small" id="o-cnt" style="margin:4px 0 10px">No one ticked yet.</p>
+        <div id="o-acts"></div>
+        <label class="f"><span>Remark</span><input type="text" id="o-r" placeholder="e.g. RANGE EXTENSION"></label>
+        <label class="f"><span>No date? What it's for instead</span><input type="text" id="o-o" placeholder="e.g. COHESION OIL 2026 (leave the date blank)"></label>
+        <button class="btn" id="o-go">Add off day</button></div>
+      <h3>Ledger</h3>
+      <label class="f"><span>Show</span><select id="o-flt"><option value="">Everyone</option>${names.map(n => `<option ${n===S.oilFilter?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
+      ${S.oilFilter ? '' : `<div class="sec small">${Object.keys(totals).map(n => `<b>${esc(n)}</b> ${fmtN(totals[n])}`).join('<br>')}</div>`}
+      ${noTts ? `<div class="note">${noTts} off day${noTts===1?' has':'s have'} been taken but TTS ADJ is still blank. Tap "TTS done" once the timesheet is adjusted.</div>` : ''}
+      ${list.length ? `<div class="scroll"><table class="t"><tr><th>No.</th><th>Earned</th><th>Taken</th><th>Status</th></tr>
+        ${list.map(o => `<tr><td>${S.oilFilter ? '' : `<b>${esc(o.label)}</b><br>`}${esc(o.no)}</td>
+          <td><b>${o.date ? nice(o.date) : esc(o.dateText)}</b><div class="small">${esc(o.activity)}</div>${o.notes ? `<div class="small muted">${esc(o.notes)}</div>` : ''}</td>
+          <td>${esc(o.taken) || '<span class="muted">-</span>'}${o.tts ? `<div class="small muted">${esc(o.tts)}</div>` : ''}</td>
+          <td>${status(o)}${o.needsTts ? `<div style="margin-top:6px"><button class="btn ghost" style="${small}" data-tts="${esc(o.id)}">TTS done</button></div>` : ''}
+            ${o.remaining === 1 && !o.reserved ? `<div style="margin-top:6px"><button class="btn ghost" style="${small}" data-void="${esc(o.id)}">Remove</button></div>` : ''}</td></tr>`).join('')}</table></div>`
+        : '<p class="muted">No off days recorded for this person yet.</p>'}
+      <div class="sec"><h3 style="margin-top:0">Scan Saturdays, Sundays and public holidays</h3>
+        <p class="small muted">Adds a row to AMO OILs for each APO posted to a range or a main duty (DAO, PLAD, admin, RAI) on those days. Days already in the tab are skipped, so scanning twice is safe.</p>
+        <div class="row2"><label class="f"><span>From</span><input type="date" id="s-f" value="${from}"></label>
+        <label class="f"><span>To</span><input type="date" id="s-t" value="${to}"></label></div>
+        <button class="btn" id="s-go">Scan and add</button></div>`;
+    $('#o-flt').onchange = e => { S.oilFilter = e.target.value; admOil(); };
+    $('#o-d').oninput = () => { if ($('#o-d').value) $('#o-o').value = ''; loadPostings(); };
+    $('#o-o').oninput = () => { if ($('#o-o').value) { $('#o-d').value = ''; loadPostings(); } };
+    $('#s-go').onclick = async e => {
+      busy(e.target, true);
+      try { const r = await call('adminScanOil', S.token, $('#s-f').value, $('#s-t').value); toast(r.length ? r.length + ' off days added to AMO OILs' : 'Nothing new to add'); admOil(); }
+      catch(x){ fail(x); busy(e.target, false); }
+    };
+    const picked = () => [...A().querySelectorAll('[data-pk][aria-pressed="true"]')].map(b => b.dataset.pk);
+    // where each person was posted on the chosen date (range, duty or medic slot)
+    const OIL_ACT = { 'AMMO ADMIN':'ADMIN', 'PLAD-DRIVER':'PLAD', 'RAI PARTY':'RAI' };
+    const auto = {}, edited = {};
+    const loadPostings = async () => {
+      const d = $('#o-d').value;
+      Object.keys(auto).forEach(k => delete auto[k]);
+      if (d) {
+        try {
+          const m = mondayOf(d);
+          const wk = S.cache[m] || await call('getWeek', S.token, d);
+          S.cache[m] = wk;
+          const day = wk.days && wk.days[dowIdx(d)];
+          if (day && $('#o-d').value === d) (S.staff || []).forEach(p => {
+            const acts = postingsOf(day, p.name).map(x => x.slot.kind === 'duty' ? (OIL_ACT[x.slot.label.toUpperCase()] || x.slot.label.toUpperCase()) : x.slot.label.toUpperCase());
+            if (acts.length) auto[p.name] = [...new Set(acts)].join(' / ');
+          });
+        } catch(e){ /* leave blank; admin can type */ }
+      }
+      A().querySelectorAll('[data-pk]').forEach(b => {
+        const sub = b.querySelector('.sub');
+        sub.textContent = d ? (auto[b.dataset.pk] || 'not posted') : '';
+      });
+      recount();
+    };
+    const recount = () => {
+      const n = picked().length;
+      $('#o-cnt').textContent = n ? n + ' ticked' : 'No one ticked yet.';
+      $('#o-go').textContent = n > 1 ? 'Add off day to ' + n + ' people' : 'Add off day';
+      const box = $('#o-acts');
+      box.innerHTML = n ? `<label class="f" style="margin-bottom:6px"><span>Range or duty for each person</span></label>
+        ${picked().map(nm => `<div style="display:grid;grid-template-columns:40% 1fr;gap:8px;align-items:center;margin-bottom:6px">
+          <b style="font-size:15px">${esc(nm)}</b>
+          <input type="text" data-act="${esc(nm)}" value="${esc(edited[nm] != null ? edited[nm] : (auto[nm] || ''))}" placeholder="e.g. 100M1, DAO" style="min-height:40px;padding:7px 10px"></div>`).join('')}
+        <p class="small muted" style="margin:2px 0 12px">Filled in from the Deployment Plan. Change it if needed.</p>` : '';
+      box.querySelectorAll('[data-act]').forEach(inp => inp.oninput = () => { edited[inp.dataset.act] = inp.value; });
+    };
+    A().querySelectorAll('[data-pk]').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); recount(); });
+    loadPostings();
+    A().querySelectorAll('[data-pkall]').forEach(b => b.onclick = () => {
+      const grp = A().querySelectorAll(`[data-pkg="${b.dataset.pkall}"]`);
+      const on = [...grp].some(x => x.getAttribute('aria-pressed') !== 'true');
+      grp.forEach(x => x.setAttribute('aria-pressed', on)); recount();
+    });
+    $('#o-go').onclick = async e => {
+      busy(e.target, true);
+      try {
+        const activities = {};
+        picked().forEach(nm => { const inp = A().querySelector(`[data-act="${nm}"]`); activities[nm] = inp ? inp.value : (auto[nm] || ''); });
+        const r = await call('adminAddOil', S.token, { names:picked(), date:$('#o-d').value, activities, remark:$('#o-r').value, other:$('#o-o').value });
+        toast((r.added.length ? 'Off day added for ' + r.added.join(', ') : 'Nothing added') + (r.skipped.length ? '. Already recorded for ' + r.skipped.join(', ') : ''), !r.added.length);
+        admOil();
+      } catch(x){ fail(x); busy(e.target, false); }
+    };
+    A().querySelectorAll('[data-void]').forEach(b => b.onclick = async () => {
+      if (!confirm('Delete this row from AMO OILs?')) return;
+      try { await call('adminVoidOil', S.token, b.dataset.void); toast('Row removed'); admOil(); } catch(x){ fail(x); }
+    });
+    A().querySelectorAll('[data-tts]').forEach(b => b.onclick = async () => {
+      busy(b, true);
+      try { await call('adminTtsDone', S.token, b.dataset.tts); toast('TTS ADJ filled in'); admOil(); } catch(x){ fail(x); busy(b, false); }
+    });
+  } catch(e){ fail(e); }
+}
+
+/* Tick-list of Managers then APOs (Managers: JAMES LAI first) */
+function pickGroups(){
+  const sorted = role => (S.staff || []).filter(p => p.role === role).map(p => p.name)
+    .sort((a, b) => ((b === 'JAMES LAI') - (a === 'JAMES LAI')) || a.localeCompare(b));
+  return [['Manager', 'Managers'], ['APO', 'APO']].map(([role, label]) => {
+    const names = sorted(role);
+    return names.length ? `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><b style="font-size:14px">${label}</b>
+        <button class="btn ghost" style="min-height:30px;padding:2px 10px;font-size:13px" data-pkall="${role}">Tick all / none</button></div>
+      <div class="chips" style="margin-bottom:8px">${names.map(n => `<button class="chip pk" data-pk="${esc(n)}" data-pkg="${role}" aria-pressed="false">${esc(n)}<span class="sub"></span></button>`).join('')}</div>` : '';
+  }).join('');
+}
+
+/* ---------- Attendance ---------- */
+const ATT_AWAY = ['UL','AL','NPL','MC','MA','HL','CCL','OIL','Course','ICT','Others'];
+const MON_ATT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
+const DAYL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const titleCase = n => n.toLowerCase().replace(/(^|[\s(\/-])([a-z])/g, (m, a, c) => a + c.toUpperCase());
+function attText(a){
+  const d = pd(a.date);
+  const rows = a.rows.filter(r => r.status !== 'Off');
+  const list = arr => arr.length ? arr.length + ' - ' + arr.map(r => titleCase(r.name)).join(', ') : 'NIL';
+  const by = st => rows.filter(r => r.status === st);
+  const present = rows.filter(r => r.status === 'Present' || r.status === 'Present (Late)');
+  const L = [
+    'Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')',
+    'Total strength: ' + rows.length,
+    'Present: ' + present.length,
+    'Present (Late): ' + list(by('Present (Late)'))
+  ];
+  ATT_AWAY.forEach(c => L.push(c + ': ' + list(by(c))));
+  const none = rows.filter(r => !r.status);
+  if (none.length) L.push('Not accounted: ' + list(none));
+  return L.join('\n');
+}
+async function admAtt(){
+  A().innerHTML = '<div class="loading">Loading...</div>';
+  try { drawAtt(await call('adminAttendance', S.token, S.attDate || S.today)); } catch(e){ fail(e); }
+}
+function drawAtt(a){
+  S.attDate = a.date;
+  const ORDER = { Manager:0, APO:1, Medic:2, 'Backup Medic':3 };
+  const rows = a.rows.slice().sort((x, y) => ((ORDER[x.role] ?? 3) - (ORDER[y.role] ?? 3)) ||
+    ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
+  const counted = rows.filter(r => r.status !== 'Off');
+  const present = counted.filter(r => r.status === 'Present' || r.status === 'Present (Late)').length;
+  const late = counted.filter(r => r.status === 'Present (Late)').length;
+  const none = counted.filter(r => !r.status);
+  const away = counted.length - present - none.length;
+  const cls = st => !st ? 'Rejected' : st === 'Present' ? 'Approved' : st === 'Present (Late)' ? 'Pending' : 'Cancelled';
+  A().innerHTML = `
+    <div class="row2" style="align-items:end">
+      <label class="f"><span>Date</span><input type="date" id="at-d" value="${a.date}"></label>
+      <label class="f"><span>Late after</span><span style="display:flex;gap:6px"><input type="time" id="at-l" value="${esc(a.lateAfter)}" style="min-width:0">
+        <button class="btn ghost" id="at-ls" style="min-height:46px;padding:6px 12px">Set</button></span></label>
+    </div>
+    <div class="oilsum" style="grid-template-columns:repeat(4,1fr)">
+      <div class="st-used"><b>${counted.length}</b><span>Strength</span></div>
+      <div class="st-unused"><b>${present}</b><span>Present${late ? ' (' + late + ' late)' : ''}</span></div>
+      <div class="st-hold"><b>${away}</b><span>Away</span></div>
+      <div style="background:${none.length ? 'var(--flag-soft)' : '#E6E9E6'};color:${none.length ? 'var(--flag)' : 'var(--muted)'}"><b>${none.length}</b><span>Not accounted</span></div>
+    </div>
+    ${none.length ? `<div class="note red"><b>Not clocked in and not on leave:</b> ${esc(none.map(r => r.name).join(', '))}. Set their status below, or wait for them to clock in.</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn go" id="at-wa">WhatsApp message</button>
+      <button class="btn ghost" id="at-rf">Refresh</button></div>
+    <div class="scroll"><table class="t"><tr><th>Name</th><th>Clock in</th><th>Status</th></tr>
+      ${rows.map(r => `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.role)}${r.leave ? ', plan: ' + esc(r.leave.text) : ''}</div></td>
+        <td><input type="time" data-atc="${esc(r.name)}" value="${esc(r.clockIn)}" style="min-height:38px;padding:4px 6px;max-width:120px">
+          ${r.by ? `<div class="small muted">entered by ${esc(r.by)}</div>` : ''}</td>
+        <td><span class="pill ${cls(r.status)}">${esc(r.status || 'Not accounted')}</span>
+          <select data-ats="${esc(r.name)}" style="margin-top:6px;min-height:38px;padding:6px 8px">
+            <option value="">${r.override ? 'Back to automatic' : 'Automatic'}</option>
+            ${a.statuses.map(st => `<option ${st === r.override ? 'selected' : ''}>${esc(st)}</option>`).join('')}
+          </select></td></tr>`).join('')}</table></div>
+    <p class="small muted" style="margin-top:10px">Someone forgot to clock in? Type the time in their Clock in box. Automatic: clocked in means Present (Late after ${esc(a.lateAfter)}); otherwise the leave row in the weekly tab (AL, MC, OIL...). Pick a status to override it; leave statuses (UL, AL, MC...) are also written into that day's weekly tab. "Off" leaves the person out of the total strength (e.g. rest day).</p>`;
+  $('#at-d').onchange = e => { S.attDate = e.target.value; admAtt(); };
+  $('#at-rf').onclick = () => admAtt();
+  $('#at-ls').onclick = async e => {
+    busy(e.target, true);
+    try { drawAtt(await call('adminSetLateAfter', S.token, $('#at-l').value, a.date)); toast('Late after ' + $('#at-l').value); }
+    catch(x){ fail(x); busy(e.target, false); }
+  };
+  A().querySelectorAll('[data-atc]').forEach(inp => inp.onchange = async () => {
+    inp.disabled = true;
+    try { drawAtt(await call('adminClockIn', S.token, a.date, inp.dataset.atc, inp.value)); toast(inp.dataset.atc + (inp.value ? ' clocked in at ' + inp.value : ': clock-in cleared')); }
+    catch(x){ fail(x); inp.disabled = false; }
+  });
+  A().querySelectorAll('[data-ats]').forEach(sel => sel.onchange = async () => {
+    sel.disabled = true;
+    try {
+      const res = await call('adminSetAttendance', S.token, a.date, sel.dataset.ats, sel.value);
+      drawAtt(res);
+      const inSheet = sel.value && !['Present','Present (Late)','Off'].includes(sel.value);
+      toast(res.warn ? 'Saved in the app, but not in the weekly tab: ' + res.warn
+        : sel.dataset.ats + ': ' + (sel.value || 'automatic') + (inSheet ? ', written to the weekly tab' : ''), !!res.warn);
+    }
+    catch(x){ fail(x); sel.disabled = false; }
+  });
+  $('#at-wa').onclick = () => openWaSheet('Attendance message', nice(a.date) + '. You can edit it before sending.',
+    none.length ? `<div class="note red"><b>Not accounted yet:</b> ${esc(none.map(r => r.name).join(', '))}</div>` : '', attText(a));
+}
+
+/* ---------- LIB expiry ---------- */
+async function admLib(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try { drawLib(await call('adminLib', S.token)); } catch(e){ fail(e); }
+}
+const addYears = (d, n) => { const x = pd(d); x.setFullYear(x.getFullYear() + n); return ymd(x); };
+function drawLib(list){
+  const days = d => d ? Math.round((pd(d) - pd(S.today)) / 864e5) : null;
+  const pill = d => {
+    const n = days(d);
+    if (n == null) return '<span class="pill Cancelled">No date</span>';
+    if (n < 0) return '<span class="pill Rejected">Expired</span>';
+    if (n <= 45) return `<span class="pill Pending">${n} day${n === 1 ? '' : 's'} left</span>`;
+    return '<span class="pill Approved">Valid</span>';
+  };
+  list = list.slice().sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
+  const have = list.map(x => x.name);
+  const missing = (S.staff || []).filter(p => (p.role === 'APO' || p.role === 'Manager') && !have.includes(p.name)).map(p => p.name).sort();
+  const late = list.filter(x => days(x.date) != null && days(x.date) < 0).length;
+  const small = 'min-height:36px;padding:4px 10px;font-size:14px';
+  A().innerHTML = `
+    <p class="small muted">Enter the date each person <b>took the LIB test</b>. The expiry is set to one year later and saved in the <b>Database</b> tab (column H), which the LIB EXPIRY list on every weekly tab reads.</p>
+    ${late ? `<div class="note red">${late} LIB${late === 1 ? ' has' : 's have'} expired.</div>` : ''}
+    <div class="scroll"><table class="t"><tr><th>Name and expiry</th><th>LIB test taken</th></tr>
+      ${list.map(x => `<tr><td><b>${esc(x.label)}</b>
+          <div class="small" style="margin-top:4px;white-space:nowrap">Expires ${x.date ? nice(x.date) + ' ' + pd(x.date).getFullYear() : '-'}</div>
+          <div style="margin-top:4px">${pill(x.date)}</div></td>
+        <td><input type="date" value="${x.date ? addYears(x.date, -1) : ''}" max="${S.today}" data-libd="${esc(x.name)}" style="min-height:38px;padding:6px 8px;max-width:160px">
+          <div class="small muted" data-libx="${esc(x.name)}" style="margin-top:4px"></div>
+          <div style="margin-top:6px;display:flex;gap:6px"><button class="btn" style="${small}" data-libsave="${esc(x.name)}">Save</button>
+          <button class="btn ghost" style="${small}" data-librm="${x.row}" data-libname="${esc(x.name)}">Remove</button></div></td></tr>`).join('')}</table></div>
+    <div class="sec" style="margin-top:16px"><h3 style="margin-top:0">Add someone to the LIB list</h3>
+      ${missing.length ? `<label class="f"><span>Name</span><select id="l-n"><option value="">Choose a name</option>${missing.map(n => `<option>${esc(n)}</option>`).join('')}</select></label>
+      <label class="f"><span>Date they took the LIB test</span><input type="date" id="l-d" max="${S.today}"></label>
+      <p class="small muted" id="l-x" style="margin-top:-8px"></p>
+      <button class="btn" id="l-go">Add to LIB list</button>` : '<p class="muted">Every APO and manager is already on the list.</p>'}</div>`;
+  // live preview of the new expiry as the test date changes
+  A().querySelectorAll('[data-libd]').forEach(inp => inp.oninput = () => {
+    const out = A().querySelector(`[data-libx="${inp.dataset.libd}"]`);
+    out.textContent = inp.value ? 'New expiry: ' + nice(addYears(inp.value, 1)) + ' ' + addYears(inp.value, 1).slice(0, 4) : '';
+  });
+  if ($('#l-d')) $('#l-d').oninput = () => { const v = $('#l-d').value; $('#l-x').textContent = v ? 'Expires ' + nice(addYears(v, 1)) + ' ' + addYears(v, 1).slice(0, 4) : ''; };
+  const save = async (name, testDate, btn) => {
+    busy(btn, true);
+    try { drawLib(await call('adminSetLib', S.token, { name, testDate })); toast('LIB saved for ' + name + '. Expires ' + nice(addYears(testDate, 1)) + ' ' + addYears(testDate, 1).slice(0, 4)); }
+    catch(x){ fail(x); busy(btn, false); }
+  };
+  A().querySelectorAll('[data-libsave]').forEach(b => b.onclick = () => save(b.dataset.libsave, A().querySelector(`[data-libd="${b.dataset.libsave}"]`).value, b));
+  A().querySelectorAll('[data-librm]').forEach(b => b.onclick = async () => {
+    if (!confirm('Remove ' + b.dataset.libname + ' from the LIB list?')) return;
+    busy(b, true);
+    try { drawLib(await call('adminRemoveLib', S.token, b.dataset.librm, b.dataset.libname)); toast('Removed'); } catch(x){ fail(x); busy(b, false); }
+  });
+  if ($('#l-go')) $('#l-go').onclick = e => {
+    if (!$('#l-n').value) return toast('Choose a name.', true);
+    save($('#l-n').value, $('#l-d').value, e.target);
+  };
+}
+
+async function admStaff(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try { drawStaff(await call('adminStaff', S.token)); } catch(e){ fail(e); }
+}
+const ROLES = ['APO','Manager','Medic','Backup Medic','Admin'];
+function drawStaff(list){
+  A().innerHTML = `
+    <div class="sec"><h3 style="margin-top:0">Add a staff member</h3>
+      <label class="f"><span>Name as it appears on the roster</span><input type="text" id="n-n" placeholder="e.g. RAHMAN" autocomplete="off"></label>
+      <div class="row2"><label class="f"><span>Role</span><select id="n-r">${ROLES.map(r => `<option>${r}</option>`).join('')}</select></label>
+      <label class="f"><span>Short names (optional)</span><input type="text" id="n-a" placeholder="e.g. RAH"></label></div>
+      <div class="row2"><label class="f"><span>Email (optional)</span><input type="text" id="n-e" inputmode="email"></label>
+      <label class="f"><span>First PIN (4 to 6 digits)</span><input type="text" id="n-p" inputmode="numeric" maxlength="6" placeholder="e.g. 583104"></label></div>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="n-db" checked style="width:20px;height:20px">
+        <span>Also add to the Database tab so the sheet dropdowns list them</span></label>
+      <button class="btn" id="n-go">Add staff</button></div>
+    <div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th>Short names</th><th>PIN</th><th></th></tr>
+      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}</td><td>${esc(p.role)}</td>
+        <td>${esc(p.aliases)}</td><td>${pinPill(p)}</td>
+        <td style="white-space:nowrap"><button class="btn ghost" style="min-height:34px;padding:4px 10px" data-ed="${esc(p.name)}">Edit</button>
+          <button class="btn ${p.active ? 'no' : 'ghost'}" style="min-height:34px;padding:4px 10px" data-act="${esc(p.name)}">${p.active ? 'Remove' : 'Restore'}</button></td></tr>`).join('')}</table></div>
+    <p class="small muted" style="margin-top:10px">Remove hides someone from sign-in, the undeployed list and name matching. Their past requests and off days are kept, and Restore brings them back.</p>`;
+  $('#n-go').onclick = async e => {
+    busy(e.target, true);
+    try {
+      const pin = $('#n-p').value.trim();
+      const r = await call('adminSaveStaff', S.token, { isNew:true, name:$('#n-n').value, role:$('#n-r').value, aliases:$('#n-a').value, email:$('#n-e').value, addToDb:$('#n-db').checked, pin });
+      setStaff(r.staff); toast(pin ? 'Staff added. Give them their first PIN; they will choose their own when they sign in.' : 'Staff added. Set a first PIN for them with Edit.'); drawStaff(r.list);
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+  A().querySelectorAll('[data-ed]').forEach(b => b.onclick = () => editStaff(list.find(p => p.name === b.dataset.ed)));
+  A().querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
+    const p = list.find(x => x.name === b.dataset.act);
+    if (p.active && !confirm('Remove ' + p.name + '? They can no longer sign in. Their records stay and you can restore them later.')) return;
+    busy(b, true);
+    const was = p.active;
+    try {
+      const r = await call('adminSaveStaff', S.token, { name:p.name, role:p.role, aliases:String(p.aliases || ''), email:p.email, active:!was });
+      setStaff(r.staff); S.cache = {}; toast(was ? p.name + ' removed' : p.name + ' restored'); drawStaff(r.list);
+    } catch(x){ fail(x); busy(b, false); }
+  });
+}
+function pinPill(p){
+  if (p.locked) return '<span class="pill Rejected">Locked</span>';
+  if (!p.hasPin) return '<span class="pill Cancelled">No PIN</span>';
+  if (p.tempPin) return '<span class="pill Pending">First PIN</span>';
+  return '<span class="pill Approved">Set</span>';
+}
+function editStaff(p){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(p.name)}</h3><div class="src">The name can't change because it links to past records. Add a new person instead if it's wrong.</div>
+    <label class="f"><span>Role</span><select id="s-r">${ROLES.map(r => `<option ${r===p.role?'selected':''}>${r}</option>`).join('')}</select></label>
+    <label class="f"><span>Short names (comma separated)</span><input type="text" id="s-a" value="${esc(p.aliases)}"></label>
+    <label class="f"><span>Email</span><input type="text" id="s-e" value="${esc(p.email)}"></label>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-act" ${p.active?'checked':''} style="width:20px;height:20px"><span>Active (unticked hides them from sign-in and lists)</span></label>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-att" ${p.att !== false ? 'checked' : ''} style="width:20px;height:20px"><span>Counted in daily attendance</span></label>
+    ${p.locked ? `<div class="note red" style="display:flex;align-items:center;gap:10px;justify-content:space-between">Locked after 5 wrong PINs.<button class="btn" id="s-unl" style="min-height:38px">Unlock</button></div>` : ''}
+    <label class="f"><span>${p.hasPin ? 'Give a new PIN (if they forgot theirs)' : 'Give a first PIN'}</span>
+      <span style="display:flex;gap:8px"><input type="text" id="s-np" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits" style="min-width:0">
+      <button class="btn ghost" id="s-pin">Set PIN</button></span></label>
+    <p class="small muted" style="margin-top:-8px">They'll be asked to choose their own PIN when they sign in with it.</p>
+    <div class="acts"><button class="btn ghost" id="s-x">Cancel</button><button class="btn" id="s-ok">Save</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#s-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  $('#s-pin', bg).onclick = async e => {
+    busy(e.target, true);
+    try { const list = await call('adminSetPin', S.token, p.name, $('#s-np', bg).value.trim()); toast('PIN set for ' + p.name + '. Give it to them in person.'); close(); drawStaff(list); }
+    catch(x){ fail(x); busy(e.target, false); }
+  };
+  if ($('#s-unl', bg)) $('#s-unl', bg).onclick = async e => {
+    busy(e.target, true);
+    try { const list = await call('adminUnlock', S.token, p.name); toast(p.name + ' unlocked'); close(); drawStaff(list); }
+    catch(x){ fail(x); busy(e.target, false); }
+  };
+  $('#s-ok', bg).onclick = async e => {
+    busy(e.target, true);
+    try {
+      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked });
+      setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+}
+
+async function admChanges(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try {
+    const list = await call('adminChanges', S.token);
+    A().innerHTML = list.length ? `<p class="small muted">Deployment edits made through the app, newest first. Undo puts back exactly what was there, including the auto-tag formula.</p>
+      <div class="scroll"><table class="t"><tr><th>Day</th><th>Slot</th><th>Was</th><th>Now</th><th>By</th><th></th></tr>
+      ${list.map(c => `<tr style="${c.status === 'Undone' ? 'opacity:.55' : ''}"><td>${nice(c.date)}</td><td>${esc(c.slot)}</td>
+        <td>${esc(c.oldValue) || '<span class="muted">blank</span>'}${c.hadFormula ? ' <span class="small muted">(auto)</span>' : ''}</td>
+        <td>${esc(c.newValue) || '<span class="muted">blank</span>'}</td><td class="small">${esc(c.by)}<br>${esc(c.when)}</td>
+        <td>${c.status === 'Done' ? `<button class="btn ghost" style="min-height:34px;padding:4px 10px" data-u="${esc(c.id)}">Undo</button>` : 'Undone'}</td></tr>`).join('')}</table></div>`
+      : `<div class="sec"><p>No edits yet. Open the Deployment Plan, pick a day and tap "Edit deployment".</p></div>`;
+    A().querySelectorAll('[data-u]').forEach(b => b.onclick = async () => {
+      busy(b, true);
+      try { await call('adminUndo', S.token, b.dataset.u); S.cache = {}; toast('Change undone'); admChanges(); } catch(x){ fail(x); busy(b, false); }
+    });
+  } catch(e){ fail(e); }
+}
+
+/* ============================================================
+   Preview data (only used when the file is opened outside Apps Script)
+   ============================================================ */
+/* Snapshot of the uploaded workbook, used only by the preview. Ignored once deployed. */
+const SNAP = { weeks:{}, staff:[], oil:[], lib:{} }   /* preview data lives in Preview.html only */;
+const MOCK = (() => {
+  const today = ymd(new Date());
+  const mon = mondayOf(today);
+  const R = (range, sup, emp, tf, unit, rmk, dur) => ({ range, sup, emp, tf, unit, rmk, dur:dur||'', active:!!(sup||emp), people: emp ? emp.split(/\s*\/\s*/).map(x => x === 'IVAN' ? 'IVAN LIM' : x).filter(x => x !== 'JAMES') : [] });
+  const idle = r => R(r, '', '', '', '', '');
+  const dayData = [
+    [R('50M1','Shamsuddin','IVAN / JAMES','P226 FAM SHOOT','ITI (SSC)','WD','WHOLE DAY'),R('50M2','Gafoor','TOH','P226 FAM SHOOT','ITI (SSC)','WD'),R('100M1','Teo BL','LEONARD','CS (SP)','160 SQN / 10 C4I','AM PM'),R('100M2','Benedict','FAIRUZ','M/S ZEROING','SUPPLY BASE NORTH','AM PM'),R('MTR1','Frederick Mah','ONG','ATP (SP)','TPT HUB EAST','WD'),R('MTR2','Tay CK','DANIAL','BTP M/MANSHIP','IDTW','AM PM'),R('UOR','Shahid','LIM','UO TRAINING',"SCS 'A'",'WD')],
+    [R('100M1','Teo BL','LEONARD','APS R','ITI','WD'),R('100M2','Tay CK','ARIF','APS R','ITI','WD'),R('MTR1','Benedict','FAIRUZ','APS R','ITI','WD'),R('MTR2','Shamsuddin','CHEW / JAMES','APS R','ITI','WD'),R('UOR','Shahid','LIM','UO TRAINING',"SCS 'A'",'WD')]
+  ];
+  function day(i){
+    const base = dayData[i % 2];
+    const map = {}; base.forEach(r => map[r.range] = r);
+    const date = addD(mon, i);
+    const weekend = i >= 5;
+    const ranges = ['25M','50M1','50M2','100M1','100M2','MTR1','MTR2','UOR','MTR1A','MTR2A'].map(r => weekend && i===6 ? idle(r) : (map[r] || idle(r)));
+    return { date, title: ['Monday','Tuesday','Wednesday','Thursday','Friday (MMRC SAFETY DAY)','Saturday','Sunday'][i], ranges,
+      duties: i === 6 ? ['DAO','PLAD','PLAD-Driver','Ammo admin','RAI Party'].map(x => ({ duty:x, main:'', spare:'', mainPeople:[], sparePeople:[] })) : [
+        { duty:'DAO', main: i%2 ? 'FAIZAL' : 'IVAN LIM', spare: i===1 ? 'CHEW' : '', mainPeople:[i%2 ? 'FAIZAL' : 'IVAN LIM'], sparePeople: i===1 ? ['CHEW'] : [] },
+        { duty:'Ammo admin', main:'DANIAL', spare:'', mainPeople:['DANIAL'], sparePeople:[] },
+        { duty:'RAI Party', main:'WONG', spare:'', mainPeople:['WONG'], sparePeople:[] }],
+      medics: i === 6 ? ['Medic 1','Medic 2','FAP','Driver'].map(r => ({ role:r, who:'', loc:'', people:[] })) : [{ role:'Medic 1', who:'SAFUDIN', loc:'MTR1', people:['SAFUDIN'] }, { role:'FAP', who:'RASUL', loc:'FAP', people:['RASUL'] }],
+      absences: i === 1 ? [{ label:'MC', text:'ARIF MC', people:['ARIF'] }] : i === 3 ? [{ label:'IPPT/ TRG etc', text:'WONG TEST SHOOT (1400hrs)', people:['WONG'] }] : [] };
+  }
+  const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
+  const staffList = SNAP.staff.map(p => ({ name:p.name, role: ['JAMES LAI','DANIEL FOO','CHAN YANG'].includes(p.name) ? 'Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO' }))
+    .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }]);
+  const weeks = {};
+  const getWk = m => weeks[m] || (weeks[m] = SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] });
+  function mockSched(from, n){
+    const name = S.me.name, up = [];
+    for (let i = 0; i < n; i++) {
+      const d = addD(from, i), dd = getWk(mondayOf(d)).days[dowIdx(d)], items = [];
+      if (!dd) { up.push({ date:d, title:'', noTab:true, items }); continue; }
+      dd.ranges.forEach(r => { if (r.people.includes(name)) items.push({ kind:'range', what:r.range, detail:[r.sup && 'with '+r.sup, r.tf, r.unit, r.rmk].filter(Boolean).join('  |  ') }); });
+      dd.duties.forEach(x => { if (x.mainPeople.includes(name)) items.push({ kind:'duty', what:x.duty, detail:'Main' }); if (x.sparePeople.includes(name)) items.push({ kind:'duty', what:x.duty, detail:'Spare' }); });
+      dd.medics.forEach(m => { if (m.people.includes(name)) items.push({ kind:'medic', what:m.role, detail:m.loc }); });
+      dd.absences.forEach(a => { if (a.people.includes(name)) { const mine = a.text.split(/\s*,\s*/).filter(x => namesIn(x).includes(name)); items.push({ kind:'away', what:a.label, detail: mine.length ? mine.join(', ') : a.text }); } });
+      up.push({ date:d, title:dd.title, items });
+    }
+    return up;
+  }
+  const changes = [];
+  /* attendance (preview only) */
+  let lateAfter = '07:45';
+  const attStore = {};
+  const attRec = (d, n) => { const k = d + '|' + n; return attStore[k] || (attStore[k] = { clockIn:'', status:'' }); };
+  const ATT_ROWS = { AL:'AL', UL:'UL', MC:'MC', OIL:'OIL', HL:'HL', CCL:'CCL', ICT:'ICT', COURSE:'Course', COMPASSIONATELEAVE:'Others', OTHERS:'Others' };
+  function mockLeave(d){
+    const out = {}, wk = getWk(mondayOf(d)), day = wk.days && wk.days[dowIdx(d)];
+    if (!day) return out;
+    day.absences.forEach(a => {
+      const cat = ATT_ROWS[a.label.toUpperCase().replace(/\s+/g, '')]; if (!cat) return;
+      a.text.split(/\s*,\s*/).forEach(part => namesIn(part).forEach(n => {
+        if (out[n]) return;
+        const w = ' ' + part.toUpperCase().replace(/[^A-Z]+/g, ' ') + ' ';
+        let c = cat;
+        if (/ NPL /.test(w)) c = 'NPL'; else if (/ MA /.test(w)) c = 'MA'; else if (/ MC /.test(w)) c = 'MC';
+        else if (cat === 'Others') { if (/ AL /.test(w)) c = 'AL'; else if (/ UL /.test(w)) c = 'UL'; else if (/ HL /.test(w)) c = 'HL'; else if (!/ LEAVE /.test(w)) return; }
+        out[n] = { cat:c, text:part };
+      }));
+    });
+    return out;
+  }
+  function mockMyAtt(n){ const r = attRec(today, n); return { date:today, clockIn:r.clockIn, status:r.status, late: !!r.clockIn && r.clockIn > lateAfter, leave: mockLeave(today)[n] || null, lateAfter }; }
+  function mockAtt(d){
+    d = d || today; const lv = mockLeave(d);
+    if (d === today && !attStore.__seeded) {           // pretend most people clocked in this morning
+      attStore.__seeded = 1;
+      staffList.filter(p => p.role !== 'Admin').forEach((p, i) => { if (!lv[p.name] && i % 7 !== 3) attRec(d, p.name).clockIn = i % 9 === 5 ? '08:14' : '07:4' + (i % 10); });
+    }
+    const rows = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic' && p.active && p.att !== false).map(p => {
+      const r = attRec(d, p.name); let status = '';
+      if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
+      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status };
+    });
+    return { date:d, lateAfter, statuses:['Present','Present (Late)','UL','AL','NPL','MC','MA','HL','CCL','OIL','Course','ICT','Others','Off'], rows };
+  }
+  const libList = Object.keys(SNAP.lib).map((n, i) => ({ row: i + 2, label: n, name: n, date: SNAP.lib[n] }));
+  const reqs = [{ id:'R1', submitted:today+' 09:10', name:'LEONARD', type:'AL', typeLabel:'Annual leave', start:addD(today, 9), end:addD(today, 10), session:'Full', days:2, reason:'Family trip', status:'Pending', warnings:[addD(today, 9)+': rostered 100M1 (with Teo BL)'], othersAway:['FAIRUZ AL '+addD(today,10)] }];
+  const types = [['AL','Annual leave'],['OIL','Off day (OIL)'],['MA','Medical appointment'],['MC','Medical leave (MC)'],['HL','Hospitalisation leave'],['UL','Urgent leave'],['CL','Compassionate leave'],['COURSE','Course'],['TRG','IPPT / training / test'],['OTHERS','Others']]
+    .filter(([code]) => ['AL','OIL','MA'].includes(code))
+    .map(([code, label]) => ({ code, label, needsReason:['COURSE','TRG','OTHERS','CL'].includes(code), attach:['MC','MA','HL','CL'].includes(code) }));
+  const O = (name, label, no, date, activity, taken, tts, notes, remaining, dateText) => ({ id:name+'#'+no, name, label, no:String(no), date:date||'', dateText:dateText||'', activity, taken:taken||'', tts:tts||'', notes:notes||'', remaining, reserved:0, available:remaining, needsTts: !!taken && !tts });
+  const oil = JSON.parse(JSON.stringify(SNAP.oil));
+  return {
+    getLoginInfo: () => ({ auto:null }),
+    login: (n, p) => { if (!/^\d{4,6}$/.test(p)) throw new Error('PIN must be 4 to 6 digits.');
+      n = String(n || '').trim().toUpperCase();
+      const who = staffList.find(x => x.name === n) || staffList.find(x => (x.aliases || []).includes(n));
+      if (!who) throw new Error('Name or PIN is wrong.');
+      n = who.name;
+      const role = who ? who.role : 'APO';
+      return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || role !== 'Admin'), today, staff: staffList.filter(p => p.active) }; },
+    getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
+      lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
+      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name) }),
+    clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
+    adminAttendance: (t, d) => mockAtt(d),
+    adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; return Object.assign(mockAtt(d), { warn:'' }); },
+    adminSetLateAfter: (t, hm, d) => { lateAfter = hm; return mockAtt(d); },
+    adminClockIn: (t, d, n, hm) => { const r = attRec(d, n); r.clockIn = hm; r.by = hm ? S.me.name : ''; return mockAtt(d); },
+    getWeek: (t, d) => getWk(mondayOf(d)),
+    getMySchedule: (t, from, to) => mockSched(from, nDays(from, to)),
+    adminSetSlot: (t, date, slot, v) => {
+      const wk = getWk(mondayOf(date)); const d = wk.days[dowIdx(date)];
+      const warnings = ['rmk','loc'].includes(slot.field) ? [] : clashes(d, v, slot.kind, slot.label, slot.field);
+      let old = '';
+      const ppl = x => namesIn(x);
+      if (slot.kind === 'range') { const r = d.ranges.find(x => x.range === slot.label); old = r[slot.field]; r[slot.field] = v; r.people = ppl(r.emp); r.active = !!(r.sup || r.emp); }
+      if (slot.kind === 'duty') { const x = d.duties.find(y => y.duty === slot.label); old = x[slot.field]; x[slot.field] = v; x.mainPeople = ppl(x.main); x.sparePeople = ppl(x.spare); }
+      if (slot.kind === 'medic') { const m = d.medics.find(y => y.role === slot.label); const f = slot.field === 'name' ? 'who' : 'loc'; old = m[f]; m[f] = v; m.people = ppl(m.who); }
+      changes.unshift({ id:'C'+Date.now()+Math.random(), when:today, by:S.me.name, date, slot:slot.label+' '+({emp:'employee',rmk:'remark',name:'',loc:'location'}[slot.field] ?? slot.field), oldValue:old, hadFormula:slot.field==='emp', newValue:v, status:'Done' });
+      return { week: JSON.parse(JSON.stringify(wk)), warnings };
+    },
+    adminMarkAbsent: (t, f) => {
+      const wk = getWk(mondayOf(f.date)); const d = wk.days[dowIdx(f.date)];
+      if (f.requestId) { const r = reqs.find(x => x.id === f.requestId); if (r) r.status = 'Approved'; }
+      const lab = { MC:'MC', UL:'UL', CL:'Compassionate Leave', OTHERS:'OTHERS' }[f.type] || 'MC';
+      d.absences.push({ label:lab, text: f.name + ' ' + (f.type === 'MC' || f.type === 'UL' ? f.type : f.remark || ''), people:[f.name] });
+      let warnings = [];
+      f.changes.forEach(c => { warnings = warnings.concat(MOCK.adminSetSlot(t, f.date, c.slot, c.value).warnings); });
+      return { week: JSON.parse(JSON.stringify(wk)), warnings, notWritten:[] };
+    },
+    adminChanges: () => changes,
+    adminUndo: (t, id) => { changes.find(c => c.id === id).status = 'Undone'; return true; },
+    adminStaff: () => staffList,
+    adminSaveStaff: (t, f) => {
+      const name = String(f.name||'').trim().toUpperCase(); if (!name) throw new Error('Enter one name, without / or & or commas.');
+      let p = staffList.find(x => x.name === name);
+      if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false }); }
+      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false });
+      return { list: staffList, staff: staffList.filter(x => x.active) };
+    },
+    adminResetPin: () => true,
+    changeMyPin: (t, c, n) => { if (!/^\d{4,6}$/.test(n)) throw new Error('The new PIN must be 4 to 6 digits.'); return true; },
+    adminSetPin: (t, n, pin) => { if (!/^\d{4,6}$/.test(pin)) throw new Error('The PIN must be 4 to 6 digits.'); const x = staffList.find(y => y.name === n); x.hasPin = true; x.tempPin = true; x.locked = false; return staffList; },
+    adminUnlock: (t, n) => { staffList.find(y => y.name === n).locked = false; return staffList; },
+    getMyOilHistory: () => oil.filter(o => o.name === S.me.name),
+    getMyOil: () => oil.filter(o => o.name === S.me.name && o.available > 0).map(o => ({ id:o.id, date:o.date, label:o.dateText, activity:o.activity, days:o.available })),
+    submitRequest: (t, f) => { if (f.type === 'OIL' && !f.oilIds.length) throw new Error('Tick enough earned off days to cover the request.');
+      reqs.unshift({ id:'R'+Date.now(), submitted:today, name:S.me.name, type:f.type, typeLabel:types.find(x=>x.code===f.type).label, start:f.start, end:f.end, session:f.session, days:f.start===f.end && f.session!=='Full' ? .5 : nDays(f.start,f.end), reason:f.reason, status:'Pending', warnings:[], othersAway:[] });
+      return { id:'R', warnings:[f.start+': rostered 100M1 (with Teo BL)'] }; },
+    getMyRequests: () => reqs.filter(r => r.name === S.me.name).concat([{ id:'R0', name:S.me.name, typeLabel:'Medical appointment', start:addD(today,-6), end:addD(today,-6), session:'PM', days:.5, reason:'Polyclinic', status:'Approved', remark:'OK' }]),
+    cancelRequest: (t, id) => { const r = reqs.find(x => x.id === id); if (r) r.status = 'Cancelled'; return true; },
+    adminPending: () => reqs.filter(r => r.status === 'Pending'),
+    adminDecide: (t, id, ok) => { const r = reqs.find(x => x.id === id); r.status = ok ? 'Approved' : 'Rejected'; return { status:r.status, notWritten:[] }; },
+    adminTeam: () => staffList.filter(p => p.role !== 'Admin').map(p => ({ name:p.name, role:p.role, oilAvailable: oil.filter(o => o.name === p.name).reduce((a, o) => a + o.available, 0), oilReserved:0, pending: reqs.filter(r => r.name === p.name && r.status === 'Pending').length, lib: SNAP.lib[p.name] || null })),
+    adminOil: (t, n) => oil.filter(o => !n || o.name === n),
+    adminTtsDone: (t, id) => { const o = oil.find(x => x.id === id); o.tts = 'TTS adjusted on ' + pd(today).getDate() + '/' + (pd(today).getMonth()+1) + '/26'; o.needsTts = false; return true; },
+    adminAddOil: (t, f) => {
+      if (!f.names || !f.names.length) throw new Error('Tick at least one name.');
+      if (!f.date && !f.other) throw new Error('Pick the date it was earned, or type what it is for (e.g. COHESION OIL 2026).');
+      const added = [], skipped = [];
+      f.names.forEach(nm => {
+        const mine = oil.filter(o => o.name === nm);
+        if (f.date && mine.some(o => o.date === f.date)) return skipped.push(nm);
+        oil.push({ id:nm+'#'+(mine.length+1), name:nm, label:mine[0] ? mine[0].label : nm, no:String(mine.length+1), date:f.date||'', dateText:(f.other||'').toUpperCase(), activity:((f.activities || {})[nm] || f.activity || '').toUpperCase(), taken:'', tts:'', notes:(f.remark||'').toUpperCase(), remaining:1, reserved:0, available:1, needsTts:false });
+        added.push(nm);
+      });
+      return { added, skipped };
+    },
+    adminLib: () => libList.filter(x => x.label),
+    adminSetLib: (t, f) => {
+      if (!f.testDate) throw new Error('Pick the date they took the LIB test.');
+      if (f.testDate > today) throw new Error('The LIB test date cannot be in the future.');
+      f.date = addYears(f.testDate, 1);
+      let x = libList.find(y => y.name === f.name);
+      if (!x) { x = { row: libList.length + 2, label: f.name, name: f.name, date:'' }; libList.push(x); }
+      x.date = f.date; SNAP.lib[f.name] = f.date; return libList.filter(y => y.label);
+    },
+    adminRemoveLib: (t, row, name) => { const i = libList.findIndex(y => y.name === name); if (i >= 0) libList.splice(i, 1); delete SNAP.lib[name]; return libList; },
+    adminVoidOil: (t, id) => { oil.splice(oil.findIndex(o => o.id === id), 1); return true; },
+    adminScanOil: () => [],
+    adminRefresh: () => 152
+  };
+})();
+
+// used by onclick="\u2026" buttons in the page
+window.boot = boot;
+window.go = go;
+boot();
+})();
 </script>
 </body>
 </html>
