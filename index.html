@@ -276,6 +276,13 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .t tr.clash td{background:var(--flag-soft)}
 .t tr.clash td:first-child{box-shadow:inset 5px 0 var(--flag)}
 .dsel button{position:relative}
+.dsel .mk{position:absolute;top:5px;left:5px;display:flex;gap:3px}
+.dsel .mk u{display:block;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 2px var(--card)}
+.dsel .mk u.e{background:var(--ext)}.dsel .mk u.a{background:var(--aps)}
+.apstag{display:inline-block;background:var(--aps);color:var(--ink);font:600 11px/1.6 inherit;padding:0 7px;border-radius:9px;letter-spacing:.3px;vertical-align:1px}
+.daykey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin:-8px 0 12px}
+.daykey u{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:0}
+
 .dsel button.hasclash::after{content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--flag);box-shadow:0 0 0 2px var(--card)}
 .clock{border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;border:1px solid var(--line);background:var(--card)}
 .clock > b{display:block;font:700 20px/1.2 var(--cond)}
@@ -663,7 +670,7 @@ const KLABEL = { range:'Range', duty:'Duty', medic:'Medic', away:'Away', pending
 function dayRow(d){
   const dt = pd(d.date);
   const items = d.items.length
-    ? d.items.map(i => `<div class="it"><span class="k ${i.kind}">${KLABEL[i.kind]}</span><strong>${esc(i.what)}</strong>${i.ext ? ` <span class="extag">EXT ${esc(hrs(i.ext))}</span>` : ''}${i.detail ? `<span class="x">${esc(i.detail)}</span>` : ''}</div>`).join('')
+    ? d.items.map(i => `<div class="it"><span class="k ${i.kind}">${KLABEL[i.kind]}</span><strong>${esc(i.what)}</strong>${i.ext ? ` <span class="extag">EXT ${esc(hrs(i.ext))}</span>` : ''}${i.aps ? ' <span class="apstag">APS</span>' : ''}${i.detail ? `<span class="x">${esc(i.detail)}</span>` : ''}</div>`).join('')
     : `<div class="free">${d.noTab ? 'No weekly tab yet' : 'No posting'}</div>`;
   return `<div class="day${d.date === S.today ? ' today' : ''}${isDep(d) ? ' dep' : ''}"><div class="d"><b>${dt.getDate()}</b><span>${DOW[dowIdx(d.date)]}</span>${d.date === S.today ? '<i class="tdy">Today</i>' : ''}</div>
     <div class="e">${d.title && /\(/.test(d.title) ? `<div class="small muted">${esc(d.title.replace(/^\w+\s*/, ''))}</div>` : ''}${items}</div></div>`;
@@ -700,7 +707,9 @@ function drawBoard(wk){
       const n = x.ranges.filter(r => r.active).length;
       const medep = x.ranges.some(r => r.people.includes(me)) || x.duties.some(y => y.mainPeople.concat(y.sparePeople).includes(me)) || x.medics.some(y => y.people.includes(me));
       const nc = clashesOn(x).length, ng = noApoOn(x).length;
-      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}" ${nc || ng ? `title="${[nc && nc + ' to cover', ng && ng + ' without APO'].filter(Boolean).join(', ')}"` : ''}><span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
+      const live = x.ranges.filter(r => r.active);
+      const hx = live.some(r => extOf(r.rmk)), ha = live.some(r => isApsTf(r.tf));
+      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}" ${nc || ng ? `title="${[nc && nc + ' to cover', ng && ng + ' without APO'].filter(Boolean).join(', ')}"` : ''}>${hx || ha ? `<span class="mk">${hx ? '<u class="e" title="Extended hours"></u>' : ''}${ha ? '<u class="a" title="APS range"></u>' : ''}</span>` : ''}<span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
     }).join('');
     const away = awayOn(d);
     const dayClash = clashesOn(d), dayGap = noApoOn(d);
@@ -714,7 +723,7 @@ function drawBoard(wk){
       const bad = r.people.some(n => away[n]);
       const gap = !String(r.emp || '').trim();
       const isExt = !!extOf(r.rmk) && !gap;
-      const isAps = !gap && !isExt && /(^|[^A-Z])APS([^A-Z]|$)/i.test(r.tf || '');
+      const isAps = !gap && !isExt && isApsTf(r.tf);
       return `<div class="rg${bad ? ' clash' : gap ? ' noapo' : mine ? ' mine' : ''}${isExt ? ' ext' : ''}${isAps ? ' aps' : ''}" ${slot}><div class="code">${esc(r.range)}</div><div class="body">
         <div class="ppl">${r.emp ? esc(r.emp) : '<span class="none">No APO assigned</span>'}${extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
         ${whyLine(r.people)}<div class="meta">${meta}</div></div></div>`;
@@ -743,7 +752,9 @@ function drawBoard(wk){
         <span class="small muted">${ed ? 'Tap a range, duty or medic row to change who is posted. Undeployed staff are listed under Duties.' : ''}</span>
         <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="wa">WhatsApp message</button>${ed ? '<button class="btn no" id="abs">Someone absent</button>' : ''}
         <button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit deployment'}</button></span></div>` : '';
-    V().innerHTML = head + `<div class="dsel">${sel}</div>
+    const keyItems = [['e','var(--ext)','EXT'],['a','var(--aps)','APS'],['g','var(--noapo)','No APO'],['c','var(--flag)','To cover']];
+    const dayKey = `<div class="daykey">${keyItems.map(k => `<span><u style="background:${k[1]}"></u>${k[2]}</span>`).join('')}</div>`;
+    V().innerHTML = head + `<div class="dsel">${sel}</div>${dayKey}
       <p class="daytitle">${nice(d.date)}${d.title && /\(/.test(d.title) ? ' ' + esc(d.title.replace(/^\w+\s*/, '')) : ''}</p>
       ${dayClash.length ? `<div class="note red"><b>${dayClash.length} posting${dayClash.length === 1 ? '' : 's'} to cover</b> (deployed but away):
         <ul style="margin:4px 0 0;padding-left:18px">${dayClash.map(c => `<li><b>${esc(c.where)}</b>: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>
@@ -810,6 +821,7 @@ function awayOn(day){
 }
 /* Postings on that day whose person is also away */
 /* Ranges in use (officer or TF filled in) with nobody in the APO row */
+const isApsTf = tf => /(^|[^A-Z])APS([^A-Z]|$)/i.test(tf || '');
 function noApoOn(day){ return day.ranges.filter(r => r.active && !String(r.emp || '').trim()); }
 function clashesOn(day){
   const away = awayOn(day), out = [];
@@ -1767,7 +1779,7 @@ const MOCK = (() => {
     for (let i = 0; i < n; i++) {
       const d = addD(from, i), dd = getWk(mondayOf(d)).days[dowIdx(d)], items = [];
       if (!dd) { up.push({ date:d, title:'', noTab:true, items }); continue; }
-      dd.ranges.forEach(r => { if (r.people.includes(name)) items.push({ kind:'range', what:r.range, ext:extOf(r.rmk), detail:[extOf(r.rmk) && 'EXT: report ' + hrs(extOf(r.rmk)), r.sup && 'with '+r.sup, r.tf, r.unit, r.rmk].filter(Boolean).join('  |  ') }); });
+      dd.ranges.forEach(r => { if (r.people.includes(name)) items.push({ kind:'range', what:r.range, ext:extOf(r.rmk), aps:isApsTf(r.tf), detail:[extOf(r.rmk) && 'EXT: report ' + hrs(extOf(r.rmk)), r.sup && 'with '+r.sup, r.tf, r.unit, r.rmk].filter(Boolean).join('  |  ') }); });
       dd.duties.forEach(x => { if (x.mainPeople.includes(name)) items.push({ kind:'duty', what:x.duty, detail:'Main' }); if (x.sparePeople.includes(name)) items.push({ kind:'duty', what:x.duty, detail:'Spare' }); });
       dd.medics.forEach(m => { if (m.people.includes(name)) items.push({ kind:'medic', what:m.role, detail:m.loc }); });
       dd.absences.forEach(a => { if (a.people.includes(name)) { const mine = a.text.split(/\s*,\s*/).filter(x => namesIn(x).includes(name)); items.push({ kind:'away', what:a.label, detail: mine.length ? mine.join(', ') : a.text }); } });
