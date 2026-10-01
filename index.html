@@ -276,8 +276,8 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .t tr.clash td{background:var(--flag-soft)}
 .t tr.clash td:first-child{box-shadow:inset 5px 0 var(--flag)}
 .dsel button{position:relative}
-.dsel button.busy{background:#FEF3C7;border-color:#F5D77A}
-.dsel button.full{background:#FDE0DD;border-color:#F2A9A2}
+.dsel button.busy{background:#FFFBEB;border-color:#F8E7A8}
+.dsel button.full{background:#FEF2F1;border-color:#F6C9C4}
 .dsel button.busy[aria-pressed="true"]{background:var(--ink);border:3px solid #F5C842}
 .dsel button.full[aria-pressed="true"]{background:var(--ink);border:3px solid #E5675C}
 .dsel .mk{position:absolute;top:5px;left:5px;display:flex;gap:3px}
@@ -713,7 +713,7 @@ function drawBoard(wk){
       const nc = clashesOn(x).length, ng = noApoOn(x).length;
       const live = x.ranges.filter(r => r.active);
       const hx = live.some(r => extOf(r.rmk)), ha = live.some(r => isApsTf(r.tf));
-      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${n >= 7 ? 'full ' : n >= 5 ? 'busy ' : ''}${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}" ${nc || ng ? `title="${[nc && nc + ' to cover', ng && ng + ' without APO'].filter(Boolean).join(', ')}"` : ''}>${hx || ha ? `<span class="mk">${hx ? '<u class="e" title="Extended hours"></u>' : ''}${ha ? '<u class="a" title="APS range"></u>' : ''}</span>` : ''}<span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
+      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${n >= 6 ? 'full ' : n === 5 ? 'busy ' : ''}${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}" ${nc || ng ? `title="${[nc && nc + ' to cover', ng && ng + ' without APO'].filter(Boolean).join(', ')}"` : ''}>${hx || ha ? `<span class="mk">${hx ? '<u class="e" title="Extended hours"></u>' : ''}${ha ? '<u class="a" title="APS range"></u>' : ''}</span>` : ''}<span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
     }).join('');
     const away = awayOn(d);
     const dayClash = clashesOn(d), dayGap = noApoOn(d);
@@ -756,7 +756,7 @@ function drawBoard(wk){
         <span class="small muted">${ed ? 'Tap a range, duty or medic row to change who is posted. Undeployed staff are listed under Duties.' : ''}</span>
         <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="wa">WhatsApp message</button>${ed ? '<button class="btn no" id="abs">Someone absent</button>' : ''}
         <button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit deployment'}</button></span></div>` : '';
-    const loadKey = `<span><u style="background:#FEF3C7;border-radius:3px;box-shadow:0 0 0 1px #F5D77A"></u>5-6 ranges</span><span><u style="background:#FDE0DD;border-radius:3px;box-shadow:0 0 0 1px #F2A9A2"></u>7+ ranges</span>`;
+    const loadKey = `<span><u style="background:#FFFBEB;border-radius:3px;box-shadow:0 0 0 1px #F0D98A"></u>5 ranges</span><span><u style="background:#FEF2F1;border-radius:3px;box-shadow:0 0 0 1px #EDB3AC"></u>6+ ranges</span>`;
     const keyItems = [['e','var(--ext)','EXT'],['a','var(--aps)','APS'],['g','var(--noapo)','No APO'],['c','var(--flag)','To cover']];
     const dayKey = `<div class="daykey">${keyItems.map(k => `<span><u style="background:${k[1]}"></u>${k[2]}</span>`).join('')}${loadKey}</div>`;
     V().innerHTML = head + `<div class="dsel">${sel}</div>${dayKey}
@@ -1503,12 +1503,23 @@ function attText(a){
   const list = arr => arr.length ? arr.length + ' - ' + arr.map(r => titleCase(r.name)).join(', ') : 'NIL';
   const by = st => rows.filter(r => r.status === st);
   const present = rows.filter(r => r.status === 'Present' || r.status === 'Present (Late)');
+  const head2 = ['*OPS SUPPORT*',
+    '*Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')*',
+    'Total strength: ' + rows.length];
+  if (dowIdx(a.date) >= 5) {
+    // Weekend: only who is turning up, Managers first (JAMES LAI first), then APO, then Medics
+    const ORD = { Manager:0, APO:1, Medic:2 };
+    const ppl = present.slice().sort((x, y) => ((ORD[x.role] ?? 3) - (ORD[y.role] ?? 3)) ||
+      ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
+    return head2.concat(['Present: ' + ppl.length], ppl.map(r => titleCase(r.name))).join('\n');
+  }
   const L = [
     '*OPS SUPPORT*',
-    'Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')',
+    '*Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')*',
     'Total strength: ' + rows.length,
     'Present: ' + present.length,
-    'Present (Late): ' + list(by('Present (Late)'))
+    'Present (Late): ' + list(by('Present (Late)')),
+    ''
   ];
   ATT_AWAY.forEach(c => L.push(c + ': ' + list(by(c))));
   const none = rows.filter(r => !r.status);
