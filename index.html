@@ -39,8 +39,12 @@
   --wait-soft:#F6EBD5;
   --dep:#22C55E;        /* bright green: you are deployed */
   --dep-soft:#DCFCE7;
-  --ext:#F59E0B;        /* amber: extended hours (EXT) */
-  --ext-soft:#FEF3C7;
+  --noapo:#FACC15;      /* yellow: range in use but no APO */
+  --noapo-soft:#FEF9C3;
+  --aps:#38BDF8;        /* sky blue: TF is APS */
+  --aps-soft:#E0F2FE;
+  --ext:#059669;        /* green: extended hours (EXT) */
+  --ext-soft:#D1FAE5;
   --r-sm:6px; --r-md:10px;
   --cond:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --body:"Barlow","Segoe UI",Roboto,Arial,sans-serif;
@@ -147,7 +151,7 @@ textarea{min-height:80px;resize:vertical}
 .k.duty{background:var(--steel-soft);color:var(--steel)}
 .k.medic{background:var(--go-soft);color:var(--go)}
 .k.away{background:var(--wait-soft);color:var(--wait)}
-.k.ext,.day.dep .k.ext{background:var(--ext);color:var(--ink)}
+.k.ext,.day.dep .k.ext{background:var(--ext);color:#fff}
 .k.pending{background:var(--wait-soft);color:var(--wait)}
 .it .x{display:block;font-size:14px;color:var(--muted)}
 .free{color:var(--muted);font-size:15px;padding-top:4px}
@@ -174,10 +178,20 @@ textarea{min-height:80px;resize:vertical}
 .rg.mine{border-color:var(--dep);box-shadow:0 0 0 3px var(--dep) inset;background:var(--dep-soft)}
 .rg.mine .code{background:var(--dep);color:var(--ink)}
 .rg.ext{border-color:var(--ext);box-shadow:0 0 0 3px var(--ext) inset;background:var(--ext-soft)}
-.rg.ext .code{background:var(--ext);color:var(--ink)}
+.rg.ext .code{background:var(--ext);color:#fff}
 .rg.mine.ext{border-color:var(--dep);box-shadow:0 0 0 3px var(--dep) inset;background:var(--dep-soft)}
 .rg.ext .code::after{content:'EXT';display:block;font-size:12px;margin-top:4px;letter-spacing:.08em}
 .rg .code{flex-direction:column}
+.rg.aps{border-color:var(--aps);box-shadow:0 0 0 3px var(--aps) inset;background:var(--aps-soft)}
+.rg.aps .code{background:var(--aps);color:var(--ink)}
+.rg.aps .code::after{content:'APS';display:block;font-size:12px;margin-top:4px;letter-spacing:.08em}
+.rg.mine.aps{border-color:var(--dep);box-shadow:0 0 0 3px var(--dep) inset;background:var(--dep-soft)}
+.rg.noapo{border-color:var(--noapo);box-shadow:0 0 0 3px var(--noapo) inset;background:var(--noapo-soft)}
+.rg.noapo .code{background:var(--noapo);color:var(--ink)}
+.rg.noapo .code::after{content:'NO APO';display:block;font-size:11px;margin-top:4px;letter-spacing:.06em}
+.rg.noapo .ppl .none{color:#854D0E;font-weight:700}
+.note.yellow{border-color:var(--noapo);background:var(--noapo-soft)}
+.dsel button.hasgap::after{content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--noapo);box-shadow:0 0 0 2px var(--card)}
 .rg .body{padding:9px 12px}
 .rg .ppl{font-weight:600}
 .rg .ppl em{font-style:normal;color:var(--muted);font-weight:500}
@@ -270,7 +284,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .clock.late{background:var(--wait-soft);border-color:#E0A021}
 .clock.away{background:var(--steel-soft);border-color:var(--steel)}
 .demo{background:var(--wait-soft);color:var(--wait);text-align:center;font-size:13px;padding:5px}
-.extag{display:inline-block;background:var(--ext);color:var(--ink);font:600 11px/1.6 inherit;font-style:normal;padding:0 7px;border-radius:9px;letter-spacing:.3px;vertical-align:1px}
+.extag{display:inline-block;background:var(--ext);color:#fff;font:600 11px/1.6 inherit;font-style:normal;padding:0 7px;border-radius:9px;letter-spacing:.3px;vertical-align:1px}
 </style>
 </head>
 <body>
@@ -685,11 +699,11 @@ function drawBoard(wk){
     const sel = wk.days.map((x, i) => {
       const n = x.ranges.filter(r => r.active).length;
       const medep = x.ranges.some(r => r.people.includes(me)) || x.duties.some(y => y.mainPeople.concat(y.sparePeople).includes(me)) || x.medics.some(y => y.people.includes(me));
-      const nc = clashesOn(x).length;
-      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${medep ? 'medep' : ''}${nc ? ' hasclash' : ''}" ${nc ? `title="${nc} to cover"` : ''}><span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
+      const nc = clashesOn(x).length, ng = noApoOn(x).length;
+      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}" ${nc || ng ? `title="${[nc && nc + ' to cover', ng && ng + ' without APO'].filter(Boolean).join(', ')}"` : ''}><span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
     }).join('');
     const away = awayOn(d);
-    const dayClash = clashesOn(d);
+    const dayClash = clashesOn(d), dayGap = noApoOn(d);
     const whyLine = names => names.filter(n => away[n]).map(n => `<div class="why">\u26A0 ${esc(away[n].join(', '))}</div>`).join('');
     const ranges = d.ranges.map(r => {
       const slot = `data-slot="range|${esc(r.range)}"`;
@@ -698,8 +712,11 @@ function drawBoard(wk){
       const meta = [['TF', r.tf], ['Unit', r.unit], ['', r.dur], ['', r.rmk]].filter(m => m[1])
         .map(m => `<span>${m[0] ? m[0]+' ' : ''}<b>${esc(m[1])}</b></span>`).join('');
       const bad = r.people.some(n => away[n]);
-      return `<div class="rg${bad ? ' clash' : mine ? ' mine' : ''}${extOf(r.rmk) ? ' ext' : ''}" ${slot}><div class="code">${esc(r.range)}</div><div class="body">
-        <div class="ppl">${esc(r.emp || 'No APO')}${extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
+      const gap = !String(r.emp || '').trim();
+      const isExt = !!extOf(r.rmk) && !gap;
+      const isAps = !gap && !isExt && /(^|[^A-Z])APS([^A-Z]|$)/i.test(r.tf || '');
+      return `<div class="rg${bad ? ' clash' : gap ? ' noapo' : mine ? ' mine' : ''}${isExt ? ' ext' : ''}${isAps ? ' aps' : ''}" ${slot}><div class="code">${esc(r.range)}</div><div class="body">
+        <div class="ppl">${r.emp ? esc(r.emp) : '<span class="none">No APO assigned</span>'}${extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
         ${whyLine(r.people)}<div class="meta">${meta}</div></div></div>`;
     }).join('');
     const duties = d.duties.filter(x => ed || x.main || x.spare);
@@ -731,6 +748,8 @@ function drawBoard(wk){
       ${dayClash.length ? `<div class="note red"><b>${dayClash.length} posting${dayClash.length === 1 ? '' : 's'} to cover</b> (deployed but away):
         <ul style="margin:4px 0 0;padding-left:18px">${dayClash.map(c => `<li><b>${esc(c.where)}</b>: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>
         ${admin ? '<div class="small" style="margin-top:6px">Tap <b>Edit deployment</b>, then the red range or row, to put someone else in.</div>' : ''}</div>` : ''}
+      ${dayGap.length ? `<div class="note yellow"><b>${dayGap.length} range${dayGap.length === 1 ? '' : 's'} without an APO:</b> ${esc(dayGap.map(r => r.range).join(', '))}
+        ${admin ? '<div class="small" style="margin-top:4px">Tap <b>Edit deployment</b>, then the yellow range, to assign one.</div>' : ''}</div>` : ''}
       ${editbar}
       <div class="${ed ? 'edit-on' : ''}"><div class="boardlist">${ranges}</div>${dutyT}${medicT}</div>${awayT}`;
     document.querySelectorAll('.dsel button').forEach(b => b.onclick = () => { S.dayIdx = +b.dataset.i; drawBoard(wk); });
@@ -790,6 +809,8 @@ function awayOn(day){
   return m;
 }
 /* Postings on that day whose person is also away */
+/* Ranges in use (officer or TF filled in) with nobody in the APO row */
+function noApoOn(day){ return day.ranges.filter(r => r.active && !String(r.emp || '').trim()); }
 function clashesOn(day){
   const away = awayOn(day), out = [];
   const chk = (names, where) => names.forEach(n => { if (away[n]) out.push({ name:n, where, why:away[n].join(', ') }); });
@@ -949,8 +970,10 @@ function waText(day){
 }
 function openWhatsApp(day){
   const cl = clashesOn(day).filter(c => !day.medics.some(m => m.role === c.where));
+  const gp = noApoOn(day);
   openWaSheet('WhatsApp message', nice(day.date) + '. Taken from the Deployment Plan; you can edit it before sending.',
-    cl.length ? `<div class="note red"><b>Not covered yet:</b><ul style="margin:4px 0 0;padding-left:18px">${cl.map(c => `<li>${esc(c.where)}: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>Fix these first if you can, then reopen this.</div>` : '',
+    (cl.length ? `<div class="note red"><b>Not covered yet:</b><ul style="margin:4px 0 0;padding-left:18px">${cl.map(c => `<li>${esc(c.where)}: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>Fix these first if you can, then reopen this.</div>` : '') +
+    (gp.length ? `<div class="note yellow"><b>No APO yet:</b> ${esc(gp.map(r => r.range).join(', '))}</div>` : ''),
     waText(day));
 }
 function openWaSheet(title, sub, warnHtml, text){
