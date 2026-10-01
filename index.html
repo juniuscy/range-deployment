@@ -1289,7 +1289,7 @@ async function refreshPendingDot(){
   } catch(e){}
 }
 function viewAdmin(){
-  const subs = [['pending','Pending'],['att','Attendance'],['team','Team'],['staff','Staff'],['oil','Off days earned'],['lib','LIB'],['changes','Changes']];
+  const subs = [['pending','Pending'],['att','Attendance'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
   V().innerHTML = `<h2>Admin</h2><div class="sub">${subs.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div><div id="adm"></div>`;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
@@ -1307,7 +1307,7 @@ async function admPending(){
       <div class="h"><b>${esc(r.name)}: ${esc(r.typeLabel)}</b><span class="pill Pending">Pending</span></div>
       <div class="when">${span(r.start, r.end)}${r.session && r.session !== 'Full' ? ' ('+r.session+')' : ''}, ${fmtN(r.days)} day${r.days===1?'':'s'}${r.time ? ', '+esc(r.time) : ''}</div>
       ${r.reason ? `<div class="small">${esc(r.reason)}</div>` : ''}
-      ${r.oilDates && r.oilDates.length ? `<div class="small muted">Clearing off days earned on ${r.oilDates.map(nice).join(', ')}</div>` : ''}
+      ${r.oilDates && r.oilDates.length ? `<div class="small muted">Clearing OIL earned on ${r.oilDates.map(nice).join(', ')}</div>` : ''}
       ${r.attachment ? `<div class="small"><a href="${esc(r.attachment)}" target="_blank" rel="noopener">View attachment</a></div>` : ''}
       ${r.warnings.length ? `<div class="note red" style="margin:8px 0 0"><b>On the roster:</b><ul>${r.warnings.map(w => `<li>${wdate(w)}</li>`).join('')}</ul></div>` : ''}
       ${r.othersAway.length ? `<div class="note" style="margin:8px 0 0"><b>Also away:</b><ul>${r.othersAway.map(w => `<li>${esc(w.replace(/\d{4}-\d{2}-\d{2}/g, m => nice(m)))}</li>`).join('')}</ul></div>` : ''}
