@@ -1481,10 +1481,13 @@ async function admOil(){
 }
 
 /* Tick-list of Managers then APOs (Managers: JAMES LAI first) */
+/* Medics who earn OIL (the other medics are from partner companies). Add names here as needed. */
+const OIL_MEDICS = ['FAHMI'];
+const earnsOil = p => p.role !== 'Medic' || OIL_MEDICS.some(n => p.name.indexOf(n) === 0 || (p.aliases || []).includes(n));
 function pickGroups(){
-  const sorted = role => (S.staff || []).filter(p => p.role === role).map(p => p.name)
+  const sorted = role => (S.staff || []).filter(p => p.role === role && earnsOil(p)).map(p => p.name)
     .sort((a, b) => ((b === 'JAMES LAI') - (a === 'JAMES LAI')) || a.localeCompare(b));
-  return [['Manager', 'Managers'], ['APO', 'APO']].map(([role, label]) => {
+  return [['Manager', 'Managers'], ['APO', 'APO'], ['Medic', 'Medics']].map(([role, label]) => {
     const names = sorted(role);
     return names.length ? `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><b style="font-size:14px">${label}</b>
         <button class="btn ghost" style="min-height:30px;padding:2px 10px;font-size:13px" data-pkall="${role}">Tick all / none</button></div>
