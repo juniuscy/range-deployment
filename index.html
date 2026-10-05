@@ -1602,7 +1602,10 @@ async function admLib(){
   A().innerHTML = '<div class="loading">Loading\u2026</div>';
   try { drawLib(await call('adminLib', S.token)); } catch(e){ fail(e); }
 }
-const addYears = (d, n) => { const x = pd(d); x.setFullYear(x.getFullYear() + n); return ymd(x); };
+const LIB_MONTHS = 6;   // LIB is valid for 6 months from the test date
+/* add n months to a yyyy-mm-dd date, keeping month ends (31 Aug + 6 = 28 Feb) */
+const addMonths = (d, n) => { const x = pd(d), day = x.getDate(); x.setDate(1); x.setMonth(x.getMonth() + n);
+  x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return ymd(x); };
 function drawLib(list){
   const days = d => d ? Math.round((pd(d) - pd(S.today)) / 864e5) : null;
   const pill = d => {
@@ -1618,13 +1621,13 @@ function drawLib(list){
   const late = list.filter(x => days(x.date) != null && days(x.date) < 0).length;
   const small = 'min-height:36px;padding:4px 10px;font-size:14px';
   A().innerHTML = `
-    <p class="small muted">Enter the date each person <b>took the LIB test</b>. The expiry is set to one year later and saved in the <b>Database</b> tab (column H), which the LIB EXPIRY list on every weekly tab reads.</p>
+    <p class="small muted">Enter the date each person <b>took the LIB test</b>. The expiry is set to six months later and saved in the <b>Database</b> tab (column H), which the LIB EXPIRY list on every weekly tab reads.</p>
     ${late ? `<div class="note red">${late} LIB${late === 1 ? ' has' : 's have'} expired.</div>` : ''}
     <div class="scroll"><table class="t"><tr><th>Name and expiry</th><th>LIB test taken</th></tr>
       ${list.map(x => `<tr><td><b>${esc(x.label)}</b>
           <div class="small" style="margin-top:4px;white-space:nowrap">Expires ${x.date ? nice(x.date) + ' ' + pd(x.date).getFullYear() : '-'}</div>
           <div style="margin-top:4px">${pill(x.date)}</div></td>
-        <td><input type="date" value="${x.date ? addYears(x.date, -1) : ''}" max="${S.today}" data-libd="${esc(x.name)}" style="min-height:38px;padding:6px 8px;max-width:160px">
+        <td><input type="date" value="${x.date ? addMonths(x.date, -LIB_MONTHS) : ''}" max="${S.today}" data-libd="${esc(x.name)}" style="min-height:38px;padding:6px 8px;max-width:160px">
           <div class="small muted" data-libx="${esc(x.name)}" style="margin-top:4px"></div>
           <div style="margin-top:6px;display:flex;gap:6px"><button class="btn" style="${small}" data-libsave="${esc(x.name)}">Save</button>
           <button class="btn ghost" style="${small}" data-librm="${x.row}" data-libname="${esc(x.name)}">Remove</button></div></td></tr>`).join('')}</table></div>
@@ -1636,12 +1639,12 @@ function drawLib(list){
   // live preview of the new expiry as the test date changes
   A().querySelectorAll('[data-libd]').forEach(inp => inp.oninput = () => {
     const out = A().querySelector(`[data-libx="${inp.dataset.libd}"]`);
-    out.textContent = inp.value ? 'New expiry: ' + nice(addYears(inp.value, 1)) + ' ' + addYears(inp.value, 1).slice(0, 4) : '';
+    out.textContent = inp.value ? 'New expiry: ' + nice(addMonths(inp.value, LIB_MONTHS)) + ' ' + addMonths(inp.value, LIB_MONTHS).slice(0, 4) : '';
   });
-  if ($('#l-d')) $('#l-d').oninput = () => { const v = $('#l-d').value; $('#l-x').textContent = v ? 'Expires ' + nice(addYears(v, 1)) + ' ' + addYears(v, 1).slice(0, 4) : ''; };
+  if ($('#l-d')) $('#l-d').oninput = () => { const v = $('#l-d').value; $('#l-x').textContent = v ? 'Expires ' + nice(addMonths(v, LIB_MONTHS)) + ' ' + addMonths(v, LIB_MONTHS).slice(0, 4) : ''; };
   const save = async (name, testDate, btn) => {
     busy(btn, true);
-    try { drawLib(await call('adminSetLib', S.token, { name, testDate })); toast('LIB saved for ' + name + '. Expires ' + nice(addYears(testDate, 1)) + ' ' + addYears(testDate, 1).slice(0, 4)); }
+    try { drawLib(await call('adminSetLib', S.token, { name, testDate })); toast('LIB saved for ' + name + '. Expires ' + nice(addMonths(testDate, LIB_MONTHS)) + ' ' + addMonths(testDate, LIB_MONTHS).slice(0, 4)); }
     catch(x){ fail(x); busy(btn, false); }
   };
   A().querySelectorAll('[data-libsave]').forEach(b => b.onclick = () => save(b.dataset.libsave, A().querySelector(`[data-libd="${b.dataset.libsave}"]`).value, b));
@@ -1931,7 +1934,7 @@ const MOCK = (() => {
     adminSetLib: (t, f) => {
       if (!f.testDate) throw new Error('Pick the date they took the LIB test.');
       if (f.testDate > today) throw new Error('The LIB test date cannot be in the future.');
-      f.date = addYears(f.testDate, 1);
+      f.date = addMonths(f.testDate, LIB_MONTHS);
       let x = libList.find(y => y.name === f.name);
       if (!x) { x = { row: libList.length + 2, label: f.name, name: f.name, date:'' }; libList.push(x); }
       x.date = f.date; SNAP.lib[f.name] = f.date; return libList.filter(y => y.label);
