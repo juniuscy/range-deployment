@@ -880,16 +880,9 @@ async function repDay(date){
   return wk.days && wk.days.length ? wk.days[dowIdx(date)] : null;
 }
 function medText(day){
-  const dt = pd(day.date), away = awayOn(day);
-  const L = ['*MEDICAL SUPPORT READINESS*', '*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(day.date)] + ')*', ''];
-  const ms = day.medics;
-  if (!ms.length) L.push('No medical support planned for today.');
-  ms.forEach(m => {
-    const off = m.people.filter(n => away[n]);
-    L.push(m.role + ': ' + (m.who || 'NIL') + (m.loc && m.loc !== m.role ? ' (' + m.loc + ')' : '') + (off.length ? ' - AWAY, replacement needed' : ''));
-  });
-  const gaps = day.medics.filter(m => m.people.some(n => away[n]));
-  if (ms.length) L.push('', gaps.length ? 'Status: NOT READY - ' + gaps.map(m => m.role).join(', ') + ' to be covered' : 'Status: READY');
+  const dt = pd(day.date);
+  const L = ['*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(day.date)] + ')*', '', '*DM*', '', '*MEDICAL SUPPORT READY*'];
+  day.medics.forEach(m => L.push(m.role + ': ' + (m.who || 'NIL') + (m.who && m.loc && m.loc !== m.role ? ' (' + m.loc + ')' : '')));
   return L.join('\n');
 }
 async function repPrepare(r, st, redraw){
@@ -913,6 +906,8 @@ async function repPrepare(r, st, redraw){
     const day = await repDay(S.today);
     if (!day) throw new Error('There is no weekly tab for today yet.');
     text = medText(day);
+    const away = awayOn(day), off = day.medics.filter(m => m.people.some(n => away[n]));
+    if (off.length) warn = `<div class="note red"><b>Check first:</b> ${esc(off.map(m => m.role + ' ' + m.who + ' is away').join('; '))}. Change the medic in the Deployment Plan, then Prepare again.</div>`;
   }
   openWaSheet(r.title, 'Send to: ' + r.grp + '. Open WhatsApp, pick the group, then tap Mark as sent here.', warn, text, {
     sentLabel: 'Mark as sent',
