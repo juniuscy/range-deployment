@@ -1074,7 +1074,7 @@ function busyOn(day){
 function pickerOptions(day, pool, exclude){
   exclude = exclude || [];
   const busy = busyOn(day);
-  const by = role => (S.staff || []).filter(p => p.role === role && !exclude.includes(p.name)).map(p => p.name).sort();
+  const by = role => (S.staff || []).filter(p => (p.role === role || (role === 'APO' && p.role === 'Non-APO')) && !exclude.includes(p.name)).map(p => p.name).sort();
   const grp = (label, names, mark) => names.length ? `<optgroup label="${label}">${names.map(n =>
     `<option value="${esc(n)}">${esc(n)}${mark && busy.has(n) ? ' (posted or away)' : ''}</option>`).join('')}</optgroup>` : '';
   const mg = by('Manager');
@@ -1087,7 +1087,7 @@ function pickerOptions(day, pool, exclude){
 }
 /* Names allowed in a slot: APO slots take APOs (and managers as reserve); medic slots take medics only */
 function namesFor(pool){
-  const ok = pool === 'Medic' ? ['Medic', 'Backup Medic'] : ['APO', 'Manager'];
+  const ok = pool === 'Medic' ? ['Medic', 'Backup Medic'] : ['APO', 'Non-APO', 'Manager'];
   return (S.staff || []).filter(p => ok.includes(p.role)).map(p => p.name).sort();
 }
 /* Who is away on a day, from the leave rows (AL, MC, OIL, UL, Course\u2026). "Off Day Earned" is not an absence. */
@@ -1117,7 +1117,7 @@ function clashesOn(day){
 }
 function freeOn(day, role){
   const b = busyOn(day);
-  return (S.staff || []).filter(p => p.role === role && !b.has(p.name)).map(p => p.name);
+  return (S.staff || []).filter(p => (p.role === role || (role === 'APO' && p.role === 'Non-APO')) && !b.has(p.name)).map(p => p.name);
 }
 function clashes(day, text, kind, label, field){
   const out = [];
@@ -1630,7 +1630,7 @@ async function admPending(){
 async function admTeam(){
   A().innerHTML = '<div class="loading">Loading\u2026</div>';
   try {
-    const ORDER = { Manager:0, APO:1, Medic:2, 'Backup Medic':3 };
+    const ORDER = { Manager:0, APO:1, 'Non-APO':1, Medic:2, 'Backup Medic':3 };
     const FIRST = ['JAMES LAI'];                       // shown at the top of their group
     const t = (await call('adminTeam', S.token)).sort((a, b) =>
       ((ORDER[a.role] ?? 3) - (ORDER[b.role] ?? 3)) ||
@@ -1771,7 +1771,7 @@ const earnsOil = p => p.role !== 'Medic' || OIL_MEDICS.some(n => p.name.indexOf(
 function pickGroups(){
   const sorted = role => (S.staff || []).filter(p => p.role === role && earnsOil(p)).map(p => p.name)
     .sort((a, b) => ((b === 'JAMES LAI') - (a === 'JAMES LAI')) || a.localeCompare(b));
-  return [['Manager', 'Managers'], ['APO', 'APO'], ['Medic', 'Medics']].map(([role, label]) => {
+  return [['Manager', 'Managers'], ['APO', 'APO'], ['Non-APO', 'Non-APO'], ['Medic', 'Medics']].map(([role, label]) => {
     const names = sorted(role);
     return names.length ? `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><b style="font-size:14px">${label}</b>
         <button class="btn ghost" style="min-height:30px;padding:2px 10px;font-size:13px" data-pkall="${role}">Tick all / none</button></div>
@@ -1795,7 +1795,7 @@ function attText(a){
     'Total strength: ' + rows.length];
   if (dowIdx(a.date) >= 5) {
     // Weekend: only who is turning up, Managers first (JAMES LAI first), then APO, then Medics
-    const ORD = { Manager:0, APO:1, Medic:2 };
+    const ORD = { Manager:0, APO:1, 'Non-APO':1, Medic:2 };
     const ppl = present.slice().sort((x, y) => ((ORD[x.role] ?? 3) - (ORD[y.role] ?? 3)) ||
       ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
     return head2.concat(['Present: ' + ppl.length], ppl.map(r => titleCase(r.name))).join('\n');
@@ -1819,7 +1819,7 @@ async function admAtt(){
 }
 function drawAtt(a){
   S.attDate = a.date;
-  const ORDER = { Manager:0, APO:1, Medic:2, 'Backup Medic':3 };
+  const ORDER = { Manager:0, APO:1, 'Non-APO':1, Medic:2, 'Backup Medic':3 };
   const rows = a.rows.slice().sort((x, y) => ((ORDER[x.role] ?? 3) - (ORDER[y.role] ?? 3)) ||
     ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
   const counted = rows.filter(r => r.status !== 'Off');
@@ -1901,7 +1901,7 @@ function drawLib(list){
   };
   list = list.slice().sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
   const have = list.map(x => x.name);
-  const missing = (S.staff || []).filter(p => (p.role === 'APO' || p.role === 'Manager') && !have.includes(p.name)).map(p => p.name).sort();
+  const missing = (S.staff || []).filter(p => (p.role === 'APO' || p.role === 'Non-APO' || p.role === 'Manager') && !have.includes(p.name)).map(p => p.name).sort();
   const late = list.filter(x => days(x.date) != null && days(x.date) < 0).length;
   const small = 'min-height:36px;padding:4px 10px;font-size:14px';
   A().innerHTML = `
@@ -1947,7 +1947,7 @@ async function admStaff(){
   A().innerHTML = '<div class="loading">Loading\u2026</div>';
   try { drawStaff(await call('adminStaff', S.token)); } catch(e){ fail(e); }
 }
-const ROLES = ['APO','Manager','Medic','Backup Medic','Admin'];
+const ROLES = ['APO','Non-APO','Manager','Medic','Backup Medic','Admin'];
 function drawStaff(list){
   A().innerHTML = `
     <div class="sec"><h3 style="margin-top:0">Add a staff member</h3>
@@ -2080,7 +2080,7 @@ const MOCK = (() => {
       absences: i === 1 ? [{ label:'MC', text:'ARIF MC', people:['ARIF'] }] : i === 3 ? [{ label:'IPPT/ TRG etc', text:'WONG TEST SHOOT (1400hrs)', people:['WONG'] }] : [] };
   }
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
-  const staffList = SNAP.staff.map(p => ({ name:p.name, role: ['JAMES LAI','DANIEL FOO','CHAN YANG'].includes(p.name) ? 'Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO' }))
+  const staffList = SNAP.staff.map(p => ({ name:p.name, role: ['JAMES LAI','DANIEL FOO','CHAN YANG'].includes(p.name) ? 'Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO' }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
   const getWk = m => weeks[m] || (weeks[m] = SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] });
