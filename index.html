@@ -859,7 +859,7 @@ function repStatus(r, st){
   if (r.win[1] === '23:59') return { cls:'now', line:'Not sent yet. Send after ' + hrs(r.win[0]) };   // no deadline
   if (now < r.win[0]) return { cls:'now', line:'Not sent yet. Send from ' + hrs(r.win[0]) + ' to ' + hrs(r.win[1]) };
   if (now <= r.win[1]) return { cls:'now', line:'Send now, by ' + hrs(r.win[1]) };
-  return { cls:'late', line:'Not sent yet (due by ' + hrs(r.win[1]) + ')' };
+  return { cls:'late', line:'Not sent yet' };
 }
 function repCard(st){
   if (!st) return '';
