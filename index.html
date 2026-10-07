@@ -288,6 +288,36 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .iedit{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0 2px;padding:8px 10px;background:#F4F6F3;border-radius:var(--r-sm)}
 .iedit input{min-height:38px;padding:6px 8px}
 .iedit[hidden]{display:none}
+/* training */
+.tg{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fixed;font-size:12px}
+.tg th{font-size:11px;color:var(--muted);font-weight:600;text-align:center;line-height:1.15;padding:2px 0}
+.tg th.nm{text-align:left;width:74px;color:var(--ink);font-size:12px}
+.tg th.nm small{display:block;font-weight:400;color:var(--muted);font-size:10.5px}
+.tg td{text-align:center;border-radius:5px;padding:7px 0;font-weight:600;font-size:11px;cursor:pointer;white-space:nowrap;overflow:hidden}
+.ts-done{background:#DCFCE7;color:#166534}.ts-arr,.ts-wait{background:#DBEAFE;color:#1E40AF}.ts-todo{background:#FEF9C3;color:#854D0E}
+.ts-late,.ts-missed,.ts-fail{background:#FDE2E1;color:#B3261E}.ts-na,.ts-locked,.ts-soon2{background:#ECEFF1;color:#8A959E}
+.ttiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}.ttiles div{border-radius:9px;padding:7px 4px;text-align:center;font-size:12px}.ttiles b{display:block;font-size:22px;line-height:1.1}
+.tlist{border-radius:9px;padding:8px 10px;margin-bottom:6px;font-size:14px;border:1px solid var(--line)}
+.tlist b{display:block}.tlist small{color:var(--muted)}
+.tlg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin:8px 0}.tlg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.thist{font-size:13px;border-top:1px solid var(--line);padding-top:8px;margin-top:6px}.thist div{display:flex;justify-content:space-between;padding:3px 0}
+.rbtn{display:flex;gap:8px;margin:6px 0 4px}.rbtn .btn{flex:1;min-height:44px;border:0;color:#fff}
+.rb-PASSED,.rb-DONE{background:#16A34A}.rb-FAILED{background:#B3261E}.rb-ABSENT{background:#6B7280}
+.mytrn{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 14px}
+.mytrn h3{margin:0 0 6px;font-size:17px}.mytrn h3 small{font:400 13px var(--body);color:var(--muted)}
+.mtr{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;margin-top:5px;font-size:14px;border-left:4px solid}
+.mtr span{font-size:13px;text-align:right}.mtr.ts-done{border-color:#22C55E}.mtr.ts-arr,.mtr.ts-wait{border-color:#3B82F6}.mtr.ts-todo{border-color:#EAB308}
+.mtr.ts-late,.mtr.ts-missed,.mtr.ts-fail{border-color:var(--flag)}.mtr.ts-na,.mtr.ts-locked,.mtr.ts-soon2{border-color:#B8C1C8}
+.mtr.ask{display:block}.mtr.ask .q{font-weight:700;margin:4px 0 0;font-size:13px}
+/* greeting row with clock-in, birthday */
+.hirow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.hirow h2{margin:0}.idno{font-size:14px;color:var(--muted);margin-top:2px}
+.clock.cm{margin:0;padding:6px 10px;text-align:center;min-width:128px;flex:none}
+.clock.cm > b{font-size:20px}.clock.cm > span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.clock.cm.todo{border:0;background:transparent;padding:0}.clock.cm.todo .btn{min-height:46px;padding:8px 20px;font-size:17px;width:100%}
+.bday{display:flex;gap:10px;align-items:center;background:linear-gradient(90deg,#FFF1F2,#FEF3C7);border:1px solid #FBCFE8;border-radius:var(--r-md);padding:9px 12px;margin:0 0 14px}
+.bday .ck{font-size:26px;line-height:1}.bday b{display:block;color:#9D174D;font-size:16px}.bday small{color:var(--muted);font-size:13px}
+
 
 .dsel button.busy{background:#FFFBEB;border-color:#F8E7A8}
 .dsel button.full{background:#FEF2F1;border-color:#F6C9C4}
@@ -336,7 +366,7 @@ window.onerror = function (msg, src, line) {
 const API_URL = /^https:/.test(String(window.API_URL || '')) && /\/exec$/.test(window.API_URL) ? window.API_URL : '';
 const GAS = !!(window.google && google.script && google.script.run);
 const LIVE = GAS || !!API_URL;
-const READ_FNS = ['getInspections','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
+const READ_FNS = ['getInspections','getTraining','getBirthdays','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
   'getHome','getLoginInfo','getMyOil','getMyOilHistory','getMyRequests','getMySchedule','getWeek','resume'];
 function apiOnce(fn, args){
   return fetch(API_URL, {
@@ -595,9 +625,12 @@ function drawHome(h, stale){
       else if (left <= 45) lib = `<div class="note">Your LIB expires on ${nice(h.lib)}, in ${left} day${left===1?'':'s'}.</div>`;
     }
     V().innerHTML = `
-      <h2>Hi ${esc(h.me.name)}${stale ? ' <span class="small muted" style="font:500 14px var(--body)">updating...</span>' : ''}</h2>
+      <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="small muted" style="font:500 14px var(--body)">updating...</span>' : ''}</h2>
+        <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div>${h.attendance ? clockCard(h.attendance) : ''}</div>
+      ${h.attendance ? clockNotes(h.attendance) : ''}
+      ${bdayBanner(h.birthdays)}
       ${h.inspections ? inspCard(h.inspections) : ''}
-      ${h.attendance ? clockCard(h.attendance) : ''}
+      ${h.training ? myTrnCard(h.training) : ''}
       <div class="strip" style="${hasOil() ? '' : 'grid-template-columns:1fr'}">
         ${hasOil() ? `<div><b>${fmtN(b.oilAvailable)}</b><span>Off days left${b.oilReserved ? ' (+'+fmtN(b.oilReserved)+' on hold)' : ''}</span></div>` : ''}
         <div><b>${b.pending}</b><span>Waiting for approval</span></div>
@@ -611,6 +644,7 @@ function drawHome(h, stale){
     S.next14 = h.upcoming;
     wireClock();
     if (h.inspections) wireInsp(h.inspections);
+    if (h.training) wireMyTrn();
     document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
       S.hmode = b.dataset.m;
       document.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b));
@@ -620,6 +654,181 @@ function drawHome(h, stale){
     if (canManage()) refreshPendingDot();
   }
 }
+/* ---------- APO training ---------- */
+const TRN_TXT = { done:'', arr:'', wait:'', todo:'Arrange', late:'Arrange', missed:'Missed', fail:'', na:'N/A', locked:'TS first', soon2:'Jul' };
+const TRN_RES = k => k === 'MA' ? ['DONE','ABSENT'] : ['PASSED','FAILED','ABSENT'];
+const resWord = r => ({ PASSED:'Passed', FAILED:'Failed', ABSENT:'Absent', DONE:'Done' })[r] || r;
+const sdt = s => pd(s).getDate() + ' ' + MON[pd(s).getMonth()];
+/* State of one APO's training for the current period */
+function trnCell(d, person, per){
+  if (per.minAge && person.age != null && person.age < per.minAge) return { st:'na' };
+  const rs = d.rows.filter(r => r.name === person.name && r.t === per.t && r.period === per.id);
+  const done = rs.find(r => r.result === 'PASSED' || r.result === 'DONE');
+  if (done) return { st:'done', date:done.resultDate || done.arranged, row:done, rs };
+  if (per.needs) {
+    const np = d.periods.find(p => p.k === per.needs);
+    if (np && trnCell(d, person, np).st !== 'done') return { st:'locked', rs };
+  }
+  const open = rs.filter(r => !r.result).pop();
+  if (open) return { st: open.arranged <= d.today ? 'wait' : 'arr', date:open.arranged, row:open, rs };
+  const last = rs[rs.length - 1];
+  if (last) return { st:'fail', date:last.arranged, result:last.result, row:last, rs };
+  if (d.today < per.start) return { st:'soon2', rs };
+  if (d.today > per.end) return { st:'missed', rs };
+  if (d.today.slice(0, 7) === per.end.slice(0, 7)) return { st:'late', rs };
+  return { st:'todo', rs };
+}
+function trnGrid(d){ return d.people.map(p => ({ p, cs: d.periods.map(per => Object.assign({ per }, trnCell(d, p, per))) })); }
+const TRN_RED = ['late','missed','fail'];
+function trnLabelLong(per){ return per.k === 'IPPT' ? 'IPPT' : per.label; }
+function periodText(per){
+  if (per.k === 'WHT1' || per.k === 'WHT2') return per.label + ' ' + per.id.slice(0, 4);
+  if (per.k === 'IPPT') return 'IPPT year 1 Apr ' + per.start.slice(0, 4) + ' to 31 Mar ' + per.end.slice(0, 4);
+  return 'Work year ' + per.id;
+}
+
+async function admTraining(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try { drawTraining(await call('getTraining', S.token)); } catch(e){ fail(e); }
+}
+function drawTraining(d){
+  S.trn = d;
+  const grid = trnGrid(d);
+  const cnt = { done:0, arr:0, todo:0, red:0 };
+  const toArr = {}, rebook = [], waiting = [], coming = [];
+  grid.forEach(({ p, cs }) => cs.forEach(c => {
+    if (c.st === 'done') cnt.done++;
+    else if (c.st === 'arr' || c.st === 'wait') cnt.arr++;
+    else if (c.st === 'todo') cnt.todo++;
+    else if (TRN_RED.includes(c.st)) cnt.red++;
+    if (c.st === 'todo' || c.st === 'late' || c.st === 'missed') (toArr[trnLabelLong(c.per)] = toArr[trnLabelLong(c.per)] || []).push(p.name);
+    if (c.st === 'fail') rebook.push({ p, c });
+    if (c.st === 'wait') waiting.push({ p, c });
+    if (c.st === 'arr') coming.push({ p, c });
+  }));
+  coming.sort((a, b) => a.c.date < b.c.date ? -1 : 1);
+  const nToArr = Object.values(toArr).reduce((a, v) => a + v.length, 0);
+  const needs = cs => cs.some(c => ['todo','late','missed','fail','wait'].includes(c.st));
+  const shown = S.trnFilter ? grid.filter(x => needs(x.cs)) : grid;
+  const pct = d.periods.find(p => p.k === 'PCT'), ip = d.periods.find(p => p.k === 'IPPT');
+  const head = d.periods.map(per => `<th>${esc(per.k === 'WHT1' ? 'WHT H1' : per.k === 'WHT2' ? 'WHT H2' : per.k === 'MA' ? 'MA' : per.label)}</th>`).join('');
+  const cellTxt = c => c.date && ['done','arr','wait'].includes(c.st) ? sdt(c.date) + (c.st === 'wait' ? '?' : '') : c.st === 'fail' ? resWord(c.result) : TRN_TXT[c.st];
+  const who = x => `<b>${esc(x.p.name)}${x.p.sid ? ' <small style="font-weight:400">' + esc(x.p.sid) + '</small>' : ''}</b>`;
+  A().innerHTML = `
+    <p class="small muted" style="margin:0 0 4px">Work year <b>${esc(pct.id)}</b> &middot; IPPT year <b>${esc(sdt(ip.start))} ${ip.start.slice(0,4)} &ndash; ${esc(sdt(ip.end))} ${ip.end.slice(0,4)}</b></p>
+    <div class="ttiles"><div class="ts-done"><b>${cnt.done}</b>Done</div><div class="ts-arr"><b>${cnt.arr}</b>Arranged</div>
+      <div class="ts-todo"><b>${cnt.todo}</b>Not arranged</div><div class="ts-fail"><b>${cnt.red}</b>Failed / overdue</div></div>
+    ${nToArr ? `<div class="note"><b>${nToArr} training${nToArr === 1 ? '' : 's'} still to be arranged.</b> Red from the last month of the period (December; June for WHT Jan-Jun; March for IPPT) if still not arranged.</div>` : ''}
+    ${Object.keys(toArr).length ? `<h3>Waiting to be arranged</h3>${Object.keys(toArr).map(k => `<div class="tlist ts-todo"><b>${esc(k)} (${toArr[k].length})</b>${esc(toArr[k].join(', '))}</div>`).join('')}` : ''}
+    ${rebook.length ? `<h3>Failed / absent &ndash; rebook</h3>${rebook.map(x => `<div class="tlist ts-fail">${who(x)}${esc(x.c.per.label)} &middot; ${esc(resWord(x.c.result))} ${esc(sdt(x.c.date))}</div>`).join('')}` : ''}
+    ${waiting.length ? `<h3>Waiting for the APO's result</h3>${waiting.map(x => `<div class="tlist ts-wait">${who(x)}${esc(x.c.per.label)} &middot; ${esc(nice(x.c.date))}</div>`).join('')}` : ''}
+    ${coming.length ? `<h3>Arranged, coming up</h3>${coming.map(x => `<div class="tlist ts-arr"><b>${esc(nice(x.c.date))}</b>${esc(x.p.name)} &middot; ${esc(x.c.per.label)}</div>`).join('')}` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+      <button class="btn go" id="t-wa">WhatsApp reminder to managers</button><button class="btn ghost" id="t-rf">Refresh</button></div>
+    <div class="sub" style="margin-bottom:8px"><button class="chip" data-tf="" aria-pressed="${!S.trnFilter}">All APO</button>
+      <button class="chip" data-tf="1" aria-pressed="${!!S.trnFilter}">Needs action (${grid.filter(x => needs(x.cs)).length})</button></div>
+    ${shown.length ? `<div class="scroll" style="background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:4px"><table class="tg">
+      <tr><th class="nm"></th>${head}</tr>
+      ${shown.map(x => `<tr><th class="nm">${esc(x.p.name)}${x.p.sid ? `<small>${esc(x.p.sid)}</small>` : ''}</th>${x.cs.map(c =>
+        `<td class="ts-${c.st}" data-tc="${esc(x.p.name)}|${c.per.k}">${esc(cellTxt(c))}</td>`).join('')}</tr>`).join('')}</table></div>`
+      : '<div class="sec"><p>Nothing needs action.</p></div>'}
+    <div class="tlg"><span><i class="ts-done"></i>Done</span><span><i class="ts-arr"></i>Arranged</span><span><i class="ts-todo"></i>Not arranged</span><span><i class="ts-fail"></i>Failed / overdue</span><span><i class="ts-na"></i>N/A</span></div>
+    <p class="small muted">${d.canEdit ? 'Tap a box to arrange a date or record a result. ' : ''}A date with "?" has passed and is waiting for the APO to enter the result. Arranged dates go into that day's IPPT/ TRG row.</p>`;
+  $('#t-rf').onclick = () => admTraining();
+  A().querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { S.trnFilter = b.dataset.tf; drawTraining(S.trn); });
+  $('#t-wa').onclick = () => {
+    const dt = pd(d.today);
+    const L = ['*APO TRAINING*', '*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(d.today)] + ')*'];
+    if (Object.keys(toArr).length) { L.push('', '*TO ARRANGE*'); Object.keys(toArr).forEach(k => L.push(k + ': ' + toArr[k].join(', '))); }
+    if (rebook.length) { L.push('', '*REBOOK (FAILED / ABSENT)*'); rebook.forEach(x => L.push(x.p.name + ' - ' + x.c.per.label + ' (' + resWord(x.c.result) + ' ' + sdt(x.c.date) + ')')); }
+    if (waiting.length) { L.push('', '*WAITING FOR RESULT*'); waiting.forEach(x => L.push(x.p.name + ' - ' + x.c.per.label + ' (' + sdt(x.c.date) + ')')); }
+    if (coming.length) { L.push('', '*COMING UP*'); coming.forEach(x => L.push(sdt(x.c.date) + ' - ' + x.p.name + ' ' + x.c.per.label)); }
+    if (L.length === 2) L.push('', 'All trainings are arranged or done.');
+    openWaSheet('Training reminder', 'For the managers. You can edit it before sending.', '', L.join('\n'));
+  };
+  if (d.canEdit) A().querySelectorAll('[data-tc]').forEach(td => td.onclick = () => {
+    const [nm, k] = td.dataset.tc.split('|');
+    const row = grid.find(x => x.p.name === nm);
+    trnEditor(d, row.p, row.cs.find(c => c.per.k === k));
+  });
+}
+function trnEditor(d, person, c){
+  const per = c.per;
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  const hist = (c.rs || []).map(r => `<div><span>${esc(nice(r.arranged))}</span><b>${esc(r.result ? resWord(r.result) : (r.arranged <= d.today ? 'Waiting for result' : 'Arranged'))}</b></div>`).join('');
+  const needNote = per.needs ? (c.st === 'locked' ? `<div class="note red">${esc(person.name)} must pass TS first. TEST TS can be arranged once TS is passed.</div>`
+    : `<div class="note" style="border-color:#22C55E;background:#DCFCE7">TS passed, so TEST TS can be arranged.</div>`) : '';
+  let body = '';
+  if (c.st === 'na') body = `<div class="note blue">MA Checkup is only needed from age ${per.minAge}. ${esc(person.name)} is ${person.age}.</div>`;
+  else if (c.st === 'locked') body = '';
+  else if (c.st === 'done') body = `<div class="note" style="border-color:#22C55E;background:#DCFCE7"><b>${esc(resWord(c.row.result))}</b> on ${esc(nice(c.date))}</div>
+    <label class="f"><span>Change the result (if it was entered wrongly)</span></label>
+    <div class="rbtn">${TRN_RES(per.k).map(r => `<button class="btn rb-${r}" data-rr="${r}">${resWord(r)}</button>`).join('')}</div>`;
+  else {
+    const open = c.row && !c.row.result ? c.row : null;
+    body = `<label class="f"><span>${open ? 'Arranged date' : 'Arrange a date'}</span>
+        <input type="date" id="te-d" value="${esc(open ? open.arranged : '')}" min="${per.start}" max="${per.end}"></label>
+      <p class="small muted" style="margin-top:-8px">Saving puts <b>${esc(person.name + ' ' + per.t)}</b> in that day's IPPT/ TRG row, so they show as away.</p>
+      <div class="acts" style="margin-top:6px">${open ? '<button class="btn ghost" id="te-clr">Clear date</button>' : ''}<button class="btn" id="te-save">Save date</button></div>
+      ${open ? `<label class="f" style="margin-top:14px"><span>Result (the APO normally enters this)</span></label>
+        <div class="rbtn">${TRN_RES(per.k).map(r => `<button class="btn rb-${r}" data-rr="${r}">${resWord(r)}</button>`).join('')}</div>`
+      : `<label class="f" style="margin-top:14px"><span>Already done? Enter the date</span>
+        <span style="display:flex;gap:8px"><input type="date" id="te-pd" min="${per.start}" max="${d.today < per.end ? d.today : per.end}" style="min-width:0">
+        <button class="btn ghost" id="te-pass">Mark ${per.k === 'MA' ? 'done' : 'passed'}</button></span></label>`}`;
+  }
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(person.name)} ${person.sid ? `<small class="muted" style="font-weight:400">${esc(person.sid)}</small>` : ''} &middot; ${esc(per.label)}</h3>
+    <div class="src">${esc(periodText(per))}${per.needs ? ' &middot; needs TS first' : ''}${per.minAge ? ' &middot; age ' + per.minAge + '+' : ''}</div>
+    ${needNote}${body}${hist ? `<div class="thist"><b>History</b>${hist}</div>` : ''}
+    <div class="acts"><button class="btn ghost" id="te-x">Close</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#te-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  const done = (r, msg) => { close(); drawTraining(r); toast(r.warn ? msg + '. ' + r.warn : msg, !!r.warn); };
+  const run = async (btn, fn, arg, msg) => { busy(btn, true); try { done(await call(fn, S.token, arg), msg); } catch(x){ fail(x); busy(btn, false); } };
+  if ($('#te-save', bg)) $('#te-save', bg).onclick = e => run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:$('#te-d', bg).value }, 'Date saved');
+  if ($('#te-clr', bg)) $('#te-clr', bg).onclick = e => run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:'' }, 'Date cleared');
+  if ($('#te-pass', bg)) $('#te-pass', bg).onclick = e => run(e.target, 'trainingResult', { name:person.name, k:per.k, date:$('#te-pd', bg).value, result: per.k === 'MA' ? 'DONE' : 'PASSED' }, 'Saved');
+  bg.querySelectorAll('[data-rr]').forEach(b => b.onclick = e => run(e.target, 'trainingResult', { id:c.row.id, result:b.dataset.rr }, 'Result saved'));
+}
+/* APO: own training on My Deploy */
+function myTrnText(c){
+  switch (c.st) {
+    case 'done': return resWord(c.row.result) + ' ' + nice(c.date);
+    case 'arr': return 'Arranged: <b>' + esc(nice(c.date)) + '</b>';
+    case 'fail': return esc(resWord(c.result)) + ' ' + esc(nice(c.date)) + '. Your manager will rebook';
+    case 'na': return 'Not needed (under ' + c.per.minAge + ')';
+    case 'locked': return 'After TS';
+    case 'soon2': return 'Opens 1 Jul';
+    case 'missed': return 'Missed';
+    default: return 'Not arranged yet';
+  }
+}
+function myTrnCard(d){
+  if (!d || !d.people.length) return '';
+  const me = d.people[0], cs = d.periods.map(per => Object.assign({ per }, trnCell(d, me, per)));
+  return `<div class="mytrn" id="mytrn"><h3>My training <small>work year ${esc(d.periods.find(p => p.k === 'PCT').id)}</small></h3>
+    ${cs.map(c => c.st === 'wait' ? `<div class="mtr ts-wait ask"><div style="display:flex;justify-content:space-between"><b>${esc(c.per.label)}</b><span>${esc(nice(c.date))}</span></div>
+        <div class="q">How did it go?</div><div class="rbtn">${TRN_RES(c.per.k).map(r => `<button class="btn rb-${r}" data-myr="${esc(c.row.id)}|${r}">${resWord(r)}</button>`).join('')}</div></div>`
+      : `<div class="mtr ts-${c.st}"><b>${esc(c.per.k === 'IPPT' ? 'IPPT (' + c.per.start.slice(2,4) + '/' + c.per.end.slice(2,4) + ')' : c.per.label)}</b><span>${c.st === 'arr' ? myTrnText(c) : esc(myTrnText(c))}</span></div>`).join('')}</div>`;
+}
+function wireMyTrn(){
+  document.querySelectorAll('[data-myr]').forEach(b => b.onclick = async () => {
+    const [id, r] = b.dataset.myr.split('|');
+    if (!confirm('Record ' + resWord(r).toUpperCase() + '? You can only enter this once.')) return;
+    busy(b, true);
+    try { const d = await call('trainingResult', S.token, { id, result:r }); const box = $('#mytrn'); if (box) box.outerHTML = myTrnCard(d); wireMyTrn(); toast('Result saved'); }
+    catch(e){ fail(e); busy(b, false); }
+  });
+}
+/* Birthday banner (names only) */
+function bdayBanner(names){
+  if (!names || !names.length) return '';
+  const who = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  return `<div class="bday"><span class="ck">&#127874;</span><div><b>Happy Birthday, ${esc(who)}!</b><small>Wish ${names.length === 1 ? 'them' : 'them all'} a happy birthday today.</small></div></div>`;
+}
+
 /* ---------- Inspections (Admin and Managers) ---------- */
 function inspLine(x){
   if (x.state === 'unset') return 'Not set yet. Tap Edit and enter the date it was last done.';
@@ -664,18 +873,20 @@ function wireInsp(list){
 }
 
 /* ---------- clock-in card on My Deploy ---------- */
+/* Compact clock-in, shown beside the name */
 function clockCard(a){
   const d = pd(a.date);
   const when = DOW[dowIdx(a.date)] + ' ' + d.getDate() + ' ' + MON[d.getMonth()];
-  if (a.clockIn) return `<div class="clock ${a.late ? 'late' : 'ok'}"><b>Clocked in at ${esc(a.clockIn)}</b>
-    <span>${when}${a.late ? ', after ' + esc(a.lateAfter) + ' (late)' : ''}</span></div>`;
+  if (a.clockIn) return `<div class="clock cm ${a.late ? 'late' : 'ok'}"><b>${esc(a.clockIn)}</b><span>Clocked in${a.late ? ' (late)' : ''}</span></div>`;
   if (a.status && a.status !== 'Present' && a.status !== 'Present (Late)')
-    return `<div class="clock away"><b>Marked ${esc(a.status)} today</b><span>${when}. Set by your admin.</span></div>`;
-  return `<div class="clock todo">
-    ${a.leave ? `<div class="small" style="margin-bottom:8px">The plan shows you on <b>${esc(a.leave.cat)}</b> today (${esc(a.leave.text)}). Only clock in if you are at work.</div>` : ''}
-    ${a.ext ? `<div class="small" style="margin-bottom:8px"><span class="extag">EXT</span> Extended hours today: report at <b>${esc(hrs(a.ext))}</b>.</div>` : ''}
-    <button class="btn block" id="clk">Clock in for ${when}</button>
-    <span class="small muted" style="display:block;margin-top:6px">Late after ${esc(a.lateAfter)}</span></div>`;
+    return `<div class="clock cm away"><b>${esc(a.status)}</b><span>Marked today</span></div>`;
+  return `<div class="clock cm todo"><button class="btn" id="clk">Clock in</button><span>${when} &middot; late after ${esc(a.lateAfter)}</span></div>`;
+}
+/* Notes under the greeting when not clocked in yet */
+function clockNotes(a){
+  if (a.clockIn || (a.status && a.status !== 'Present' && a.status !== 'Present (Late)')) return '';
+  return (a.leave ? `<div class="note" id="clkn1">The plan shows you on <b>${esc(a.leave.cat)}</b> today (${esc(a.leave.text)}). Only clock in if you are at work.</div>` : '')
+    + (a.ext ? `<div class="note blue" id="clkn2"><span class="extag">EXT</span> Extended hours today: report at <b>${esc(hrs(a.ext))}</b>.</div>` : '');
 }
 function wireClock(){
   const b = $('#clk'); if (!b) return;
@@ -684,6 +895,7 @@ function wireClock(){
     try {
       const a = await call('clockIn', S.token);
       b.closest('.clock').outerHTML = clockCard(a);
+      ['#clkn1', '#clkn2'].forEach(id => { const n = $(id); if (n) n.remove(); });
       toast('Clocked in at ' + a.clockIn + (a.late ? ' (late)' : ''), a.late);
     } catch(e){ fail(e); busy(b, false); }
   };
@@ -746,10 +958,12 @@ async function viewBoard(){
   try {
     const key = S.monday;
     const isAdm = S.me && S.me.role === 'Admin';
-    const [wk, insp] = await Promise.all([
+    const [wk, insp, bd] = await Promise.all([
       call('getWeek', S.token, key),                   // always read fresh from the sheet
-      isAdm ? call('getInspections', S.token).catch(() => S.insp || null) : Promise.resolve(null)]);
+      isAdm ? call('getInspections', S.token).catch(() => S.insp || null) : Promise.resolve(null),
+      isAdm ? call('getBirthdays', S.token).catch(() => S.bdays || []) : Promise.resolve(null)]);
     if (insp) S.insp = insp;
+    if (bd) S.bdays = bd;
     S.cache[key] = wk;
     drawBoard(wk);
   } catch(e){ fail(e); }
@@ -758,7 +972,8 @@ function moveWeek(n){ S.monday = addD(S.monday, 7*n); viewBoard(); }
 function drawBoard(wk){
   const end = addD(wk.monday, 6);
   const admin = canManage();
-  const inspTop = S.me && S.me.role === 'Admin' && S.insp ? inspCard(S.insp) : '';
+  const isAdmAcct = S.me && S.me.role === 'Admin';
+  const inspTop = (isAdmAcct ? bdayBanner(S.bdays) : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '');
   const head = inspTop + `<div class="wkbar">
       <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
       <h2>${pd(wk.monday).getDate()} ${MON[pd(wk.monday).getMonth()]} to ${pd(end).getDate()} ${MON[pd(end).getMonth()]}</h2>
@@ -840,7 +1055,7 @@ function drawBoard(wk){
       openSlotEditor(wk, d, kind, label);
     });
   }
-  if (inspTop) wireInsp(S.insp);
+  if (isAdmAcct && S.insp) wireInsp(S.insp);
   $('#wr').onclick = () => viewBoard();
   $('#wp').onclick = () => moveWeek(-1);
   $('#wn').onclick = () => moveWeek(1);
@@ -1358,11 +1573,11 @@ async function refreshPendingDot(){
   } catch(e){}
 }
 function viewAdmin(){
-  const subs = [['pending','Pending'],['att','Attendance'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
+  const subs = [['pending','Pending'],['att','Attendance'],['trn','Training'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
   V().innerHTML = `<h2>Admin</h2><div class="sub">${subs.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div><div id="adm"></div>`;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
-  ({ pending:admPending, att:admAtt, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
+  ({ pending:admPending, att:admAtt, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
 }
 const A = () => $('#adm');
 
@@ -1741,11 +1956,13 @@ function drawStaff(list){
       <label class="f"><span>Short names (optional)</span><input type="text" id="n-a" placeholder="e.g. RAH"></label></div>
       <div class="row2"><label class="f"><span>Email (optional)</span><input type="text" id="n-e" inputmode="email"></label>
       <label class="f"><span>First PIN (4 to 6 digits)</span><input type="text" id="n-p" inputmode="numeric" maxlength="6" placeholder="e.g. 583104"></label></div>
+      <div class="row2"><label class="f"><span>Birthday (needed)</span><input type="date" id="n-b" max="${S.today}"></label>
+      <label class="f"><span>Staff ID</span><input type="text" id="n-id" inputmode="numeric" placeholder="e.g. 171590"></label></div>
       <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="n-db" checked style="width:20px;height:20px">
         <span>Also add to the Database tab so the sheet dropdowns list them</span></label>
       <button class="btn" id="n-go">Add staff</button></div>
     <div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th>Short names</th><th>PIN</th><th></th></tr>
-      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}</td><td>${esc(p.role)}</td>
+      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}${p.sid ? `<div class="small muted">ID ${esc(p.sid)}</div>` : ''}${!p.birthday && p.role !== 'Admin' ? '<div class="small" style="color:var(--flag)">No birthday yet</div>' : ''}</td><td>${esc(p.role)}</td>
         <td>${esc(p.aliases)}</td><td>${pinPill(p)}</td>
         <td style="white-space:nowrap"><button class="btn ghost" style="min-height:34px;padding:4px 10px" data-ed="${esc(p.name)}">Edit</button>
           <button class="btn ${p.active ? 'no' : 'ghost'}" style="min-height:34px;padding:4px 10px" data-act="${esc(p.name)}">${p.active ? 'Remove' : 'Restore'}</button></td></tr>`).join('')}</table></div>
@@ -1754,7 +1971,7 @@ function drawStaff(list){
     busy(e.target, true);
     try {
       const pin = $('#n-p').value.trim();
-      const r = await call('adminSaveStaff', S.token, { isNew:true, name:$('#n-n').value, role:$('#n-r').value, aliases:$('#n-a').value, email:$('#n-e').value, addToDb:$('#n-db').checked, pin });
+      const r = await call('adminSaveStaff', S.token, { isNew:true, name:$('#n-n').value, role:$('#n-r').value, aliases:$('#n-a').value, email:$('#n-e').value, addToDb:$('#n-db').checked, pin, birthday:$('#n-b').value, sid:$('#n-id').value });
       setStaff(r.staff); toast(pin ? 'Staff added. Give them their first PIN; they will choose their own when they sign in.' : 'Staff added. Set a first PIN for them with Edit.'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -1783,6 +2000,8 @@ function editStaff(p){
     <label class="f"><span>Role</span><select id="s-r">${ROLES.map(r => `<option ${r===p.role?'selected':''}>${r}</option>`).join('')}</select></label>
     <label class="f"><span>Short names (comma separated)</span><input type="text" id="s-a" value="${esc(p.aliases)}"></label>
     <label class="f"><span>Email</span><input type="text" id="s-e" value="${esc(p.email)}"></label>
+    <div class="row2"><label class="f"><span>Birthday</span><input type="date" id="s-b" value="${esc(p.birthday || '')}" max="${S.today}"></label>
+    <label class="f"><span>Staff ID</span><input type="text" id="s-id" value="${esc(p.sid || '')}" inputmode="numeric"></label></div>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-act" ${p.active?'checked':''} style="width:20px;height:20px"><span>Active (unticked hides them from sign-in and lists)</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-att" ${p.att !== false ? 'checked' : ''} style="width:20px;height:20px"><span>Counted in daily attendance</span></label>
     ${p.locked ? `<div class="note red" style="display:flex;align-items:center;gap:10px;justify-content:space-between">Locked after 5 wrong PINs.<button class="btn" id="s-unl" style="min-height:38px">Unlock</button></div>` : ''}
@@ -1808,7 +2027,7 @@ function editStaff(p){
   $('#s-ok', bg).onclick = async e => {
     busy(e.target, true);
     try {
-      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked });
+      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value });
       setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -1881,6 +2100,35 @@ const MOCK = (() => {
   const changes = [];
   /* attendance (preview only) */
   let lateAfter = '07:45';
+  /* preview: training + birthdays from the tracker */
+  const MB = { FAIZAL:'1981-05-05', WONG:'1989-10-21', DANIAL:'1995-10-02', CHEW:'1976-09-24', LIM:'1968-05-19', FAIRUZ:'1980-06-24', LEONARD:'1987-06-09', ONG:'1992-12-03', TOH:'1993-02-16', ARIF:'1984-05-02' };
+  const MID = { FAIZAL:'24965', WONG:'97780', DANIAL:'144316', CHEW:'42347', LIM:'16356', FAIRUZ:'21004', LEONARD:'34627', ONG:'120564', TOH:'90305', ARIF:'171590' };
+  const TDF = [{ k:'WHT1', t:'WHT', label:'WHT (Jan-Jun)', half:1 }, { k:'WHT2', t:'WHT', label:'WHT (Jul-Dec)', half:2 }, { k:'PCT', t:'PCT', label:'PCT' },
+    { k:'TS', t:'TS', label:'TS' }, { k:'TESTTS', t:'TEST TS', label:'TEST TS', needs:'TS' }, { k:'MA', t:'MA', label:'MA Checkup', minAge:35, doneWord:'DONE' }, { k:'IPPT', t:'IPPT', label:'IPPT', ippt:true }];
+  const mPer = (d, td) => { const y = +td.slice(0,4), m = +td.slice(5,7);
+    if (d.half) return d.half === 1 ? { id:y+'-H1', start:y+'-01-01', end:y+'-06-30' } : { id:y+'-H2', start:y+'-07-01', end:y+'-12-31' };
+    if (d.ippt) { const sy = m >= 4 ? y : y - 1; return { id:String(sy), start:sy+'-04-01', end:(sy+1)+'-03-31' }; }
+    return { id:String(y), start:y+'-01-01', end:y+'-12-31' }; };
+  const mAge = b => { if (!b) return null; let a = +today.slice(0,4) - +b.slice(0,4); if (today.slice(5) < b.slice(5)) a--; return a; };
+  const mrows = []; let mid = 0;
+  [['FAIZAL','2026-04-24','2026-09-25','2026-04-18','2026-07-21','','','2026-06-30','2026-09-01'],['WONG','2026-04-24','2026-07-08','2026-07-09','2026-05-04','2026-09-24','','2026-06-30','2026-09-25'],
+   ['DANIAL','2026-04-24','2026-09-11','2026-05-12','2026-05-05','','2026-10-06','','2026-09-20'],['CHEW','2026-04-24','2026-09-11','2026-05-12','2026-05-06','2026-09-22','','',''],
+   ['LIM','2026-04-24','2026-09-25','2026-08-06','2026-08-12','','','2026-06-30','2026-08-27'],['FAIRUZ','2026-04-24','2026-09-25','2026-04-18','2026-08-06','','','',''],
+   ['LEONARD','2026-04-24','2026-09-04','2026-06-09','2026-06-30','2026-09-10','','2026-06-30','2026-09-18'],['ONG','2026-04-24','2026-07-24','2026-08-11','2026-08-31','','','','2026-09-07'],
+   ['TOH','2026-04-24','2026-09-21','2026-04-18','2026-08-19','','','','2026-09-25'],['ARIF','2026-04-24','2026-09-11','2026-04-18','2026-09-18','','','2026-06-30','']].forEach(x => {
+    const put = (k, dt, arrOnly) => { if (!dt) return; const d = TDF.find(z => z.k === k), done = !arrOnly && dt <= today;
+      mrows.push({ id:'M' + (++mid), name:x[0], t:d.t, period:mPer(d, dt).id, arranged:dt, result: done ? (d.doneWord || 'PASSED') : '', resultDate: done ? dt : '' }); };
+    put('WHT1', x[1]); put('WHT2', x[2]); put('PCT', x[3]); put('TS', x[4]); put('TESTTS', x[5]); put('TESTTS', x[6], true); put('MA', x[7]); put('IPPT', x[8]); });
+  function mTrn(){
+    const apos = (S.staff || []).filter(p => p.role === 'APO' && MB[p.name]);
+    const mine = canManage() ? apos : apos.filter(p => p.name === S.me.name);
+    const periods = TDF.map(d => Object.assign({ k:d.k, t:d.t, label:d.label, needs:d.needs || '', minAge:d.minAge || 0, doneWord:d.doneWord || 'PASSED' }, mPer(d, today)));
+    const keys = {}; periods.forEach(p => { keys[p.t + '|' + p.id] = 1; });
+    const names = mine.map(p => p.name);
+    return { today, canEdit: canManage(), periods, people: mine.map(p => ({ name:p.name, sid:MID[p.name] || '', age:mAge(MB[p.name]) })),
+      rows: mrows.filter(r => names.includes(r.name) && keys[r.t + '|' + r.period]) };
+  }
+  const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
   const inspM = [{ id:'biweekly', name:'Bi-Weekly CAS', every:'2w', last:'' }, { id:'monthly', name:'Monthly OHS & Office Security', every:'month', last:'' }];
   function mockInsp(){
     const dd = (a, b) => Math.round((pd(b) - pd(a)) / 86400000);
@@ -1944,11 +2192,22 @@ const MOCK = (() => {
       return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || role !== 'Admin'), today, staff: staffList.filter(p => p.active) }; },
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null }),
+      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null,
+      birthdays: mBdays(), sid: MID[S.me.name] || '', training: S.me.role === 'APO' ? mTrn() : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
+    getTraining: () => mTrn(),
+    getBirthdays: () => mBdays(),
+    trainingArrange: (t, f) => { const d = TDF.find(z => z.k === f.k), per = mPer(d, today);
+      const open = mrows.filter(r => r.name === f.name && r.t === d.t && r.period === per.id && !r.result).pop();
+      if (open && !f.date) mrows.splice(mrows.indexOf(open), 1); else if (open) open.arranged = f.date;
+      else if (f.date) mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:per.id, arranged:f.date, result:'', resultDate:'' });
+      else throw new Error('Pick a date.'); return mTrn(); },
+    trainingResult: (t, f) => { if (f.id) { const r = mrows.find(x => x.id === f.id); r.result = f.result; r.resultDate = f.result ? r.arranged : ''; }
+      else { const d = TDF.find(z => z.k === f.k); mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:mPer(d, f.date).id, arranged:f.date, result:f.result, resultDate:f.date }); }
+      return mTrn(); },
     inspectionDone: (t, id, d) => { const x = inspM.find(i => i.id === id); x.last = d || today; return mockInsp(); },
     inspectionEdit: (t, id, f) => { const x = inspM.find(i => i.id === id); if (f.name) x.name = f.name; if (f.last != null) x.last = f.last; return mockInsp(); },
     adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; return Object.assign(mockAtt(d), { warn:'' }); },
