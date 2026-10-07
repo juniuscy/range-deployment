@@ -288,6 +288,12 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .iedit{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0 2px;padding:8px 10px;background:#F4F6F3;border-radius:var(--r-sm)}
 .iedit input{min-height:38px;padding:6px 8px}
 .iedit[hidden]{display:none}
+.rep h4{margin:10px 0 2px;font:700 14px var(--body);color:var(--muted);letter-spacing:.02em}
+.irow.wait{border-left-color:#9AA5AE}.irow.wait .it2 span{color:var(--muted)}
+.irow.late{background:var(--flag-soft);border-color:#F2A9A2;border-left-color:var(--flag)}.irow.late .it2 span{color:var(--flag);font-weight:600}
+.irow.now{background:#FEF9C3;border-color:#FACC15;border-left-color:#EAB308}
+.irow.sent{background:#DCFCE7;border-color:#86EFAC;border-left-color:#16A34A}.irow.sent .it2 span{color:#166534}
+.irow .it2 span.grp{display:block;font-size:13px;color:var(--steel);font-weight:600}
 /* training */
 .tg{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fixed;font-size:12px}
 .tg th{font-size:11px;color:var(--muted);font-weight:600;text-align:center;line-height:1.15;padding:2px 0}
@@ -367,7 +373,7 @@ window.onerror = function (msg, src, line) {
 const API_URL = /^https:/.test(String(window.API_URL || '')) && /\/exec$/.test(window.API_URL) ? window.API_URL : '';
 const GAS = !!(window.google && google.script && google.script.run);
 const LIVE = GAS || !!API_URL;
-const READ_FNS = ['getInspections','getTraining','getBirthdays','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
+const READ_FNS = ['getReports','getInspections','getTraining','getBirthdays','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
   'getHome','getLoginInfo','getMyOil','getMyOilHistory','getMyRequests','getMySchedule','getWeek','resume'];
 function apiOnce(fn, args){
   return fetch(API_URL, {
@@ -635,6 +641,7 @@ function drawHome(h, stale){
       ${h.attendance ? clockNotes(h.attendance) : ''}
       ${bdayBanner(h.birthdays)}
       ${h.inspections ? inspCard(h.inspections) : ''}
+      ${h.reports ? repCard(h.reports) : ''}
       ${h.training ? myTrnCard(h.training) : ''}
       <div class="strip" style="${hasOil() ? '' : 'grid-template-columns:1fr'}">
         ${hasOil() ? `<div><b>${fmtN(b.oilAvailable)}</b><span>Off days left${b.oilReserved ? ' (+'+fmtN(b.oilReserved)+' on hold)' : ''}</span></div>` : ''}
@@ -649,6 +656,7 @@ function drawHome(h, stale){
     S.next14 = h.upcoming;
     wireClock();
     if (h.inspections) wireInsp(h.inspections);
+    if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
     if (h.training) wireMyTrn();
     document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
       S.hmode = b.dataset.m;
@@ -835,6 +843,98 @@ function bdayBanner(names){
   return `<div class="bday"><span class="ck">&#127874;</span><div><b>Happy Birthday, ${esc(who)}!</b><small>Wish ${names.length === 1 ? 'them' : 'them all'} a happy birthday today.</small></div></div>`;
 }
 
+/* ---------- Timeline reporting (Admin and Managers) ---------- */
+const REPORTS = [
+  { id:'am-plan', win:['07:00','08:30'], title:'Deployment Plan (today)', grp:'RSO & RCO grp' },
+  { id:'am-att',  win:['07:00','08:30'], title:'Attendance (today)', grp:'MMRC Daily Attendance grp' },
+  { id:'am-med',  win:['07:00','08:30'], title:'Medical Support Readiness', grp:'Certis Management Team grp' },
+  { id:'pm-plan', win:['17:00','17:30'], title:'Next day Deployment Plan', grp:'OPS SP Ammo Team' },
+  { id:'pm-good', win:['17:00','23:59'], label:'Good Day', title:'Medical Support Standdown', grp:'OPS SP - Medical grp' }
+];
+const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+function repStatus(r, st){
+  const sent = st && st.date === S.today ? st.sent[r.id] : null;
+  if (sent) return { cls:'sent', line:'Sent at ' + sent.at + ' by ' + sent.by };
+  const now = hhmm();
+  if (r.win[1] === '23:59') return { cls:'now', line:'Not sent yet. Send after ' + hrs(r.win[0]) };   // no deadline
+  if (now < r.win[0]) return { cls:'now', line:'Not sent yet. Send from ' + hrs(r.win[0]) + ' to ' + hrs(r.win[1]) };
+  if (now <= r.win[1]) return { cls:'now', line:'Send now, by ' + hrs(r.win[1]) };
+  return { cls:'late', line:'Not sent yet (due by ' + hrs(r.win[1]) + ')' };
+}
+function repCard(st){
+  if (!st) return '';
+  const groups = [];
+  REPORTS.forEach(r => { const k = r.win[0] + '|' + r.win[1] + '|' + (r.label || ''); let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, win:r.win, label:r.label, list:[] }); g.list.push(r); });
+  return `<div class="insp rep" id="rep"><h3>Timeline Reporting</h3>${groups.map(g => `
+    <h4>${g.label ? esc(g.label) : g.win[1] > addMin(g.win[0], 30) ? hrs(g.win[0]) + ' to ' + hrs(g.win[1]) : hrs(g.win[0])}</h4>
+    ${g.list.map((r, i) => { const x = repStatus(r, st); return `<div class="irow ${x.cls}">
+      <div class="it2"><b>${i + 1}. ${esc(r.title)}</b><span class="grp">To ${esc(r.grp)}</span><span>${esc(x.line)}</span></div>
+      ${x.cls === 'sent' ? `<button class="btn ghost ib" data-rundo="${r.id}">Undo</button>` : `<button class="btn ib" data-rprep="${r.id}">Prepare</button>`}</div>`; }).join('')}`).join('')}
+    <p class="small muted" style="margin:8px 0 0">Yellow: not sent yet. Green: sent. Red: past the time and not sent. Either manager can send; once sent, it shows as sent for everyone.</p></div>`;
+}
+function addMin(hm, n){ const p = hm.split(':').map(Number), t = p[0] * 60 + p[1] + n; return String(Math.floor(t / 60)).padStart(2,'0') + ':' + String(t % 60).padStart(2,'0'); }
+async function repDay(date){
+  const m = mondayOf(date);
+  const wk = S.cache[m] || await call('getWeek', S.token, date);
+  S.cache[m] = wk;
+  return wk.days && wk.days.length ? wk.days[dowIdx(date)] : null;
+}
+function medText(day){
+  const dt = pd(day.date), away = awayOn(day);
+  const L = ['*MEDICAL SUPPORT READINESS*', '*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(day.date)] + ')*', ''];
+  const ms = day.medics;
+  if (!ms.length) L.push('No medical support planned for today.');
+  ms.forEach(m => {
+    const off = m.people.filter(n => away[n]);
+    L.push(m.role + ': ' + (m.who || 'NIL') + (m.loc && m.loc !== m.role ? ' (' + m.loc + ')' : '') + (off.length ? ' - AWAY, replacement needed' : ''));
+  });
+  const gaps = day.medics.filter(m => m.people.some(n => away[n]));
+  if (ms.length) L.push('', gaps.length ? 'Status: NOT READY - ' + gaps.map(m => m.role).join(', ') + ' to be covered' : 'Status: READY');
+  return L.join('\n');
+}
+async function repPrepare(r, st, redraw){
+  const tomorrow = addD(S.today, 1);
+  let text = '', warn = '';
+  if (r.id === 'am-plan' || r.id === 'pm-plan') {
+    const date = r.id === 'am-plan' ? S.today : tomorrow;
+    const day = await repDay(date);
+    if (!day) throw new Error('There is no weekly tab for ' + nice(date) + ' yet.');
+    text = waText(day, r.id === 'am-plan');
+    const gp = noApoOn(day), cl = clashesOn(day).filter(c => !day.medics.some(m => m.role === c.where));
+    if (gp.length || cl.length) warn = `<div class="note red"><b>Check first:</b> ${esc([].concat(gp.map(x => x.range + ' has no APO'), cl.map(c => c.where + ': ' + c.name + ' is away')).join('; '))}</div>`;
+  } else if (r.id === 'am-att') {
+    const a = await call('adminAttendance', S.token, S.today);
+    text = attText(a);
+    const none = a.rows.filter(x => x.status !== 'Off' && !x.status);
+    if (none.length) warn = `<div class="note red"><b>Not accounted yet:</b> ${esc(none.map(x => x.name).join(', '))}. Mark them in Admin, Attendance first.</div>`;
+  } else if (r.id === 'pm-good') {
+    text = 'Thank you guys for today, you all can standdown.';
+  } else if (r.id === 'am-med') {
+    const day = await repDay(S.today);
+    if (!day) throw new Error('There is no weekly tab for today yet.');
+    text = medText(day);
+  }
+  openWaSheet(r.title, 'Send to: ' + r.grp + '. Open WhatsApp, pick the group, then tap Mark as sent here.', warn, text, {
+    sentLabel: 'Mark as sent',
+    onSent: async () => { const ns = await call('reportSent', S.token, r.id, false); redraw(ns); toast(r.title + ' marked as sent'); }
+  });
+}
+function wireRep(st){
+  const box = $('#rep'); if (!box) return;
+  const redraw = ns => { S.rep = ns; const old = $('#rep'); if (old) { old.outerHTML = repCard(ns); wireRep(ns); } };
+  box.querySelectorAll('[data-rprep]').forEach(b => b.onclick = async () => {
+    const r = REPORTS.find(x => x.id === b.dataset.rprep);
+    busy(b, true);
+    try { await repPrepare(r, st, redraw); } catch(e){ fail(e); }
+    busy(b, false);
+  });
+  box.querySelectorAll('[data-rundo]').forEach(b => b.onclick = async () => {
+    if (!confirm('Mark this report as not sent?')) return;
+    busy(b, true);
+    try { redraw(await call('reportSent', S.token, b.dataset.rundo, true)); } catch(e){ fail(e); busy(b, false); }
+  });
+}
+
 /* ---------- Inspections (Admin and Managers) ---------- */
 function inspLine(x){
   if (x.state === 'unset') return 'Not set yet. Tap Edit and enter the date it was last done.';
@@ -964,10 +1064,12 @@ async function viewBoard(){
   try {
     const key = S.monday;
     const isAdm = S.me && S.me.role === 'Admin';
-    const [wk, insp, bd] = await Promise.all([
+    const [wk, insp, bd, rp] = await Promise.all([
       call('getWeek', S.token, key),                   // always read fresh from the sheet
       isAdm ? call('getInspections', S.token).catch(() => S.insp || null) : Promise.resolve(null),
-      isAdm ? call('getBirthdays', S.token).catch(() => S.bdays || []) : Promise.resolve(null)]);
+      isAdm ? call('getBirthdays', S.token).catch(() => S.bdays || []) : Promise.resolve(null),
+      isAdm ? call('getReports', S.token).catch(() => S.rep || null) : Promise.resolve(null)]);
+    if (rp) S.rep = rp;
     if (insp) S.insp = insp;
     if (bd) S.bdays = bd;
     S.cache[key] = wk;
@@ -979,7 +1081,7 @@ function drawBoard(wk){
   const end = addD(wk.monday, 6);
   const admin = canManage();
   const isAdmAcct = S.me && S.me.role === 'Admin';
-  const inspTop = (isAdmAcct ? bdayBanner(S.bdays) : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '');
+  const inspTop = (isAdmAcct ? bdayBanner(S.bdays) : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '') + (isAdmAcct && S.rep ? repCard(S.rep) : '');
   const head = inspTop + `<div class="wkbar">
       <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
       <h2>${pd(wk.monday).getDate()} ${MON[pd(wk.monday).getMonth()]} to ${pd(end).getDate()} ${MON[pd(end).getMonth()]}</h2>
@@ -1062,6 +1164,7 @@ function drawBoard(wk){
     });
   }
   if (isAdmAcct && S.insp) wireInsp(S.insp);
+  if (isAdmAcct && S.rep) wireRep(S.rep);
   $('#wr').onclick = () => viewBoard();
   $('#wp').onclick = () => moveWeek(-1);
   $('#wn').onclick = () => moveWeek(1);
@@ -1239,7 +1342,7 @@ function dropMedics(text, isMedic){
   return String(text || '').split(/\s*,\s*/).map(part => isMedic(part)
     ? part.split(/\s+(?:&|AND)\s+/i).filter(x => !isMedic(x)).join(' & ') : part).filter(Boolean).join(', ');
 }
-function waText(day){
+function waText(day, rangesOnly){
   const L = [], b = t => '*' + t + '*';
   const dt = pd(day.date);
   const note = day.title && /\(/.test(day.title) ? ' ' + day.title.replace(/^\w+\s*/, '') : '';
@@ -1255,6 +1358,7 @@ function waText(day){
     const d = [r.tf, r.unit, [dur, ext ? rmkNoExt(r.rmk) : r.rmk].filter(Boolean).join(' ')].filter(Boolean).join(' | ');
     if (d) L.push('    ' + d);
   });
+  if (rangesOnly) return L.join('\n');                  // e.g. for the RSO & RCO group
   const du = day.duties.filter(x => x.main || x.spare);
   if (du.length) {
     L.push('', b('DUTIES'));
@@ -1283,7 +1387,7 @@ function openWhatsApp(day){
     (gp.length ? `<div class="note yellow"><b>No APO yet:</b> ${esc(gp.map(r => r.range).join(', '))}</div>` : ''),
     waText(day));
 }
-function openWaSheet(title, sub, warnHtml, text){
+function openWaSheet(title, sub, warnHtml, text, opts){
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
@@ -1292,7 +1396,8 @@ function openWaSheet(title, sub, warnHtml, text){
     ${warnHtml || ''}
     <textarea id="wa-t" style="min-height:320px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace">${esc(text)}</textarea>
     <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy</button>
-      <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div></div>`;
+      <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div>
+    ${opts && opts.onSent ? '<button class="btn block" id="wa-s" style="margin-top:10px">' + esc(opts.sentLabel || 'Mark as sent') + '</button>' : ''}</div>`;
   document.body.appendChild(bg);
   const t = $('#wa-t', bg), link = $('#wa-o', bg);
   // built without a double slash in quotes: Google's page server mistakes it for a comment
@@ -1301,6 +1406,7 @@ function openWaSheet(title, sub, warnHtml, text){
   t.oninput = setLink; setLink();
   $('#wa-x', bg).onclick = () => bg.remove();
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  if (opts && opts.onSent) $('#wa-s', bg).onclick = async e => { busy(e.target, true); try { await opts.onSent(); bg.remove(); } catch(x){ fail(x); busy(e.target, false); } };
   $('#wa-c', bg).onclick = async () => {
     let ok = false;
     try { await navigator.clipboard.writeText(t.value); ok = true; } catch(e) {}
@@ -2135,6 +2241,7 @@ const MOCK = (() => {
       rows: mrows.filter(r => names.includes(r.name) && keys[r.t + '|' + r.period]) };
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
+  const mRep = { date: today, sent: {} };
   const inspM = [{ id:'biweekly', name:'Bi-Weekly CAS', every:'2w', last:'' }, { id:'monthly', name:'Monthly OHS & Office Security', every:'month', last:'' }];
   function mockInsp(){
     const dd = (a, b) => Math.round((pd(b) - pd(a)) / 86400000);
@@ -2198,12 +2305,14 @@ const MOCK = (() => {
       return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || role !== 'Admin'), today, staff: staffList.filter(p => p.active) }; },
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null,
+      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() ? mRep : null,
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
+    getReports: () => mRep,
+    reportSent: (t, id, undo) => { if (undo) delete mRep.sent[id]; else mRep.sent[id] = { by:S.me.name, at:String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return mRep; },
     getTraining: () => mTrn(),
     getBirthdays: () => mBdays(),
     trainingArrange: (t, f) => { const d = TDF.find(z => z.k === f.k), per = mPer(d, today);
