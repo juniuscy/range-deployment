@@ -1881,7 +1881,7 @@ const MOCK = (() => {
   const changes = [];
   /* attendance (preview only) */
   let lateAfter = '07:45';
-  const inspM = [{ id:'biweekly', name:'2-weekly inspection', every:'2w', last:'' }, { id:'monthly', name:'Month-end inspection', every:'month', last:'' }];
+  const inspM = [{ id:'biweekly', name:'Bi-Weekly CAS', every:'2w', last:'' }, { id:'monthly', name:'Monthly OHS & Office Security', every:'month', last:'' }];
   function mockInsp(){
     const dd = (a, b) => Math.round((pd(b) - pd(a)) / 86400000);
     return inspM.map(x => {
