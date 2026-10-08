@@ -1873,12 +1873,7 @@ async function admPending(){
 async function admTeam(){
   A().innerHTML = '<div class="loading">Loading\u2026</div>';
   try {
-    const ORDER = { Manager:0, 'DY Manager':0.5, 'APO Supervisor':1, APO:1, 'Non-APO':1, Medic:2, 'Backup Medic':3 };
-    const FIRST = ['JAMES LAI'];                       // shown at the top of their group
-    const t = (await call('adminTeam', S.token)).sort((a, b) =>
-      ((ORDER[a.role] ?? 3) - (ORDER[b.role] ?? 3)) ||
-      ((FIRST.includes(b.name) ? 1 : 0) - (FIRST.includes(a.name) ? 1 : 0)) ||
-      a.name.localeCompare(b.name));
+    const t = byRole(await call('adminTeam', S.token));
     A().innerHTML = `<div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th class="num">Off days</th><th class="num">On hold</th><th class="num">Pending</th><th>LIB expiry</th></tr>
       ${t.map(p => {
         const libLate = p.lib && p.lib < S.today;
@@ -2191,7 +2186,14 @@ async function admStaff(){
   try { drawStaff(await call('adminStaff', S.token)); } catch(e){ fail(e); }
 }
 const ROLES = ['APO','APO Supervisor','Non-APO','Manager','DY Manager','Medic','Backup Medic','Admin'];
+/* Team and Staff lists: Manager, DY Manager, APO Supervisor, APO, Non-APO, Medic, Backup Medic, Admin; JAMES LAI first among managers */
+const ROLE_RANK = ['Manager','DY Manager','APO Supervisor','APO','Non-APO','Medic','Backup Medic','Admin'];
+function byRole(list){
+  const r = p => { const i = ROLE_RANK.indexOf(p.role); return i < 0 ? ROLE_RANK.length : i; };
+  return (list || []).slice().sort((a, b) => (r(a) - r(b)) || ((b.name === 'JAMES LAI') - (a.name === 'JAMES LAI')) || a.name.localeCompare(b.name));
+}
 function drawStaff(list){
+  list = byRole(list);
   A().innerHTML = `
     <div class="sec"><h3 style="margin-top:0">Add a staff member</h3>
       <label class="f"><span>Name as it appears on the roster</span><input type="text" id="n-n" placeholder="e.g. RAHMAN" autocomplete="off"></label>
