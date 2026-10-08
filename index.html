@@ -333,7 +333,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .clock.cm > b{font-size:20px}.clock.cm > span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .clock.cm.todo{border:0;background:transparent;padding:0}.clock.cm.todo .btn{min-height:46px;padding:8px 20px;font-size:17px;width:100%}
 .bday{display:flex;gap:10px;align-items:center;background:linear-gradient(90deg,#FFF1F2,#FEF3C7);border:1px solid #FBCFE8;border-radius:var(--r-md);padding:9px 12px;margin:0 0 14px}
-.bday .ck{font-size:26px;line-height:1}.bday b{display:block;color:#9D174D;font-size:16px}.bday small{color:var(--muted);font-size:13px}
+.bday{cursor:pointer;position:relative;overflow:hidden}.bday .ck{font-size:26px;line-height:1;display:inline-block;animation:bdwig 1.6s ease-in-out infinite}@keyframes bdwig{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg) scale(1.08)}50%{transform:rotate(0)}75%{transform:rotate(12deg) scale(1.08)}}.bday::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.75) 50%,transparent 70%);transform:translateX(-100%);animation:bdshine 3.5s ease-in-out infinite;pointer-events:none}@keyframes bdshine{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}#fxc{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}.bday b{display:block;color:#9D174D;font-size:16px}.bday small{color:var(--muted);font-size:13px}
 
 
 .dsel button.busy{background:#FFFBEB;border-color:#F8E7A8}
@@ -856,8 +856,63 @@ function wireMyTrn(){
 function bdayBanner(names){
   if (!names || !names.length) return '';
   const who = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
-  return `<div class="bday"><span class="ck">&#127874;</span><div><b>Happy Birthday, ${esc(who)}!</b><small>Wish ${names.length === 1 ? 'them' : 'them all'} a happy birthday today.</small></div></div>`;
+  return `<div class="bday" role="button" tabindex="0" title="Tap for fireworks"><span class="ck">&#127874;</span><div><b>Happy Birthday, ${esc(who)}!</b><small>Wish ${names.length === 1 ? 'them' : 'them all'} a happy birthday today.</small></div></div>`;
 }
+/* Fireworks: full-screen burst the first time the banner shows each day; tap the banner to replay */
+let fxShown = '', fxRun = null;
+function fireworks(ms){
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (fxRun) fxRun.stop();
+  const c = document.createElement('canvas'); c.id = 'fxc'; document.body.appendChild(c);
+  const g = c.getContext('2d'), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0, H = 0;
+  const size = () => { W = innerWidth; H = innerHeight; c.width = W * dpr; c.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); };
+  size(); addEventListener('resize', size);
+  const COLS = ['#F43F5E','#F59E0B','#10B981','#3B82F6','#A855F7','#EC4899','#EAB308','#06B6D4'];
+  const rockets = [], parts = [], t0 = performance.now(), end = t0 + (ms || 4500);
+  let next = t0, raf = 0, last = t0;
+  function launch(){
+    const x = W * (0.15 + Math.random() * 0.7);
+    rockets.push({ x, y: H + 5, vx: (Math.random() - 0.5) * 1.2, vy: -(H * 0.011 + Math.random() * 3), ty: H * (0.12 + Math.random() * 0.35), col: COLS[Math.floor(Math.random() * COLS.length)] });
+  }
+  function burst(r){
+    const n = 60 + Math.floor(Math.random() * 30), sp = 3.2 + Math.random() * 2.4, two = Math.random() < 0.4 ? COLS[Math.floor(Math.random() * COLS.length)] : r.col;
+    for (let i = 0; i < n; i++){
+      const a = (Math.PI * 2 * i) / n + Math.random() * 0.15, v = sp * (0.55 + Math.random() * 0.45);
+      parts.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, decay: 0.011 + Math.random() * 0.01, col: i % 2 ? two : r.col });
+    }
+  }
+  function frame(now){
+    const k = Math.min((now - last) / 16.7, 3); last = now;
+    if (now < end && now >= next){ launch(); if (Math.random() < 0.35) launch(); next = now + 220 + Math.random() * 340; }
+    g.clearRect(0, 0, W, H);
+    for (let i = rockets.length - 1; i >= 0; i--){
+      const r = rockets[i]; r.x += r.vx * k; r.y += r.vy * k; r.vy += 0.05 * k;
+      g.fillStyle = r.col; g.beginPath(); g.arc(r.x, r.y, 2.4, 0, 6.283); g.fill();
+      g.globalAlpha = 0.35; g.beginPath(); g.arc(r.x - r.vx * 2, r.y - r.vy * 2, 1.6, 0, 6.283); g.fill(); g.globalAlpha = 1;
+      if (r.y <= r.ty || r.vy >= 0){ burst(r); rockets.splice(i, 1); }
+    }
+    for (let i = parts.length - 1; i >= 0; i--){
+      const p = parts[i]; p.x += p.vx * k; p.y += p.vy * k; p.vx *= Math.pow(0.985, k); p.vy = p.vy * Math.pow(0.985, k) + 0.045 * k; p.life -= p.decay * k;
+      if (p.life <= 0){ parts.splice(i, 1); continue; }
+      g.globalAlpha = Math.max(p.life, 0); g.fillStyle = p.col; g.beginPath(); g.arc(p.x, p.y, 1.5 + p.life * 2.3, 0, 6.283); g.fill();
+    }
+    g.globalAlpha = 1;
+    if (now < end || rockets.length || parts.length) raf = requestAnimationFrame(frame); else stop();
+  }
+  function stop(){ cancelAnimationFrame(raf); removeEventListener('resize', size); c.remove(); fxRun = null; }
+  fxRun = { stop };
+  raf = requestAnimationFrame(frame);
+}
+function wireBday(){
+  const b = document.querySelector('.bday'); if (!b || b.dataset.fx) return;
+  b.dataset.fx = '1';
+  b.onclick = () => fireworks(4500);
+  b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fireworks(4500); } };
+  const d = new Date().toDateString();
+  if (fxShown !== d){ fxShown = d; setTimeout(() => fireworks(5000), 350); }
+}
+new MutationObserver(() => { if (document.querySelector('.bday:not([data-fx])')) wireBday(); }).observe(document.body, { childList: true, subtree: true });
 
 /* ---------- Allergo submission (AL / UL / MC) ---------- */
 const ALG_LBL = { AL:'Annual leave (AL)', UL:'Urgent leave (UL)', MC:'Medical leave (MC)' };
