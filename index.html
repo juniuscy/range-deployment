@@ -288,6 +288,16 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .iedit{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0 2px;padding:8px 10px;background:#F4F6F3;border-radius:var(--r-sm)}
 .iedit input{min-height:38px;padding:6px 8px}
 .iedit[hidden]{display:none}
+.algc{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 14px}
+.algc h3{margin:0 0 4px;font-size:17px}
+.algr{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;margin-top:6px;border:1px solid}
+.algr.todo{background:#FEF9C3;border-color:#FACC15}.algr.late{background:var(--flag-soft);border-color:#F2A9A2}.algr.done{background:#DCFCE7;border-color:#86EFAC}
+.algr .tx{flex:1;min-width:0}.algr .tx b{display:block;font-size:15px}.algr .tx span{display:block;font-size:13px;color:var(--muted)}
+.algr.late .tx span.due{color:var(--flag);font-weight:600}.algr.done .tx span{color:#166534}
+.tick{width:30px;height:30px;border-radius:7px;border:2px solid #854D0E;background:#fff;flex:none;cursor:pointer;padding:0}
+.algr.late .tick{border-color:var(--flag)}
+.tick.on{background:#16A34A;border-color:#16A34A;color:#fff;font-weight:700;font-size:18px;cursor:default}
+.yn{display:flex;gap:10px;margin-top:14px}.yn .btn{flex:1;min-height:50px;font-size:17px}
 .rep h4{margin:10px 0 2px;font:700 14px var(--body);color:var(--muted);letter-spacing:.02em}
 .irow.wait{border-left-color:#9AA5AE}.irow.wait .it2 span{color:var(--muted)}
 .irow.late{background:var(--flag-soft);border-color:#F2A9A2;border-left-color:var(--flag)}.irow.late .it2 span{color:var(--flag);font-weight:600}
@@ -373,7 +383,7 @@ window.onerror = function (msg, src, line) {
 const API_URL = /^https:/.test(String(window.API_URL || '')) && /\/exec$/.test(window.API_URL) ? window.API_URL : '';
 const GAS = !!(window.google && google.script && google.script.run);
 const LIVE = GAS || !!API_URL;
-const READ_FNS = ['getReports','getInspections','getTraining','getBirthdays','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
+const READ_FNS = ['getAllergo','getReports','getInspections','getTraining','getBirthdays','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
   'getHome','getLoginInfo','getMyOil','getMyOilHistory','getMyRequests','getMySchedule','getWeek','resume'];
 function apiOnce(fn, args){
   return fetch(API_URL, {
@@ -640,6 +650,7 @@ function drawHome(h, stale){
         <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div>${h.attendance ? clockCard(h.attendance) : ''}</div>
       ${h.attendance ? clockNotes(h.attendance) : ''}
       ${bdayBanner(h.birthdays)}
+      ${h.allergo && h.allergo.length ? algCard(h.allergo, 'Submit in Allergo') : ''}
       ${h.inspections ? inspCard(h.inspections) : ''}
       ${h.reports ? repCard(h.reports) : ''}
       ${h.training ? myTrnCard(h.training) : ''}
@@ -658,6 +669,11 @@ function drawHome(h, stale){
     if (h.inspections) wireInsp(h.inspections);
     if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
     if (h.training) wireMyTrn();
+    if (h.allergo && h.allergo.length) {
+      const after = r => { const box = $('#algc'); const left = r.items.filter(x => !x.ticked);
+        if (box) { box.outerHTML = algCard(left, 'Submit in Allergo'); wireAlg(left, after); } };
+      wireAlg(h.allergo, after);
+    }
     document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
       S.hmode = b.dataset.m;
       document.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b));
@@ -841,6 +857,68 @@ function bdayBanner(names){
   if (!names || !names.length) return '';
   const who = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
   return `<div class="bday"><span class="ck">&#127874;</span><div><b>Happy Birthday, ${esc(who)}!</b><small>Wish ${names.length === 1 ? 'them' : 'them all'} a happy birthday today.</small></div></div>`;
+}
+
+/* ---------- Allergo submission (AL / UL / MC) ---------- */
+const ALG_LBL = { AL:'Annual leave (AL)', UL:'Urgent leave (UL)', MC:'Medical leave (MC)' };
+function algSpan(x){ return x.start === x.end ? nice(x.start) : nice(x.start) + ' to ' + nice(x.end); }
+function algRow(x, who){
+  const due = x.state === 'late' ? 'Overdue: was due ' + nice(x.due) : x.state === 'done' ? 'Submitted in Allergo, ticked ' + esc(String(x.ticked.at)) : 'Submit in Allergo by ' + nice(x.due);
+  return `<div class="algr ${x.state}"><div class="tx"><b>${who ? esc(x.name) + (x.sid ? ' <small class="muted" style="font-weight:400">' + esc(x.sid) + '</small>' : '') + ' &middot; ' : ''}${esc(ALG_LBL[x.type] || x.type)}</b>
+    <span>${esc(algSpan(x))}, ${fmtN(x.days)} day${x.days === 1 ? '' : 's'}</span><span class="due">${due}</span></div>
+    ${who ? '' : x.ticked ? '<span class="tick on" aria-label="Submitted">&#10003;</span>' : `<button class="tick" data-alg="${esc(x.keys.join('|'))}" aria-label="Tick when submitted in Allergo"></button>`}</div>`;
+}
+function algCard(items, title){
+  if (!items || !items.length) return '';
+  const open = items.filter(x => !x.ticked).length;
+  return `<div class="algc" id="algc"><h3>${esc(title || 'Submit in Allergo')}</h3>
+    <p class="small muted" style="margin:0 0 4px">${open ? open + ' to submit. AL, UL and MC must be submitted in Allergo within 7 days. Tick the box once you have.' : 'All submitted.'}</p>
+    ${items.map(x => algRow(x)).join('')}</div>`;
+}
+function algConfirm(x){
+  return new Promise(res => {
+    const bg = document.createElement('div');
+    bg.className = 'sheet-bg';
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Confirmed you have submitted in Allergo?</h3>
+      <div class="src">${esc(ALG_LBL[x.type] || x.type)}, ${esc(algSpan(x))}. Once ticked, it can't be changed.</div>
+      <div class="yn"><button class="btn ghost" id="al-n">NO</button><button class="btn go" id="al-y">YES</button></div></div>`;
+    document.body.appendChild(bg);
+    const done = v => { bg.remove(); res(v); };
+    $('#al-y', bg).onclick = () => done(true);
+    $('#al-n', bg).onclick = () => done(false);
+    bg.onclick = e => { if (e.target === bg) done(false); };
+  });
+}
+function wireAlg(items, after){
+  document.querySelectorAll('[data-alg]').forEach(b => b.onclick = async () => {
+    const x = items.find(i => i.keys.join('|') === b.dataset.alg);
+    if (!x || !(await algConfirm(x))) return;
+    busy(b, true);
+    try { const r = await call('allergoTick', S.token, x.keys); toast('Ticked: submitted in Allergo'); after(r); }
+    catch(e){ fail(e); busy(b, false); }
+  });
+}
+async function admAllergo(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try { drawAdmAllergo(await call('getAllergo', S.token)); } catch(e){ fail(e); }
+}
+function drawAdmAllergo(d){
+  const open = d.items.filter(x => !x.ticked), late = open.filter(x => x.state === 'late'), done = d.items.filter(x => x.ticked);
+  A().innerHTML = `<div class="ttiles" style="grid-template-columns:repeat(3,1fr)"><div class="ts-todo"><b>${open.length}</b>Not submitted</div>
+      <div class="ts-fail"><b>${late.length}</b>Overdue (7 days)</div><div class="ts-done"><b>${done.length}</b>Submitted this month</div></div>
+    ${open.length ? `<h3>Not submitted in Allergo</h3>${open.map(x => algRow(x, true)).join('')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn go" id="ag-wa">WhatsApp reminder</button><button class="btn ghost" id="ag-rf">Refresh</button></div>`
+      : '<div class="sec"><p>Everything is submitted in Allergo.</p></div><button class="btn ghost" id="ag-rf">Refresh</button>'}
+    ${done.length ? `<h3>Submitted this month</h3>${done.map(x => algRow(x, true)).join('')}` : ''}
+    <p class="small muted" style="margin-top:10px">Each person ticks their own on My Deploy or in Requests, once they've submitted it in Allergo. Due 7 days after it was applied for (or marked, for MC / UL). Ticks can't be undone.</p>`;
+  $('#ag-rf').onclick = () => admAllergo();
+  if ($('#ag-wa')) $('#ag-wa').onclick = () => {
+    const dt = pd(d.today);
+    const L = ['*ALLERGO SUBMISSION*', '*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(d.today)] + ')*', '',
+      'Please submit in Allergo and tick it in the app:'];
+    open.forEach(x => L.push('- ' + x.name + ': ' + x.type + ' ' + algSpan(x) + (x.state === 'late' ? ' (OVERDUE)' : ' (by ' + sdt(x.due) + ')')));
+    openWaSheet('Allergo reminder', 'For the staff group. You can edit it before sending.', '', L.join('\n'));
+  };
 }
 
 /* ---------- Timeline reporting (Admin and Managers) ---------- */
@@ -1648,9 +1726,11 @@ function showWarnings(w){
 async function viewRequests(){
   loading();
   try {
-    const list = await call('getMyRequests', S.token);
-    V().innerHTML = `<h2>My requests</h2>` + (list.length ? list.map(reqCard).join('') :
+    const [list, alg] = await Promise.all([call('getMyRequests', S.token), call('getAllergo', S.token).catch(() => null)]);
+    const algItems = alg ? alg.items.filter(x => !x.ticked || x.end >= addD(S.today, -60)) : [];
+    V().innerHTML = `<h2>My requests</h2>` + algCard(algItems, 'Allergo') + (list.length ? list.map(reqCard).join('') :
       `<div class="sec"><p>You haven't applied for anything yet.</p><button class="btn" onclick="go('apply')">Apply for leave</button></div>`);
+    wireAlg(algItems, () => viewRequests());
     document.querySelectorAll('[data-cancel]').forEach(b => b.onclick = async () => {
       if (!confirm('Cancel this request?')) return;
       busy(b, true);
@@ -1680,11 +1760,11 @@ async function refreshPendingDot(){
   } catch(e){}
 }
 function viewAdmin(){
-  const subs = [['pending','Pending'],['att','Attendance'],['trn','Training'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
+  const subs = [['pending','Pending'],['att','Attendance'],['alg','Allergo'],['trn','Training'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
   V().innerHTML = `<h2>Admin</h2><div class="sub">${subs.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div><div id="adm"></div>`;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
-  ({ pending:admPending, att:admAtt, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
+  ({ pending:admPending, att:admAtt, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
 }
 const A = () => $('#adm');
 
@@ -2237,6 +2317,11 @@ const MOCK = (() => {
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
   const mRep = { date: today, sent: {} };
+  const mAlg = [
+    { keys:['REQ:R1'], name:'ARIF', sid:'171590', type:'AL', start:addD(today, 4), end:addD(today, 6), days:3, applied:addD(today, -1), due:addD(today, 6), ticked:null },
+    { keys:['ATT:ARIF:MC:' + addD(today, -3)], name:'ARIF', sid:'171590', type:'MC', start:addD(today, -3), end:addD(today, -3), days:1, applied:addD(today, -3), due:addD(today, 4), ticked:null },
+    { keys:['ATT:CHEW:UL:' + addD(today, -8)], name:'CHEW', sid:'42347', type:'UL', start:addD(today, -8), end:addD(today, -8), days:1, applied:addD(today, -8), due:addD(today, -1), ticked:null },
+    { keys:['REQ:R0'], name:'ARIF', sid:'171590', type:'AL', start:addD(today, -12), end:addD(today, -12), days:1, applied:addD(today, -15), due:addD(today, -8), ticked:{ at: addD(today, -14) + ' 09:12', by:'ARIF' } }];
   const inspM = [{ id:'biweekly', name:'Bi-Weekly CAS', every:'2w', last:'' }, { id:'monthly', name:'Monthly OHS & Office Security', every:'month', last:'' }];
   function mockInsp(){
     const dd = (a, b) => Math.round((pd(b) - pd(a)) / 86400000);
@@ -2300,13 +2385,15 @@ const MOCK = (() => {
       return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || role !== 'Admin'), today, staff: staffList.filter(p => p.active) }; },
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() ? mRep : null,
+      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
     getReports: () => mRep,
+    getAllergo: () => { const all = canManage(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
+    allergoTick: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(); },
     reportSent: (t, id, undo) => { if (undo) delete mRep.sent[id]; else mRep.sent[id] = { by:S.me.name, at:String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return mRep; },
     getTraining: () => mTrn(),
     getBirthdays: () => mBdays(),
