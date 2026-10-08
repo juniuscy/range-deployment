@@ -872,7 +872,7 @@ function algCard(items, title){
   if (!items || !items.length) return '';
   const open = items.filter(x => !x.ticked).length;
   return `<div class="algc" id="algc"><h3>${esc(title || 'Submit in Allergo')}</h3>
-    <p class="small muted" style="margin:0 0 4px">${open ? open + ' to submit. AL, UL and MC must be submitted in Allergo within 7 days. Tick the box once you have.' : 'All submitted.'}</p>
+    <p class="small muted" style="margin:0 0 4px">${open ? 'Reminder to submit your AL, UL and MC within 7 Days into Allergo.' : 'All submitted.'}</p>
     ${items.map(x => algRow(x)).join('')}</div>`;
 }
 function algConfirm(x){
