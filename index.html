@@ -425,6 +425,9 @@ function call(fn, ...args){
 const S = { token:null, me:null, types:[], today:null, view:'home', monday:null, dayIdx:0, adminTab:'pending', cache:{} };
 const $ = (s, el=document) => el.querySelector(s);
 const MGR_ROLES = ['Manager','DY Manager'];   /* DY Manager = same rights as Manager */
+const MEDIC_ROLES = ['Medic','Medic Certis'];   /* Medic Certis = a medic who can also edit the medics part of the plan */
+const isMedCertis = () => S.me && S.me.role === 'Medic Certis';
+function inRole(p, role){ return p.role === role || (role === 'APO' && APO_LIKE.includes(p.role)) || (role === 'Manager' && MGR_ROLES.includes(p.role)) || (role === 'Medic' && MEDIC_ROLES.includes(p.role)); }
 const canManage = () => S.me && (S.me.role === 'Admin' || MGR_ROLES.includes(S.me.role));   // same rights
 const APO_LIKE = ['APO', 'APO Supervisor', 'Non-APO'];   // deployable as APO
 const TRAINEES = ['APO', 'APO Supervisor'];              // have yearly training
@@ -1221,7 +1224,8 @@ function drawBoard(wk){
   } else {
     const d = wk.days[S.dayIdx];
     const me = S.me.name;
-    const ed = admin && S.edit;
+    const medOnly = !admin && isMedCertis();          // Medic Certis: medics part only
+    const ed = (admin || medOnly) && S.edit, edAll = admin && S.edit;
     const sel = wk.days.map((x, i) => {
       const n = x.ranges.filter(r => r.active).length;
       const medep = x.ranges.some(r => r.people.includes(me)) || x.duties.some(y => y.mainPeople.concat(y.sparePeople).includes(me)) || x.medics.some(y => y.people.includes(me));
@@ -1247,7 +1251,7 @@ function drawBoard(wk){
         <div class="ppl">${r.emp ? esc(r.emp) : '<span class="none">No APO assigned</span>'}${extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
         ${whyLine(r.people)}<div class="meta">${meta}</div></div></div>`;
     }).join('');
-    const duties = d.duties.filter(x => ed || x.main || x.spare);
+    const duties = d.duties.filter(x => edAll || x.main || x.spare);
     const medics = d.medics.filter(x => ed || x.who);
     const freeE = freeOn(d, 'APO'), freeM = freeOn(d, 'Medic'), freeMg = freeOn(d, 'Manager'), freeBk = freeOn(d, 'Backup Medic');
     const undepRow = `<tr class="undep"><td>Undeployed</td><td colspan="2">
@@ -1267,7 +1271,9 @@ function drawBoard(wk){
     const awayT = (d.absences.length || rgs.length) ? `<h3>Away and notes</h3><div class="scroll"><table class="t">
       ${rgs.map(g => `<tr class="${g.names.indexOf(me)>=0?'mine':''}"><th style="width:34%"><span class="extag">EXT</span> Report ${esc(hrs(g.t))}</th><td>${esc(g.names.join(', '))}</td></tr>`).join('')}
       ${d.absences.map(x => `<tr class="${x.people.indexOf(me)>=0?'mine':''}"><th style="width:34%">${esc(x.label)}</th><td>${esc(x.text)}</td></tr>`).join('')}</table></div>` : '';
-    const editbar = admin ? `<div class="editbar">
+    const editbar = medOnly ? `<div class="editbar">
+        <span class="small muted">${ed ? 'Tap a medic row to change the name or location.' : ''}</span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit medics'}</button></span></div>` : admin ? `<div class="editbar">
         <span class="small muted">${ed ? 'Tap a range, duty or medic row to change who is posted. Undeployed staff are listed under Duties.' : ''}</span>
         <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="wa">WhatsApp message</button>${ed ? '<button class="btn no" id="abs">Someone absent</button>' : ''}
         <button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit deployment'}</button></span></div>` : '';
@@ -1282,12 +1288,12 @@ function drawBoard(wk){
       ${dayGap.length ? `<div class="note yellow"><b>${dayGap.length} range${dayGap.length === 1 ? '' : 's'} without an APO:</b> ${esc(dayGap.map(r => r.range).join(', '))}
         ${admin ? '<div class="small" style="margin-top:4px">Tap <b>Edit deployment</b>, then the yellow range, to assign one.</div>' : ''}</div>` : ''}
       ${editbar}
-      <div class="${ed ? 'edit-on' : ''}"><div class="boardlist">${ranges}</div>${dutyT}${medicT}</div>${awayT}`;
+      <div class="${edAll ? 'edit-on' : ''}"><div class="boardlist">${ranges}</div>${dutyT}<div class="${ed ? 'edit-on' : ''}">${medicT}</div></div>${awayT}`;
     document.querySelectorAll('.dsel button').forEach(b => b.onclick = () => { S.dayIdx = +b.dataset.i; drawBoard(wk); });
     if ($('#edt')) $('#edt').onclick = () => { S.edit = !S.edit; drawBoard(wk); };
     if ($('#abs')) $('#abs').onclick = () => openAbsent({ day:d, onDone: w => drawBoard(w) });
     if ($('#wa')) $('#wa').onclick = () => openWhatsApp(d);
-    if (ed) document.querySelectorAll('.edit-on [data-slot]').forEach(el => el.onclick = () => {
+    if (ed) document.querySelectorAll(medOnly ? '.edit-on [data-slot^="medic|"]' : '.edit-on [data-slot]').forEach(el => el.onclick = () => {
       const [kind, label] = el.dataset.slot.split('|');
       openSlotEditor(wk, d, kind, label);
     });
@@ -1312,7 +1318,7 @@ function busyOn(day){
 function pickerOptions(day, pool, exclude){
   exclude = exclude || [];
   const busy = busyOn(day);
-  const by = role => (S.staff || []).filter(p => (p.role === role || (role === 'APO' && APO_LIKE.includes(p.role)) || (role === 'Manager' && MGR_ROLES.includes(p.role))) && !exclude.includes(p.name)).map(p => p.name).sort();
+  const by = role => (S.staff || []).filter(p => inRole(p, role) && !exclude.includes(p.name)).map(p => p.name).sort();
   const grp = (label, names, mark) => names.length ? `<optgroup label="${label}">${names.map(n =>
     `<option value="${esc(n)}">${esc(n)}${mark && busy.has(n) ? ' (posted or away)' : ''}</option>`).join('')}</optgroup>` : '';
   const mg = by('Manager');
@@ -1325,7 +1331,7 @@ function pickerOptions(day, pool, exclude){
 }
 /* Names allowed in a slot: APO slots take APOs (and managers as reserve); medic slots take medics only */
 function namesFor(pool){
-  const ok = pool === 'Medic' ? ['Medic', 'Backup Medic'] : APO_LIKE.concat(MGR_ROLES);
+  const ok = pool === 'Medic' ? MEDIC_ROLES.concat(['Backup Medic']) : APO_LIKE.concat(MGR_ROLES);
   return (S.staff || []).filter(p => ok.includes(p.role)).map(p => p.name).sort();
 }
 /* Who is away on a day, from the leave rows (AL, MC, OIL, UL, Course\u2026). "Off Day Earned" is not an absence. */
@@ -1355,7 +1361,7 @@ function clashesOn(day){
 }
 function freeOn(day, role){
   const b = busyOn(day);
-  return (S.staff || []).filter(p => (p.role === role || (role === 'APO' && APO_LIKE.includes(p.role)) || (role === 'Manager' && MGR_ROLES.includes(p.role))) && !b.has(p.name)).map(p => p.name);
+  return (S.staff || []).filter(p => inRole(p, role) && !b.has(p.name)).map(p => p.name);
 }
 function clashes(day, text, kind, label, field){
   const out = [];
@@ -1405,7 +1411,7 @@ function openSlotEditor(wk, day, kind, label){
     ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to fill in:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup medics' : 'Managers (reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     <p class="small muted" style="margin-top:10px">Combos like "ONG / JAMES" are fine. Leave blank to clear the slot.</p>
-    ${namesIn(fields[0][2]).length ? `<button class="btn ghost block" id="ed-abs" style="margin-top:12px">Absent today (MC or urgent leave)? Mark and replace</button>` : ''}
+    ${namesIn(fields[0][2]).length && canManage() ? `<button class="btn ghost block" id="ed-abs" style="margin-top:12px">Absent today (MC or urgent leave)? Mark and replace</button>` : ''}
     <div class="acts"><button class="btn ghost" id="ed-x">Cancel</button>${fields[0][2] ? '<button class="btn no" id="ed-un">Undeploy</button>' : ''}<button class="btn" id="ed-ok">Save</button></div></div>`;
   document.body.appendChild(bg);
   const inp = $('#ed-' + who, bg);
@@ -1435,7 +1441,7 @@ function openSlotEditor(wk, day, kind, label){
       for (const [k, , v] of fields) {
         const nv = $('#ed-' + k, bg).value.trim().toUpperCase();
         if (nv === String(v || '').toUpperCase()) continue;
-        const res = await call('adminSetSlot', S.token, day.date, { kind, label, field:k }, nv);
+        const res = await call(canManage() ? 'adminSetSlot' : 'medicSetSlot', S.token, day.date, { kind, label, field:k }, nv);
         week = res.week; warnings = warnings.concat(res.warnings || []);
       }
       S.cache[week.monday] = week;
@@ -1498,7 +1504,7 @@ function waText(day, rangesOnly){
   L.push('', b('UNDEPLOYED APO'), freeA.length ? freeA.join(', ') : 'NIL');
   const rg = reportGroups(day);
   if (rg.length) { L.push('', b('EXT HOURS')); rg.forEach(g => L.push(hrs(g.t).toUpperCase() + ' - ' + g.names.join(', '))); }
-  const medics = (S.staff || []).filter(p => p.role === 'Medic' || p.role === 'Backup Medic').map(p => p.name);
+  const medics = (S.staff || []).filter(p => MEDIC_ROLES.includes(p.role) || p.role === 'Backup Medic').map(p => p.name);
   const aw = day.absences.filter(a => !NOT_AWAY.includes(a.label.toUpperCase().replace(/\s+/g, '')))
     .map(a => ({ label:a.label, text:dropMedics(a.text, x => namesIn(x).some(n => medics.includes(n))) }))
     .filter(a => a.text);
@@ -1583,7 +1589,7 @@ function openAbsent(o){
     const posts = st.name ? postingsOf(day, st.name) : [];
     const person = (S.staff || []).find(p => p.name === st.name);
     const picked = Object.values(st.reps);
-    const pool = person && (person.role === 'Medic' || person.role === 'Backup Medic') ? 'Medic' : 'APO';
+    const pool = person && (MEDIC_ROLES.includes(person.role) || person.role === 'Backup Medic') ? 'Medic' : 'APO';
     const free = freeOn(day, pool).filter(n => !picked.includes(n));
     const freeMg = freeOn(day, pool === 'Medic' ? 'Backup Medic' : 'Manager').filter(n => !picked.includes(n) && n !== st.name);
     bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
@@ -2005,9 +2011,9 @@ async function admOil(){
 /* Tick-list of Managers then APOs (Managers: JAMES LAI first) */
 /* Medics who earn OIL (the other medics are from partner companies). Add names here as needed. */
 const OIL_MEDICS = ['FAHMI'];
-const earnsOil = p => p.role !== 'Medic' || OIL_MEDICS.some(n => p.name.indexOf(n) === 0 || (p.aliases || []).includes(n));
+const earnsOil = p => !MEDIC_ROLES.includes(p.role) || OIL_MEDICS.some(n => p.name.indexOf(n) === 0 || (p.aliases || []).includes(n));
 function pickGroups(){
-  const sorted = role => (S.staff || []).filter(p => p.role === role && earnsOil(p)).map(p => p.name)
+  const sorted = role => (S.staff || []).filter(p => (p.role === role || (role === 'Medic' && MEDIC_ROLES.includes(p.role))) && earnsOil(p)).map(p => p.name)
     .sort((a, b) => ((b === 'JAMES LAI') - (a === 'JAMES LAI')) || a.localeCompare(b));
   return [['Manager', 'Managers'], ['DY Manager', 'DY Managers'], ['APO Supervisor', 'APO Supervisor'], ['APO', 'APO'], ['Non-APO', 'Non-APO'], ['Medic', 'Medics']].map(([role, label]) => {
     const names = sorted(role);
@@ -2033,7 +2039,7 @@ function attText(a){
     'Total strength: ' + rows.length];
   if (dowIdx(a.date) >= 5) {
     // Weekend: only who is turning up, Managers first (JAMES LAI first), then APO, then Medics
-    const ORD = { Manager:0, 'DY Manager':0.5, 'APO Supervisor':1, APO:1, 'Non-APO':1, Medic:2 };
+    const ORD = { Manager:0, 'DY Manager':0.5, 'APO Supervisor':1, APO:1, 'Non-APO':1, Medic:2, 'Medic Certis':2 };
     const ppl = present.slice().sort((x, y) => ((ORD[x.role] ?? 3) - (ORD[y.role] ?? 3)) ||
       ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
     return head2.concat(['Present: ' + ppl.length], ppl.map(r => titleCase(r.name))).join('\n');
@@ -2057,7 +2063,7 @@ async function admAtt(){
 }
 function drawAtt(a){
   S.attDate = a.date;
-  const ORDER = { Manager:0, 'DY Manager':0.5, 'APO Supervisor':1, APO:1, 'Non-APO':1, Medic:2, 'Backup Medic':3 };
+  const ORDER = { Manager:0, 'DY Manager':0.5, 'APO Supervisor':1, APO:1, 'Non-APO':1, Medic:2, 'Medic Certis':2, 'Backup Medic':3 };
   const rows = a.rows.slice().sort((x, y) => ((ORDER[x.role] ?? 3) - (ORDER[y.role] ?? 3)) ||
     ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
   const counted = rows.filter(r => r.status !== 'Off');
@@ -2185,9 +2191,9 @@ async function admStaff(){
   A().innerHTML = '<div class="loading">Loading\u2026</div>';
   try { drawStaff(await call('adminStaff', S.token)); } catch(e){ fail(e); }
 }
-const ROLES = ['APO','APO Supervisor','Non-APO','Manager','DY Manager','Medic','Backup Medic','Admin'];
+const ROLES = ['APO','APO Supervisor','Non-APO','Manager','DY Manager','Medic','Medic Certis','Backup Medic','Admin'];
 /* Team and Staff lists: Manager, DY Manager, APO Supervisor, APO, Non-APO, Medic, Backup Medic, Admin; JAMES LAI first among managers */
-const ROLE_RANK = ['Manager','DY Manager','APO Supervisor','APO','Non-APO','Medic','Backup Medic','Admin'];
+const ROLE_RANK = ['Manager','DY Manager','APO Supervisor','APO','Non-APO','Medic','Medic Certis','Backup Medic','Admin'];
 function byRole(list){
   const r = p => { const i = ROLE_RANK.indexOf(p.role); return i < 0 ? ROLE_RANK.length : i; };
   return (list || []).slice().sort((a, b) => (r(a) - r(b)) || ((b.name === 'JAMES LAI') - (a.name === 'JAMES LAI')) || a.name.localeCompare(b.name));
@@ -2325,7 +2331,7 @@ const MOCK = (() => {
       absences: i === 1 ? [{ label:'MC', text:'ARIF MC', people:['ARIF'] }] : i === 3 ? [{ label:'IPPT/ TRG etc', text:'WONG TEST SHOOT (1400hrs)', people:['WONG'] }] : [] };
   }
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
-  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO' }))
+  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO' }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
   const getWk = m => weeks[m] || (weeks[m] = SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] });
@@ -2470,6 +2476,7 @@ const MOCK = (() => {
     adminClockIn: (t, d, n, hm) => { const r = attRec(d, n); r.clockIn = hm; r.by = hm ? S.me.name : ''; return mockAtt(d); },
     getWeek: (t, d) => getWk(mondayOf(d)),
     getMySchedule: (t, from, to) => mockSched(from, nDays(from, to)),
+    medicSetSlot: (t, date, slot, v) => MOCK.adminSetSlot(t, date, slot, v),
     adminSetSlot: (t, date, slot, v) => {
       const wk = getWk(mondayOf(date)); const d = wk.days[dowIdx(date)];
       const warnings = ['rmk','loc'].includes(slot.field) ? [] : clashes(d, v, slot.kind, slot.label, slot.field);
