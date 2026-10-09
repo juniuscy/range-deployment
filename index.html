@@ -2033,6 +2033,16 @@ function attText(a){
   const rows = a.rows.filter(r => r.status !== 'Off');
   const list = arr => arr.length ? arr.length + ' - ' + arr.map(r => titleCase(r.name)).join(', ') : 'NIL';
   const by = st => rows.filter(r => r.status === st);
+  /* a leave line: everyone whose status is that leave, plus anyone with a second half-day leave of that kind; (AM)/(PM) shown for half days */
+  const half = h => h ? ' (' + h + ')' : '';
+  const leaveList = c => {
+    const out = [];
+    rows.forEach(r => {
+      if (r.status === c) out.push(titleCase(r.name) + half(r.leave && r.leave.cat === c ? r.leave.half : ''));
+      (r.leave && r.leave.also || []).forEach(x => { if (x.cat === c && r.status !== c) out.push(titleCase(r.name) + half(x.half)); });
+    });
+    return out.length ? out.length + ' - ' + out.join(', ') : 'NIL';
+  };
   const present = rows.filter(r => r.status === 'Present' || r.status === 'Present (Late)');
   const head2 = ['*OPS SUPPORT*',
     '*Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')*',
@@ -2052,7 +2062,7 @@ function attText(a){
     'Present (Late): ' + list(by('Present (Late)')),
     ''
   ];
-  ATT_AWAY.forEach(c => L.push(c + ': ' + list(by(c))));
+  ATT_AWAY.forEach(c => L.push(c + ': ' + leaveList(c)));
   const none = rows.filter(r => !r.status);
   if (none.length) L.push('Not accounted: ' + list(none));
   return L.join('\n');
@@ -2089,7 +2099,7 @@ function drawAtt(a){
       <button class="btn go" id="at-wa">WhatsApp message</button>
       <button class="btn ghost" id="at-rf">Refresh</button></div>
     <div class="scroll"><table class="t"><tr><th>Name</th><th>Clock in</th><th>Status</th></tr>
-      ${rows.map(r => `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.role)}${r.leave ? ', plan: ' + esc(r.leave.text) : ''}${r.ext ? `, <span class="extag">EXT ${esc(hrs(r.ext))}</span> late after ${esc(r.lateAt)}` : ''}</div></td>
+      ${rows.map(r => `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.role)}${r.leave ? ', plan: ' + esc([r.leave.text].concat((r.leave.also || []).map(x => x.text)).join(' + ')) : ''}${r.ext ? `, <span class="extag">EXT ${esc(hrs(r.ext))}</span> late after ${esc(r.lateAt)}` : ''}</div></td>
         <td><input type="time" data-atc="${esc(r.name)}" value="${esc(r.clockIn)}" style="min-height:38px;padding:4px 6px;max-width:120px">
           ${r.by ? `<div class="small muted">entered by ${esc(r.by)}</div>` : ''}</td>
         <td><span class="pill ${cls(r.status)}">${esc(r.status || 'Not accounted')}</span>
