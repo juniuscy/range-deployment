@@ -168,6 +168,8 @@ textarea{min-height:80px;resize:vertical}
 .dsel button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
 .dsel button[aria-pressed="true"] span,.dsel button[aria-pressed="true"] i{color:#C9D3DC}
 .daytitle{font:600 15px/1.3 var(--body);color:var(--muted);margin:-4px 0 12px}
+.dmline{display:inline-flex;align-items:center;gap:8px;background:var(--steel-soft);border:1px solid var(--steel);border-radius:999px;padding:4px 12px;margin:-6px 0 12px;font-size:14px}.dmline span{font-weight:700;color:var(--steel);letter-spacing:.04em}button.dmline{font:inherit;font-size:14px;color:inherit;cursor:pointer}.dmline u{color:var(--steel);font-weight:600;margin-left:4px}.dmline.none{background:#FEF9C3;border-color:#EAB308}
+.dmrow td{cursor:pointer}.dmrow.we td:first-child{color:var(--muted)}.dmrow.today td{background:var(--steel-soft)}
 
 .boardlist{display:grid;gap:8px}
 @media (min-width:640px){.boardlist{grid-template-columns:1fr 1fr}}
@@ -411,7 +413,18 @@ async function apiCall(fn, args){
   if (!o.ok) throw new Error(o.error);
   return o.result;
 }
+/* Every reply that carries dmMap (getHome, getWeek) updates the Duty Manager list kept in S.dm */
 function call(fn, ...args){
+  return call0(fn, ...args).then(r => {
+    if (r && r.dmMap) {
+      S.dm = S.dm || {};
+      if (r.monday) for (let i = 0; i < 7; i++) delete S.dm[addD(r.monday, i)];
+      Object.assign(S.dm, r.dmMap);
+    }
+    return r;
+  });
+}
+function call0(fn, ...args){
   if (!GAS && API_URL) return apiCall(fn, args);
   return new Promise((res, rej) => {
     if (!LIVE) {
@@ -980,6 +993,60 @@ function drawAdmAllergo(d){
   };
 }
 
+/* ---------- Duty Manager roster (planned by another department; pasted in here) ---------- */
+const ymLabel = ym => MONL[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4);
+const ymAdd = (ym, n) => { const d = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+async function admDm(month){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try { drawDm(await call('getDm', S.token, month || S.dmMonth || '')); } catch(e){ fail(e); }
+}
+function drawDm(d){
+  S.dmMonth = d.month;
+  S.dm = S.dm || {};
+  for (let i = 1; i <= d.days; i++) delete S.dm[d.month + '-' + String(i).padStart(2, '0')];
+  Object.assign(S.dm, d.rows);
+  const tile = (t, label) => {
+    const late = t.filled === 0 && label === 'next' && +d.today.slice(8) >= 25;
+    const cls = t.filled >= t.days ? 'ts-done' : late ? 'ts-fail' : t.filled ? 'ts-todo' : 'ts-na';
+    return `<div class="${cls}"><b>${t.filled}/${t.days}</b>${esc(ymLabel(t.month))}${late ? '<br>not in yet' : ''}</div>`;
+  };
+  const rows = [];
+  for (let i = 1; i <= d.days; i++) {
+    const ds = d.month + '-' + String(i).padStart(2, '0'), n = d.rows[ds];
+    rows.push(`<tr class="dmrow${dowIdx(ds) >= 5 ? ' we' : ''}${ds === d.today ? ' today' : ''}" data-dmd="${ds}"><td style="width:42%">${nice(ds)}</td><td>${n ? '<b>' + esc(n) + '</b>' : '<span class="muted">Not set</span>'}</td></tr>`);
+  }
+  A().innerHTML = `<div class="ttiles" style="grid-template-columns:repeat(2,1fr)">${tile(d.thisMonth, 'this')}${tile(d.nextMonth, 'next')}</div>
+    <div class="sec"><h3 style="margin-top:0">Paste the DM roster</h3>
+      <p class="small muted" style="margin:0 0 8px">Copy the rows of the other department's schedule and paste below. The whole table works (Day, Dates, EID, Duty HQ Manager); only the date and name are kept. Dates already in the list are replaced.</p>
+      <textarea id="dm-p" rows="6" style="width:100%;font:14px/1.4 ui-monospace,monospace" placeholder="1/11/2026&#9;JOHN TAN&#10;2/11/2026&#9;SARAH LEE"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="dm-s">Save roster</button></div>
+      <div id="dm-msg"></div></div>
+    <div class="wkbar"><button class="btn ghost" id="dm-pv">Prev</button><h2>${esc(ymLabel(d.month))}</h2><button class="btn ghost" id="dm-nx">Next</button></div>
+    <div class="scroll"><table class="t">${rows.join('')}</table></div>
+    <p class="small muted" style="margin-top:8px">Tap a day to change or clear the name. The Duty Manager shows on the Deployment Plan and under *DM* in the Medical Support Readiness message. You can also type into the "App DM" tab in the sheet (Date, Duty Manager).</p>`;
+  $('#dm-pv').onclick = () => admDm(ymAdd(d.month, -1));
+  $('#dm-nx').onclick = () => admDm(ymAdd(d.month, 1));
+  $('#dm-s').onclick = async e => {
+    const text = $('#dm-p').value;
+    if (!text.trim()) { toast('Paste the roster first', true); return; }
+    busy(e.target, true);
+    try {
+      const r = await call('dmPaste', S.token, text);
+      const skip = r.skipped.length ? `<div class="note yellow" style="margin-top:8px"><b>Not read (${r.skipped.length}):</b> ${esc(r.skipped.slice(0, 8).join(' | '))}${r.skipped.length > 8 ? ' ...' : ''}<br>These lines don't start with a date. Headers are fine to ignore.</div>` : '';
+      if (!r.saved) { busy(e.target, false); $('#dm-msg').innerHTML = skip || ''; toast('No dates found. Check the format.', true); return; }
+      toast('Saved ' + r.saved + ' day' + (r.saved === 1 ? '' : 's') + ': ' + nice(r.from) + (r.to !== r.from ? ' to ' + nice(r.to) : ''));
+      drawDm(await call('getDm', S.token, r.from.slice(0, 7)));
+      if (skip) $('#dm-msg').innerHTML = skip;
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+  A().querySelectorAll('[data-dmd]').forEach(tr => tr.onclick = async () => {
+    const ds = tr.dataset.dmd, cur = d.rows[ds] || '';
+    const v = prompt('Duty Manager for ' + nice(ds) + ' (leave blank to clear):', cur);
+    if (v === null || v.trim() === cur) return;
+    try { drawDm(await call('dmSet', S.token, ds, v.trim())); toast(v.trim() ? 'Saved' : 'Cleared'); } catch(x){ fail(x); }
+  });
+}
+
 /* ---------- Timeline reporting (Admin and Managers) ---------- */
 const REPORTS = [
   { id:'am-plan', win:['07:00','08:30'], title:'Deployment Plan (today)', grp:'RSO & RCO grp' },
@@ -1018,7 +1085,7 @@ async function repDay(date){
 }
 function medText(day){
   const dt = pd(day.date);
-  const L = ['*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(day.date)] + ')*', '', '*DM*', '', '*MEDICAL SUPPORT READY*'];
+  const L = ['*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(day.date)] + ')*', '', '*DM*'].concat(S.dm && S.dm[day.date] ? [S.dm[day.date]] : [], ['', '*MEDICAL SUPPORT READY*']);
   day.medics.forEach(m => L.push(m.role + ': ' + (m.who || 'NIL') + (m.who && m.loc && m.loc !== m.role ? ' (' + m.loc + ')' : '')));
   return L.join('\n');
 }
@@ -1043,8 +1110,9 @@ async function repPrepare(r, st, redraw){
     const day = await repDay(S.today);
     if (!day) throw new Error('There is no weekly tab for today yet.');
     text = medText(day);
+    if (!(S.dm && S.dm[day.date])) warn += '<div class="note yellow"><b>No Duty Manager for today.</b> Paste the DM roster in Admin, Duty Manager, then Prepare again (or type the name below *DM*).</div>';
     const away = awayOn(day), off = day.medics.filter(m => m.people.some(n => away[n]));
-    if (off.length) warn = `<div class="note red"><b>Check first:</b> ${esc(off.map(m => m.role + ' ' + m.who + ' is away').join('; '))}. Change the medic in the Deployment Plan, then Prepare again.</div>`;
+    if (off.length) warn += `<div class="note red"><b>Check first:</b> ${esc(off.map(m => m.role + ' ' + m.who + ' is away').join('; '))}. Change the medic in the Deployment Plan, then Prepare again.</div>`;
   }
   openWaSheet(r.title, 'Send to: ' + r.grp + '. Open WhatsApp, pick the group, then tap Mark as sent here.', warn, text, {
     sentLabel: 'Mark as sent',
@@ -1282,6 +1350,8 @@ function drawBoard(wk){
     const dayKey = `<div class="daykey">${keyItems.map(k => `<span><u style="background:${k[1]}"></u>${k[2]}</span>`).join('')}${loadKey}</div>`;
     V().innerHTML = head + `<div class="dsel">${sel}</div>${dayKey}
       <p class="daytitle">${nice(d.date)}${d.title && /\(/.test(d.title) ? ' ' + esc(d.title.replace(/^\w+\s*/, '')) : ''}</p>
+      ${S.dm && S.dm[d.date] ? `<${admin ? 'button' : 'div'} class="dmline" id="dm-ed"${admin ? ' title="Change the Duty Manager"' : ''}><span>DM</span>Duty Manager: <b>${esc(S.dm[d.date])}</b>${admin ? '<u>Change</u>' : ''}</${admin ? 'button' : 'div'}>`
+        : admin ? '<button class="dmline none" id="dm-ed"><span>DM</span>No Duty Manager set <u>Add</u></button>' : ''}
       ${dayClash.length ? `<div class="note red"><b>${dayClash.length} posting${dayClash.length === 1 ? '' : 's'} to cover</b> (deployed but away):
         <ul style="margin:4px 0 0;padding-left:18px">${dayClash.map(c => `<li><b>${esc(c.where)}</b>: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>
         ${admin ? '<div class="small" style="margin-top:6px">Tap <b>Edit deployment</b>, then the red range or row, to put someone else in.</div>' : ''}</div>` : ''}
@@ -1291,6 +1361,13 @@ function drawBoard(wk){
       <div class="${edAll ? 'edit-on' : ''}"><div class="boardlist">${ranges}</div>${dutyT}<div class="${ed ? 'edit-on' : ''}">${medicT}</div></div>${awayT}`;
     document.querySelectorAll('.dsel button').forEach(b => b.onclick = () => { S.dayIdx = +b.dataset.i; drawBoard(wk); });
     if ($('#edt')) $('#edt').onclick = () => { S.edit = !S.edit; drawBoard(wk); };
+    if ($('#dm-ed') && admin) $('#dm-ed').onclick = async () => {
+      const cur = (S.dm && S.dm[d.date]) || '';
+      const v = prompt('Duty Manager for ' + nice(d.date) + ' (leave blank to clear):', cur);
+      if (v === null || v.trim() === cur) return;
+      try { const r = await call('dmSet', S.token, d.date, v.trim()); S.dm = S.dm || {}; if (v.trim()) S.dm[d.date] = v.trim().replace(/\s+/g, ' '); else delete S.dm[d.date]; drawBoard(wk); toast(v.trim() ? 'Duty Manager saved' : 'Duty Manager cleared'); }
+      catch(x){ fail(x); }
+    };
     if ($('#abs')) $('#abs').onclick = () => openAbsent({ day:d, onDone: w => drawBoard(w) });
     if ($('#wa')) $('#wa').onclick = () => openWhatsApp(d);
     if (ed) document.querySelectorAll(medOnly ? '.edit-on [data-slot^="medic|"]' : '.edit-on [data-slot]').forEach(el => el.onclick = () => {
@@ -1822,11 +1899,11 @@ async function refreshPendingDot(){
   } catch(e){}
 }
 function viewAdmin(){
-  const subs = [['pending','Pending'],['att','Attendance'],['alg','Allergo'],['trn','Training'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
+  const subs = [['pending','Pending'],['att','Attendance'],['dm','Duty Manager'],['alg','Allergo'],['trn','Training'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
   V().innerHTML = `<h2>Admin</h2><div class="sub">${subs.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div><div id="adm"></div>`;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
-  ({ pending:admPending, att:admAtt, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
+  ({ pending:admPending, att:admAtt, dm:() => admDm(), alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
 }
 const A = () => $('#adm');
 
@@ -2391,6 +2468,7 @@ const MOCK = (() => {
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
   const mRep = { date: today, sent: {} };
+  const mDm = {}; ['CPT JOHN TAN','MR LIM AH KOW','SARAH LEE','CHAN YANG','MAJ RAJ KUMAR'].forEach((n, i) => { for (let k = i; k < 12; k += 5) mDm[addD(today, k - 2)] = n; });
   const mAlg = [
     { keys:['REQ:R1'], name:'ARIF', sid:'171590', type:'AL', start:addD(today, 4), end:addD(today, 6), days:3, applied:addD(today, -1), due:addD(today, 6), ticked:null },
     { keys:['ATT:ARIF:MC:' + addD(today, -3)], name:'ARIF', sid:'171590', type:'MC', start:addD(today, -3), end:addD(today, -3), days:1, applied:addD(today, -3), due:addD(today, 4), ticked:null },
@@ -2460,6 +2538,7 @@ const MOCK = (() => {
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
       attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
+      dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
@@ -2484,7 +2563,16 @@ const MOCK = (() => {
     adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; return Object.assign(mockAtt(d), { warn:'' }); },
     adminSetLateAfter: (t, hm, d) => { lateAfter = hm; return mockAtt(d); },
     adminClockIn: (t, d, n, hm) => { const r = attRec(d, n); r.clockIn = hm; r.by = hm ? S.me.name : ''; return mockAtt(d); },
-    getWeek: (t, d) => getWk(mondayOf(d)),
+    getWeek: (t, d) => { const m = mondayOf(d); const dm = {}; for (let i = 0; i < 7; i++) { const x = addD(m, i); if (mDm[x]) dm[x] = mDm[x]; } return Object.assign({}, getWk(m), { dmMap: dm }); },
+    getDm: (t, ym) => { ym = ym || today.slice(0, 7); const end = ym2 => new Date(+ym2.slice(0, 4), +ym2.slice(5, 7), 0).getDate();
+      const rows = {}; Object.keys(mDm).filter(x => x.slice(0, 7) === ym).forEach(x => rows[x] = mDm[x]);
+      const cnt = ym2 => Object.keys(mDm).filter(x => x.slice(0, 7) === ym2).length, nm = ymAdd(today.slice(0, 7), 1);
+      return { today, month: ym, rows, days: end(ym), thisMonth:{ month: today.slice(0, 7), filled: cnt(today.slice(0, 7)), days: end(today.slice(0, 7)) }, nextMonth:{ month: nm, filled: cnt(nm), days: end(nm) } }; },
+    dmPaste: (t, text) => { const skipped = [], got = [];
+      text.split(/\n/).forEach(l => { const m = l.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(.+)$/);
+        if (!m) { if (l.trim()) skipped.push(l.trim()); return; } const ds = m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'); mDm[ds] = m[4].trim(); got.push(ds); });
+      got.sort(); return { saved: got.length, from: got[0] || '', to: got[got.length - 1] || '', skipped }; },
+    dmSet: (t, ds, n) => { if (n) mDm[ds] = n; else delete mDm[ds]; return MOCK.getDm(t, ds.slice(0, 7)); },
     getMySchedule: (t, from, to) => mockSched(from, nDays(from, to)),
     medicSetSlot: (t, date, slot, v) => MOCK.adminSetSlot(t, date, slot, v),
     adminSetSlot: (t, date, slot, v) => {
