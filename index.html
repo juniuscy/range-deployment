@@ -169,7 +169,13 @@ textarea{min-height:80px;resize:vertical}
 .dsel button[aria-pressed="true"] span,.dsel button[aria-pressed="true"] i{color:#C9D3DC}
 .daytitle{font:600 15px/1.3 var(--body);color:var(--muted);margin:-4px 0 12px}
 .dmline{display:inline-flex;align-items:center;gap:8px;background:var(--steel-soft);border:1px solid var(--steel);border-radius:999px;padding:4px 12px;margin:-6px 0 12px;font-size:14px}.dmline span{font-weight:700;color:var(--steel);letter-spacing:.04em}button.dmline{font:inherit;font-size:14px;color:inherit;cursor:pointer}.dmline u{color:var(--steel);font-weight:600;margin-left:4px}.dmline.none{background:#FEF9C3;border-color:#EAB308}
-.dmrow td{cursor:pointer}.dmrow.we td:first-child{color:var(--muted)}.dmrow.today td{background:var(--steel-soft)}
+.dmrow td{cursor:pointer}
+.dmchk{display:grid;gap:6px;margin:4px 0 6px}
+.dmc{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;background:var(--card);cursor:pointer;font-size:15px}
+.dmc input[type=checkbox]{width:24px;height:24px;flex:none;accent-color:#16A34A}
+.dmc.on{background:#DCFCE7;border-color:#22C55E}
+.dmc input[type=text]{margin:0 4px;width:74px;font:600 16px/1.2 ui-monospace,monospace;padding:6px 8px;border:1px solid var(--line);border-radius:8px;text-align:center}
+.dmc input[type=text].bad{border-color:#DC2626;background:#FEF2F2}.dmrow.we td:first-child{color:var(--muted)}.dmrow.today td{background:var(--steel-soft)}
 
 .boardlist{display:grid;gap:8px}
 @media (min-width:640px){.boardlist{grid-template-columns:1fr 1fr}}
@@ -329,10 +335,19 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .mtr.ts-late,.mtr.ts-missed,.mtr.ts-fail{border-color:var(--flag)}.mtr.ts-na,.mtr.ts-locked,.mtr.ts-soon2{border-color:#B8C1C8}
 .mtr.ask{display:block}.mtr.ask .q{font-weight:700;margin:4px 0 0;font-size:13px}
 /* greeting row with clock-in, birthday */
-.hirow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.hirow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.hiright{display:flex;gap:8px;align-items:stretch;margin-left:auto}
+.dmbox{border:1px solid var(--steel);background:var(--steel-soft);border-radius:var(--r-md);padding:6px 10px;min-width:104px;max-width:150px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+.dmbox span{font:700 11px/1.2 var(--body);letter-spacing:.06em;color:var(--steel);text-transform:uppercase}
+.dmbox b{font:700 15px/1.2 var(--cond);margin-top:2px;overflow-wrap:anywhere}
+.dmbox.none{border-color:var(--line);background:var(--card)}.dmbox.none b{color:var(--muted);font-weight:600}
+.dmbox.me{background:var(--ink);border-color:var(--ink);color:#fff}.dmbox.me span{color:#9FC3E6}
+.dmcard{display:flex;gap:10px;align-items:center;background:var(--steel-soft);border:1px solid var(--steel);border-left-width:5px;border-radius:var(--r-md);padding:10px 12px;margin:0 0 14px}
+.dmcard b{display:block;font-size:16px}.dmcard small{color:var(--muted);font-size:13px}
+.k.dm{background:var(--steel);color:#fff}.dmcard .k.dm{font:700 13px/1 var(--body);padding:6px 8px;border-radius:6px;flex:none}.day.dep .k.dm{background:var(--steel);color:#fff}
 .hirow h2{margin:0}.idno{font-size:14px;color:var(--muted);margin-top:2px}
 .clock.cm{margin:0;padding:6px 10px;text-align:center;min-width:128px;flex:none}
-.clock.cm > b{font-size:20px}.clock.cm > span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.clock.cm > b{font-size:20px}.clock.cm > span{display:block;font-size:12px;color:var(--muted);margin-top:2px}.clock.cm > span.cdt{margin-top:0;font-weight:600;color:var(--ink)}
 .clock.cm.todo{border:0;background:transparent;padding:0}.clock.cm.todo .btn{min-height:46px;padding:8px 20px;font-size:17px;width:100%}
 .bday{display:flex;gap:10px;align-items:center;background:linear-gradient(90deg,#FFF1F2,#FEF3C7);border:1px solid #FBCFE8;border-radius:var(--r-md);padding:9px 12px;margin:0 0 14px}
 .bday{cursor:pointer;position:relative;overflow:hidden}.bday .ck{font-size:26px;line-height:1;display:inline-block;animation:bdwig 1.6s ease-in-out infinite}@keyframes bdwig{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg) scale(1.08)}50%{transform:rotate(0)}75%{transform:rotate(12deg) scale(1.08)}}.bday::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.75) 50%,transparent 70%);transform:translateX(-100%);animation:bdshine 3.5s ease-in-out infinite;pointer-events:none}@keyframes bdshine{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}#fxc{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}.bday b{display:block;color:#9D174D;font-size:16px}.bday small{color:var(--muted);font-size:13px}
@@ -662,10 +677,13 @@ function drawHome(h, stale){
       if (left < 0) lib = `<div class="note red">Your LIB expired on ${nice(h.lib)}. Book your LIB test with your admin.</div>`;
       else if (left <= 45) lib = `<div class="note">Your LIB expires on ${nice(h.lib)}, in ${left} day${left===1?'':'s'}.</div>`;
     }
+    const dmToday = (h.dmMap || {})[S.today] || (S.dm || {})[S.today] || '';
+    const dmMine = isMeDm(dmToday);
     V().innerHTML = `
       <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="small muted" style="font:500 14px var(--body)">updating...</span>' : ''}</h2>
-        <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div>${h.attendance ? clockCard(h.attendance) : ''}</div>
+        <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div><div class="hiright">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div></div>
       ${h.attendance ? clockNotes(h.attendance) : ''}
+      ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
       ${h.allergo && h.allergo.length ? algCard(h.allergo, 'Submit in Allergo') : ''}
       ${h.inspections ? inspCard(h.inspections) : ''}
@@ -1052,9 +1070,17 @@ const REPORTS = [
   { id:'am-plan', win:['07:00','08:30'], title:'Deployment Plan (today)', grp:'RSO & RCO grp' },
   { id:'am-att',  win:['07:00','08:30'], title:'Attendance (today)', grp:'MMRC Daily Attendance grp' },
   { id:'am-med',  win:['07:00','08:30'], title:'Medical Support Readiness', grp:'Certis Management Team grp' },
+  { id:'dm-start', win:['07:00','08:30'], title:'DM Report Start Range', grp:'', dm:true },
   { id:'pm-plan', win:['17:00','17:30'], title:'Next day Deployment Plan', grp:'OPS SP Ammo Team' },
-  { id:'pm-good', win:['17:00','23:59'], label:'Good Day', title:'Medical Support Standdown', grp:'OPS SP - Medical grp' }
+  { id:'pm-good', win:['17:00','23:59'], label:'Good Day', title:'Medical Support Standdown', grp:'OPS SP - Medical grp' },
+  { id:'dm-end', win:['17:00','23:59'], label:'Good Day', title:'DM Report End Range', grp:'', dm:true }
 ];
+/* DM reports: only for today's Duty Manager. The last check of each has a time (24hrs). */
+const DM_CHECKS = {
+  'dm-start': ['Medical Support', 'Ammo status', 'Range Deployment', 'Range systems & Infrastructure', 'In Pro completed at'],
+  'dm-end': ['All range completed', 'All ammo accounted', 'All troops out pro without issues', 'All Units left MMRC at']
+};
+const repShown = r => r.dm ? isMeDm((S.dm || {})[S.today]) : canManage();
 const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
 function repStatus(r, st){
   const sent = st && st.date === S.today ? st.sent[r.id] : null;
@@ -1068,13 +1094,13 @@ function repStatus(r, st){
 function repCard(st){
   if (!st) return '';
   const groups = [];
-  REPORTS.forEach(r => { const k = r.win[0] + '|' + r.win[1] + '|' + (r.label || ''); let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, win:r.win, label:r.label, list:[] }); g.list.push(r); });
+  REPORTS.filter(repShown).forEach(r => { const k = r.win[0] + '|' + r.win[1] + '|' + (r.label || ''); let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, win:r.win, label:r.label, list:[] }); g.list.push(r); });
   return `<div class="insp rep" id="rep"><h3>Timeline Reporting</h3>${groups.map(g => `
     <h4>${g.label ? esc(g.label) : g.win[1] > addMin(g.win[0], 30) ? hrs(g.win[0]) + ' to ' + hrs(g.win[1]) : hrs(g.win[0])}</h4>
     ${g.list.map((r, i) => { const x = repStatus(r, st); return `<div class="irow ${x.cls}">
-      <div class="it2"><b>${i + 1}. ${esc(r.title)}</b><span class="grp">To ${esc(r.grp)}</span><span>${esc(x.line)}</span></div>
+      <div class="it2"><b>${i + 1}. ${esc(r.title)}</b>${r.grp ? `<span class="grp">To ${esc(r.grp)}</span>` : r.dm ? '<span class="grp">Duty Manager report</span>' : ''}<span>${esc(x.line)}</span></div>
       ${x.cls === 'sent' ? `<button class="btn ghost ib" data-rundo="${r.id}">Undo</button>` : `<button class="btn ib" data-rprep="${r.id}">Prepare</button>`}</div>`; }).join('')}`).join('')}
-    <p class="small muted" style="margin:8px 0 0">Yellow: not sent yet. Green: sent. Red: past the time and not sent. Either manager can send; once sent, it shows as sent for everyone.</p></div>`;
+    <p class="small muted" style="margin:8px 0 0">Yellow: not sent yet. Green: sent. Red: past the time and not sent. ${canManage() ? 'Either manager can send; once sent, it shows as sent for everyone.' : ''}${REPORTS.some(r => r.dm && repShown(r)) ? ' DM reports show on your Duty Manager days.' : ''}</p></div>`;
 }
 function addMin(hm, n){ const p = hm.split(':').map(Number), t = p[0] * 60 + p[1] + n; return String(Math.floor(t / 60)).padStart(2,'0') + ':' + String(t % 60).padStart(2,'0'); }
 async function repDay(date){
@@ -1089,7 +1115,85 @@ function medText(day){
   day.medics.forEach(m => L.push(m.role + ': ' + (m.who || 'NIL') + (m.who && m.loc && m.loc !== m.role ? ' (' + m.loc + ')' : '')));
   return L.join('\n');
 }
+/* DM report text from the ticks; unticked lines go without the green tick */
+function dmText(id, chk){
+  const dt = pd(S.today), L = DM_CHECKS[id];
+  const out = ['*' + (id === 'dm-start' ? 'DM Report Start Range' : 'DM Report End Range') + '*', '',
+    'Date: ' + String(dt.getDate()).padStart(2, '0') + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear(), ''];
+  L.forEach((x, i) => {
+    const last = i === L.length - 1;
+    out.push((i + 1) + ') ' + x + (last ? ' ' + (chk.t || '____') + 'hrs' : '') + (chk.c[i] ? ' \u2705' : ''));
+  });
+  return out.join('\n');
+}
+function openDmReport(r, st, redraw){
+  const L = DM_CHECKS[r.id];
+  const saved = (st.dmchk || {})[r.id];
+  const chk = { c: L.map((x, i) => !!(saved && saved.c[i])), t: (saved && saved.t) || '' };
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
+    <h3>${esc(r.title)}</h3>
+    <div class="src">Tick each check once done. Ticks are saved as you go, so you can close this and come back.</div>
+    <div class="dmchk">${L.map((x, i) => { const last = i === L.length - 1;
+      return `<label class="dmc${chk.c[i] ? ' on' : ''}" data-i="${i}"><input type="checkbox" ${chk.c[i] ? 'checked' : ''} data-ci="${i}"><span>${i + 1}) ${esc(x)}${last ? ` <input type="text" id="dm-time" inputmode="numeric" maxlength="4" placeholder="0815" value="${esc(chk.t)}" aria-label="Time, 24hrs"> hrs` : ''}</span></label>`; }).join('')}</div>
+    <div class="small muted" id="dm-sv" style="margin:4px 0 8px">${saved ? 'Last saved ' + esc(saved.at) + ' by ' + esc(saved.by) : 'Not saved yet'}</div>
+    <textarea id="wa-t" style="min-height:220px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
+    <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy</button>
+      <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div>
+    <button class="btn block" id="wa-s" style="margin-top:10px">Mark as sent</button></div>`;
+  document.body.appendChild(bg);
+  const t = $('#wa-t', bg), link = $('#wa-o', bg), tm = $('#dm-time', bg), sv = $('#dm-sv', bg);
+  const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
+  const setLink = () => link.href = WA + encodeURIComponent(t.value);
+  const render = () => { t.value = dmText(r.id, chk); setLink();
+    bg.querySelectorAll('[data-ci]').forEach(cb => { const i = +cb.dataset.ci; cb.checked = chk.c[i]; cb.closest('.dmc').classList.toggle('on', chk.c[i]); }); };
+  let timer = null, saving = Promise.resolve();
+  const save = () => { clearTimeout(timer); sv.textContent = 'Saving...';
+    timer = setTimeout(() => { saving = call('dmCheckSave', S.token, r.id, chk.c, chk.t)
+      .then(ns => { S.rep = ns; st.dmchk = ns.dmchk; const x = ns.dmchk[r.id]; sv.textContent = 'Saved ' + x.at; })
+      .catch(e => { sv.textContent = 'Not saved'; fail(e); }); }, 400); };
+  const okTime = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
+  const lastI = L.length - 1;
+  bg.querySelectorAll('[data-ci]').forEach(cb => cb.onchange = () => {
+    const i = +cb.dataset.ci;
+    if (i === lastI && cb.checked && !okTime(chk.t)) { cb.checked = false; tm.focus(); toast('Key in the time first (24hrs, e.g. 0815)', true); return; }
+    chk.c[i] = cb.checked; render(); save();
+  });
+  tm.oninput = () => {
+    tm.value = tm.value.replace(/[^0-9]/g, '').slice(0, 4);
+    chk.t = tm.value;
+    if (tm.value.length === 4 && !okTime(tm.value)) { tm.classList.add('bad'); return; }
+    tm.classList.remove('bad');
+    chk.c[lastI] = okTime(chk.t);                    // a valid time ticks the last check
+    render();
+    if (!chk.t || okTime(chk.t)) save();
+  };
+  t.oninput = setLink;
+  render();
+  const close = async () => { clearTimeout(timer); if (sv.textContent === 'Saving...') { await call('dmCheckSave', S.token, r.id, chk.c, chk.t).then(ns => { S.rep = ns; }).catch(() => {}); } await saving; bg.remove(); redraw(S.rep); };
+  $('#wa-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  $('#wa-c', bg).onclick = async () => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(t.value); ok = true; } catch(e) {}
+    if (!ok) { t.focus(); t.select(); try { ok = document.execCommand('copy'); } catch(e) {} }
+    toast(ok ? 'Copied. Paste it into your WhatsApp group.' : 'Select the text and copy it manually.', !ok);
+  };
+  $('#wa-s', bg).onclick = async e => {
+    const left = L.filter((x, i) => !chk.c[i]);
+    if (left.length && !confirm('Not ticked yet: ' + left.join(', ') + '. Mark as sent anyway?')) return;
+    busy(e.target, true);
+    try {
+      clearTimeout(timer);
+      await call('dmCheckSave', S.token, r.id, chk.c, chk.t);
+      const ns = await call('reportSent', S.token, r.id, false);
+      bg.remove(); redraw(ns); toast(r.title + ' marked as sent');
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+}
 async function repPrepare(r, st, redraw){
+  if (r.dm) return openDmReport(r, st, redraw);
   const tomorrow = addD(S.today, 1);
   let text = '', warn = '';
   if (r.id === 'am-plan' || r.id === 'pm-plan') {
@@ -1180,12 +1284,23 @@ function wireInsp(list){
 
 /* ---------- clock-in card on My Deploy ---------- */
 /* Compact clock-in, shown beside the name */
+/* Duty Manager of the day, beside Clock in (all accounts) */
+function isMeDm(n){
+  const k = x => String(x || '').toUpperCase().replace(/\([^)]*\)/g, '').replace(/[^A-Z]/g, '');
+  if (!n || !S.me) return false;
+  const p = (S.staff || []).find(x => x.name === S.me.name) || {};
+  return [S.me.name].concat(p.aliases || []).some(a => k(a) === k(n));
+}
+function dmBox(n){
+  if (!n) return '<div class="dmbox none" title="Duty Manager today"><span>DM today</span><b>Not set</b></div>';
+  return `<div class="dmbox${isMeDm(n) ? ' me' : ''}" title="Duty Manager today"><span>${isMeDm(n) ? 'DM today: you' : 'DM today'}</span><b>${esc(n)}</b></div>`;
+}
 function clockCard(a){
   const d = pd(a.date);
   const when = DOW[dowIdx(a.date)] + ' ' + d.getDate() + ' ' + MON[d.getMonth()];
-  if (a.clockIn) return `<div class="clock cm ${a.late ? 'late' : 'ok'}"><b>${esc(a.clockIn)}</b><span>Clocked in${a.late ? ' (late)' : ''}</span></div>`;
+  if (a.clockIn) return `<div class="clock cm ${a.late ? 'late' : 'ok'}"><b>${esc(a.clockIn)}</b><span>Clocked in${a.late ? ' (late)' : ''}</span><span class="cdt">${when}</span></div>`;
   if (a.status && a.status !== 'Present' && a.status !== 'Present (Late)')
-    return `<div class="clock cm away"><b>${esc(a.status)}</b><span>Marked today</span></div>`;
+    return `<div class="clock cm away"><b>${esc(a.status)}</b><span>Marked for</span><span class="cdt">${when}</span></div>`;
   return `<div class="clock cm todo"><button class="btn" id="clk">Clock in</button><span>${when} &middot; late after ${esc(a.lateAfter)}</span></div>`;
 }
 /* Notes under the greeting when not clocked in yet */
@@ -1207,7 +1322,7 @@ function wireClock(){
   };
 }
 
-const isDep = d => d.items.some(i => i.kind === 'range' || i.kind === 'duty' || i.kind === 'medic');
+const isDep = d => d.items.some(i => i.kind === 'dm' || i.kind === 'range' || i.kind === 'duty' || i.kind === 'medic');
 const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 async function drawSched(){
   const box = $('#sched'); if (!box) return;
@@ -1246,7 +1361,7 @@ async function drawSched(){
 }
 const wdate = w => esc(String(w).replace(/^(\d{4}-\d{2}-\d{2})/, m => nice(m)));
 const fmtN = n => (n == null ? '\u2013' : (Math.round(n*2)/2).toString());
-const KLABEL = { range:'Range', duty:'Duty', medic:'Medic', away:'Away', pending:'Request', ext:'EXT' };
+const KLABEL = { dm:'DM', range:'Range', duty:'Duty', medic:'Medic', away:'Away', pending:'Request', ext:'EXT' };
 function dayRow(d){
   const dt = pd(d.date);
   const items = d.items.length
@@ -2426,6 +2541,7 @@ const MOCK = (() => {
     const name = S.me.name, up = [];
     for (let i = 0; i < n; i++) {
       const d = addD(from, i), dd = getWk(mondayOf(d)).days[dowIdx(d)], items = [];
+      if (mDm[d] && isMeDm(mDm[d])) items.push({ kind:'dm', what:'Duty Manager (DM)', detail:'You are the Duty Manager' });
       if (!dd) { up.push({ date:d, title:'', noTab:true, items }); continue; }
       dd.ranges.forEach(r => { if (r.people.includes(name)) items.push({ kind:'range', what:r.range, ext:extOf(r.rmk), aps:isApsTf(r.tf), detail:[extOf(r.rmk) && 'EXT: report ' + hrs(extOf(r.rmk)), r.sup && 'with '+r.sup, r.tf, r.unit, r.rmk].filter(Boolean).join('  |  ') }); });
       dd.duties.forEach(x => { if (x.mainPeople.includes(name)) items.push({ kind:'duty', what:x.duty, detail:'Main' }); if (x.sparePeople.includes(name)) items.push({ kind:'duty', what:x.duty, detail:'Spare' }); });
@@ -2467,8 +2583,8 @@ const MOCK = (() => {
       rows: mrows.filter(r => names.includes(r.name) && keys[r.t + '|' + r.period]) };
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
-  const mRep = { date: today, sent: {} };
-  const mDm = {}; ['CPT JOHN TAN','MR LIM AH KOW','SARAH LEE','CHAN YANG','MAJ RAJ KUMAR'].forEach((n, i) => { for (let k = i; k < 12; k += 5) mDm[addD(today, k - 2)] = n; });
+  const mRep = { date: today, sent: {}, dmchk: {} };
+  const mDm = {}; ['Lucas Law','Ridauddin','Chan Yang','Calvin Chua','James Lai'].forEach((n, i) => { for (let k = i; k < 12; k += 5) mDm[addD(today, k - 2)] = n; });
   const mAlg = [
     { keys:['REQ:R1'], name:'ARIF', sid:'171590', type:'AL', start:addD(today, 4), end:addD(today, 6), days:3, applied:addD(today, -1), due:addD(today, 6), ticked:null },
     { keys:['ATT:ARIF:MC:' + addD(today, -3)], name:'ARIF', sid:'171590', type:'MC', start:addD(today, -3), end:addD(today, -3), days:1, applied:addD(today, -3), due:addD(today, 4), ticked:null },
@@ -2537,7 +2653,7 @@ const MOCK = (() => {
       return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || role !== 'Admin'), today, staff: staffList.filter(p => p.active) }; },
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
+      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
@@ -2545,6 +2661,7 @@ const MOCK = (() => {
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
     getReports: () => mRep,
+    dmCheckSave: (t, id, c, tm) => { mRep.dmchk[id] = { c: c.slice(), t: tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
     getAllergo: () => { const all = canManage(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
     allergoTick: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(); },
     reportSent: (t, id, undo) => { if (undo) delete mRep.sent[id]; else mRep.sent[id] = { by:S.me.name, at:String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return mRep; },
