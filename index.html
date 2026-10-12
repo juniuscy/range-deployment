@@ -68,6 +68,9 @@ nav.tabs button{flex:1;min-width:0;background:none;border:0;padding:10px 2px 12p
 nav.tabs button[aria-current="page"]{color:var(--ink);border-top-color:var(--steel)}
 nav.tabs button{line-height:1.05;min-height:52px;display:flex;align-items:center;justify-content:center;text-align:center;gap:2px}
 @media (max-width:420px){nav.tabs button{font-size:13px;letter-spacing:0;padding-left:1px;padding-right:1px}}
+nav.tabs .in.many button{padding-left:0;padding-right:0;font-size:14px}
+@media (max-width:440px){nav.tabs .in.many button{font-size:12px;word-spacing:100vw}nav.tabs .in.many .dot{margin-left:1px;padding:1px 4px;min-width:16px}}
+@media (max-width:390px){nav.tabs .in.many button{font-size:11px;letter-spacing:-.01em}nav.tabs .in.many .dot{font-size:11px;padding:0 3px;min-width:14px}}
 nav.tabs .dot[hidden]{display:none}
 nav.tabs .dot{display:inline-block;min-width:18px;padding:1px 5px;border-radius:9px;background:var(--flag);color:#fff;font:600 12px/16px var(--body);margin-left:4px}
 @media (min-width:760px){
@@ -169,7 +172,17 @@ textarea{min-height:80px;resize:vertical}
 .dsel button[aria-pressed="true"] span,.dsel button[aria-pressed="true"] i{color:#C9D3DC}
 .daytitle{font:600 15px/1.3 var(--body);color:var(--muted);margin:-4px 0 12px}
 .dmline{display:inline-flex;align-items:center;gap:8px;background:var(--steel-soft);border:1px solid var(--steel);border-radius:999px;padding:4px 12px;margin:-6px 0 12px;font-size:14px}.dmline span{font-weight:700;color:var(--steel);letter-spacing:.04em}button.dmline{font:inherit;font-size:14px;color:inherit;cursor:pointer}.dmline u{color:var(--steel);font-weight:600;margin-left:4px}.dmline.none{background:#FEF9C3;border-color:#EAB308}
+.subrows{display:grid;gap:6px;margin:0 0 14px}.subrow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.subrow .chip{margin:0;min-width:0;padding:8px 4px;text-align:center;font-size:14px;line-height:1.15;white-space:normal}
 .dmrow td{cursor:pointer}
+.incf textarea{width:100%;min-height:44px;resize:vertical;font:15px/1.4 var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.incf .tm{font:600 18px/1.2 ui-monospace,monospace;width:110px;text-align:center}
+.incf .tm.bad{border-color:#DC2626;background:#FEF2F2}
+.inclog{border:1px solid var(--line);border-left:5px solid var(--flag);border-radius:var(--r-md);background:var(--card);padding:10px 12px;margin-bottom:8px}
+.inclog summary{cursor:pointer;list-style:none}.inclog summary::-webkit-details-marker{display:none}
+.inclog b{display:block}.inclog small{color:var(--muted);font-size:13px}
+.inclog pre{white-space:pre-wrap;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace;background:#F6F7F8;border-radius:8px;padding:10px;margin:8px 0}
+.chip.new{border-style:dashed}
 .dmchk{display:grid;gap:6px;margin:4px 0 6px}
 .dmc{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;background:var(--card);cursor:pointer;font-size:15px}
 .dmc input[type=checkbox]{width:24px;height:24px;flex:none;accent-color:#16A34A}
@@ -400,7 +413,7 @@ window.onerror = function (msg, src, line) {
 const API_URL = /^https:/.test(String(window.API_URL || '')) && /\/exec$/.test(window.API_URL) ? window.API_URL : '';
 const GAS = !!(window.google && google.script && google.script.run);
 const LIVE = GAS || !!API_URL;
-const READ_FNS = ['getAllergo','getReports','getInspections','getTraining','getBirthdays','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
+const READ_FNS = ['getIncidents','getAllergo','getReports','getInspections','getTraining','getBirthdays','adminAttendance','adminChanges','adminLib','adminOil','adminPending','adminRefresh','adminStaff','adminTeam',
   'getHome','getLoginInfo','getMyOil','getMyOilHistory','getMyRequests','getMySchedule','getWeek','resume'];
 function apiOnce(fn, args){
   return fetch(API_URL, {
@@ -632,8 +645,8 @@ function renderShell(){
     <div class="brand">Range Deployment</div>
     <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
   </div></header>
-  <nav class="tabs" aria-label="Sections"><div class="in">
-    ${tabs.map(([k,l]) => `<button data-v="${k}">${l}${k==='admin' ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
+  <nav class="tabs" aria-label="Sections"><div class="in${tabs.length >= 7 ? ' many' : ''}">
+    ${tabs.map(([k,l]) => `<button data-v="${k}">${tabs.length >= 7 && k === 'board' ? 'Deploy Plan' : l}${k==='admin' ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
   </div></nav>
   <main id="view"></main>`;
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => go(b.dataset.v));
@@ -645,7 +658,7 @@ function go(v){
   S.view = v;
   document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.v === v ? 'page' : 'false'));
   window.scrollTo(0, 0);
-  return ({ home:viewHome, board:viewBoard, oil:viewMyOil, apply:viewApply, requests:viewRequests, admin:viewAdmin,
+  return ({ home:viewHome, board:viewBoard, oil:viewMyOil, apply:viewApply, requests:viewRequests, admin:viewAdmin, inc:viewInc,
     trn: () => { V().innerHTML = '<h2>Training</h2><div id="adm"></div>'; admTraining(); } })[v]();
 }
 const V = () => $('#view');
@@ -1062,6 +1075,137 @@ function drawDm(d){
     const v = prompt('Duty Manager for ' + nice(ds) + ' (leave blank to clear):', cur);
     if (v === null || v.trim() === cur) return;
     try { drawDm(await call('dmSet', S.token, ds, v.trim())); toast(v.trim() ? 'Saved' : 'Cleared'); } catch(x){ fail(x); }
+  });
+}
+
+/* ---------- Incident initial reports (Admin and Managers) ----------
+   Templates come from the "App Incident Templates" tab. {Field} = a box to fill in.
+   Filled for you (all editable): {Date} {Time} {DM} {Range}/{Location} {Unit} {RSO} {APO} {Reported By} */
+const INC_AUTO = ['DATE','TIME','DM','RANGE','LOCATION','UNIT','RSO','APO','TF','GREETING','REPORTEDBY'];
+const isTimeKey = k => k === 'TIME' || /TIME$/.test(k);
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good Morning' : h < 19 ? 'Good Afternoon' : 'Good Evening'; };
+const incKey = f => f.toUpperCase().replace(/[^A-Z]/g, '');
+const incFields = text => { const out = []; String(text).replace(/\{([^{}\n]{1,40})\}/g, (m, f) => { f = f.trim(); if (f && !out.some(x => incKey(x) === incKey(f))) out.push(f); return m; }); return out; };
+const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0'); };
+const okHM = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
+async function viewInc(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try {
+    const [d, day] = await Promise.all([call('getIncidents', S.token), repDay(S.today).catch(() => null)]);
+    S.inc = d; S.incDay = day; drawInc();
+  } catch(e){ fail(e); }
+}
+function incDate(ds){ const d = pd(ds); return String(d.getDate()).padStart(2, '0') + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear(); }
+function incRanges(){ return S.incDay ? S.incDay.ranges.filter(r => r.active) : []; }
+function drawInc(){
+  const d = S.inc, tpls = d.templates;
+  S.incVals = S.incVals || {};
+  if (!S.incTab || (S.incTab !== '__log' && S.incTab !== '__new' && !tpls.some(t => t.name === S.incTab))) S.incTab = tpls.length ? tpls[0].name : '__new';
+  const chips = tpls.map(t => [t.name, t.name]).concat([['__new', '+ New template'], ['__log', 'Incident log (' + d.log.length + ')']]);
+  A().innerHTML = `<div class="sub" role="tablist" style="margin-top:-4px">${chips.map(([k, l]) => `<button class="chip${k === '__new' ? ' new' : ''}" data-it="${esc(k)}" aria-pressed="${k === S.incTab}">${esc(l)}</button>`).join('')}</div>
+    <div id="incb"></div>`;
+  A().querySelectorAll('[data-it]').forEach(b => b.onclick = () => { S.incTab = b.dataset.it; drawInc(); });
+  if (S.incTab === '__log') return drawIncLog();
+  if (S.incTab === '__new') return drawIncEdit(null);
+  drawIncForm(tpls.find(t => t.name === S.incTab));
+}
+function drawIncForm(t){
+  const fields = incFields(t.text);
+  const v = S.incVals[t.name] = S.incVals[t.name] || {};
+  const rg = incRanges();
+  const def = f => { const k = incKey(f);
+    if (k === 'DATE') return S.today; if (k === 'TIME') return nowHM(); if (k === 'DM') return S.inc.dm || '';
+    if (k === 'REPORTEDBY') return titleCase(S.me.name); if (k === 'GREETING') return greeting(); return ''; };
+  fields.forEach(f => { if (v[f] == null) v[f] = def(f); });
+  const box = f => { const k = incKey(f), id = 'if-' + fields.indexOf(f);
+    if (k === 'DATE') return `<label class="f"><span>Date</span><input type="date" id="${id}" data-f="${esc(f)}" value="${esc(v[f])}"></label>`;
+    if (isTimeKey(k)) return `<label class="f"><span>${k === 'TIME' ? 'Time of incident' : esc(f)} (24hrs)</span><input type="text" class="tm" id="${id}" data-f="${esc(f)}" inputmode="numeric" maxlength="4" placeholder="1430" value="${esc(v[f])}"></label>`;
+    if (k === 'RANGE' || k === 'LOCATION') return `<label class="f"><span>${esc(f)}${rg.length ? ' (pick a range in use today, or type)' : ''}</span><input type="text" id="${id}" data-f="${esc(f)}" list="inc-rg" value="${esc(v[f])}" autocomplete="off"></label>`;
+    if (INC_AUTO.includes(k)) return `<label class="f"><span>${esc(f)}</span><input type="text" id="${id}" data-f="${esc(f)}" value="${esc(v[f])}" autocomplete="off"></label>`;
+    return `<label class="f"><span>${esc(f)}</span><textarea id="${id}" data-f="${esc(f)}" rows="2">${esc(v[f])}</textarea></label>`; };
+  $('#incb').innerHTML = `<div class="sec incf">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h3 style="margin:0">${esc(t.name)}</h3>
+        <span style="display:flex;gap:6px"><button class="btn ghost ib" id="inc-clr">Clear</button><button class="btn ghost ib" id="inc-ed">Edit template</button></span></div>
+      ${fields.length ? fields.map(box).join('') : '<p class="small muted">This template has no {boxes}. The message is sent as it is.</p>'}
+      <datalist id="inc-rg">${rg.map(r => `<option value="${esc(r.range)}">${esc([r.unit, r.tf].filter(Boolean).join(' - '))}</option>`).join('')}</datalist>
+    </div>
+    <h3>Message</h3>
+    <textarea id="wa-t" style="width:100%;min-height:260px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
+    <div class="acts" style="display:flex;gap:8px;margin-top:8px"><button class="btn ghost" id="wa-c">Copy</button>
+      <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div>
+    <button class="btn block" id="inc-log" style="margin-top:10px">Mark as sent and save to log</button>
+    <p class="small muted">Pick the WhatsApp group as usual after tapping Open in WhatsApp. You can still edit the message above before sending.</p>`;
+  const t2 = $('#wa-t'), link = $('#wa-o');
+  const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
+  const build = () => { t2.value = t.text.replace(/\{([^{}\n]{1,40})\}/g, (m, f) => { const k = fields.find(x => incKey(x) === incKey(f.trim())); return k ? (v[k] == null ? '' : incKey(k) === 'DATE' && v[k] ? incDate(v[k]) : v[k]) : m; }); link.href = WA + encodeURIComponent(t2.value); };
+  t2.oninput = () => link.href = WA + encodeURIComponent(t2.value);
+  const setF = (f, val) => { v[f] = val; const el = $('[data-f="' + CSS.escape(f) + '"]'); if (el && el.value !== val) el.value = val; };
+  $('#incb').querySelectorAll('[data-f]').forEach(el => el.oninput = () => {
+    const f = el.dataset.f, k = incKey(f);
+    if (isTimeKey(k)) { el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4); el.classList.toggle('bad', el.value.length === 4 && !okHM(el.value)); }
+    v[f] = el.value;
+    if (k === 'RANGE' || k === 'LOCATION') {          // a range from today's plan fills unit, RSO and APO
+      const r = rg.find(x => x.range.toUpperCase() === el.value.trim().toUpperCase());
+      if (r) fields.forEach(g => { const kk = incKey(g);
+        if (kk === 'UNIT') setF(g, r.unit || ''); if (kk === 'RSO') setF(g, r.sup || ''); if (kk === 'APO') setF(g, titleCase(r.emp || '')); if (kk === 'TF') setF(g, r.tf || ''); });
+    }
+    build();
+  });
+  build();
+  $('#inc-clr').onclick = () => { if (!confirm('Clear the boxes for this template?')) return; delete S.incVals[t.name]; drawIncForm(t); };
+  $('#inc-ed').onclick = () => drawIncEdit(t);
+  $('#wa-c').onclick = async () => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(t2.value); ok = true; } catch(e) {}
+    if (!ok) { t2.focus(); t2.select(); try { ok = document.execCommand('copy'); } catch(e) {} }
+    toast(ok ? 'Copied. Paste it into your WhatsApp group.' : 'Select the text and copy it manually.', !ok);
+  };
+  $('#inc-log').onclick = async e => {
+    const tf = fields.find(f => incKey(f) === 'TIME'), df = fields.find(f => incKey(f) === 'DATE');
+    const lf = fields.find(f => incKey(f) === 'RANGE') || fields.find(f => incKey(f) === 'LOCATION');
+    if (tf && v[tf] && !okHM(v[tf])) { toast('Time of incident must be 24hrs, e.g. 1430', true); return; }
+    busy(e.target, true);
+    try {
+      S.inc = await call('incLog', S.token, { type: t.name, date: (df && v[df]) || S.today, time: (tf && v[tf]) || '', loc: (lf && v[lf]) || '', msg: t2.value });
+      delete S.incVals[t.name];
+      toast('Saved to the incident log');
+      drawInc();
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+}
+function drawIncEdit(t){
+  $('#incb').innerHTML = `<div class="sec incf"><h3 style="margin-top:0">${t ? 'Edit template' : 'New template'}</h3>
+      <label class="f"><span>Incident type (sub tab name)</span><input type="text" id="te-n" maxlength="60" value="${esc(t ? t.name : '')}" placeholder="e.g. Casualty / Injury"></label>
+      <label class="f"><span>Template message</span><textarea id="te-t" rows="14" style="font:14px/1.45 ui-monospace,Menlo,Consolas,monospace">${esc(t ? t.text : '')}</textarea></label>
+      <p class="small muted" style="margin:-6px 0 10px">Paste the WhatsApp template. Put anything that changes each time in curly brackets, e.g. <code>{Casualty name}</code>, and it becomes a box to fill in.<br>
+        Filled in for you (and still editable): <code>{Date}</code> <code>{Time}</code> (time of incident, 24hrs) <code>{DM}</code> <code>{Range}</code> <code>{Unit}</code> <code>{RSO}</code> <code>{APO}</code> <code>{TF}</code> <code>{Greeting}</code> (Good Morning / Afternoon / Evening) <code>{Reported By}</code>. Any box ending in "time", e.g. <code>{Verbal report time}</code>, is a 24hrs time box. The same {box} used twice is filled once.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="te-s">Save template</button>${t ? '<button class="btn no" id="te-d">Delete</button>' : ''}${t ? '<button class="btn ghost" id="te-x">Cancel</button>' : ''}</div></div>`;
+  $('#te-s').onclick = async e => {
+    busy(e.target, true);
+    try {
+      const name = $('#te-n').value.trim();
+      S.inc = await call('incTplSave', S.token, t ? t.name : '', name, $('#te-t').value);
+      if (t && t.name !== name) delete S.incVals[t.name];
+      S.incTab = S.inc.templates.find(x => x.name.toUpperCase() === name.toUpperCase().replace(/\s+/g, ' ')) ? S.inc.templates.find(x => x.name.toUpperCase() === name.toUpperCase().replace(/\s+/g, ' ')).name : S.incTab;
+      toast('Template saved'); drawInc();
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+  if ($('#te-d')) $('#te-d').onclick = async () => {
+    if (!confirm('Delete the template "' + t.name + '"? The incident log is kept.')) return;
+    try { S.inc = await call('incTplDelete', S.token, t.name); delete S.incVals[t.name]; S.incTab = ''; toast('Template deleted'); drawInc(); } catch(x){ fail(x); }
+  };
+  if ($('#te-x')) $('#te-x').onclick = () => drawIncForm(t);
+}
+function drawIncLog(){
+  const log = S.inc.log;
+  const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
+  $('#incb').innerHTML = log.length ? log.map((x, i) => `<details class="inclog"><summary><b>${esc(x.type || 'Incident')}</b>
+      <small>${x.date ? esc(nice(x.date)) : ''}${x.time ? ', ' + esc(x.time) + 'hrs' : ''}${x.loc ? ' &middot; ' + esc(x.loc) : ''} &middot; sent by ${esc(x.by)} at ${esc(String(x.at).slice(11, 16))}${String(x.at).slice(0, 10) !== x.date ? ' on ' + esc(nice(String(x.at).slice(0, 10))) : ''}</small></summary>
+      <pre>${esc(x.msg)}</pre><div style="display:flex;gap:8px"><button class="btn ghost ib" data-lc="${i}">Copy</button><a class="btn go ib" target="_blank" rel="noopener" style="text-decoration:none" href="${WA + encodeURIComponent(x.msg)}">WhatsApp</a></div></details>`).join('')
+    + '<p class="small muted">The last 60 reports. The full log is in the "App Incident Log" tab of the sheet.</p>'
+    : '<div class="sec"><p>No incident reports yet.</p></div>';
+  $('#incb').querySelectorAll('[data-lc]').forEach(b => b.onclick = async () => {
+    try { await navigator.clipboard.writeText(log[+b.dataset.lc].msg); toast('Copied'); } catch(e){ toast('Open it and copy the text manually.', true); }
   });
 }
 
@@ -2014,11 +2158,13 @@ async function refreshPendingDot(){
   } catch(e){}
 }
 function viewAdmin(){
-  const subs = [['pending','Pending'],['att','Attendance'],['dm','Duty Manager'],['alg','Allergo'],['trn','Training'],['team','Team'],['staff','Staff'],['oil','OIL Earned'],['lib','LIB'],['changes','Changes']];
-  V().innerHTML = `<h2>Admin</h2><div class="sub">${subs.map(([k,l]) =>
-    `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div><div id="adm"></div>`;
+  const rows = [[['pending','Pending'],['att','Attendance'],['trn','Training'],['lib','LIB']],
+    [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
+    [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report']]];
+  V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
+    `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>`;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
-  ({ pending:admPending, att:admAtt, dm:() => admDm(), alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
+  ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
 }
 const A = () => $('#adm');
 
@@ -2584,6 +2730,8 @@ const MOCK = (() => {
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
   const mRep = { date: today, sent: {}, dmchk: {} };
+  const mInc = { templates: [{ name: 'Negligent Discharge (ND)', text: ['{Greeting} Sirs, MMRC would like to report a Negligent Discharge Incident.', '', 'Details of the incident are as follows:', '', '1) When:', '{Date}, at about {Time}hrs', '', '2) Where:', 'MMRC {Range}', '', '3) Who:', '{Rank Name} ({Masked NRIC}) from {Unit}', '', '4) What:', 'At about {Time}hrs, during {TF}, {Stage} {Practice}, {Rank Name} negligently discharged 1x 5.56mm live round to the ground after contacting the target.', '', 'MMRC FPSO activated the E-whistle and informed the CSO to stop the range immediately. MMRC RSO called for a safety pause to determine if ND occurred.', '', 'From the range camera footage, it was ascertained that the ND occurred when the firer discharged an unaimed shot to the ground while he was lowering his weapon.', '', 'MMRC will conduct a debrief to all firers on observing weapon safety and weapon handling before proceeding the live firing.', '', 'The verbal report to TRMC Ops room was made at {Verbal report time}hrs.'].join('\n') }], log: [] };
+  const mIncOut = () => JSON.parse(JSON.stringify(Object.assign({ today, dm: mDm[today] || '' }, mInc)));
   const mDm = {}; ['Lucas Law','Ridauddin','Chan Yang','Calvin Chua','James Lai'].forEach((n, i) => { for (let k = i; k < 12; k += 5) mDm[addD(today, k - 2)] = n; });
   const mAlg = [
     { keys:['REQ:R1'], name:'ARIF', sid:'171590', type:'AL', start:addD(today, 4), end:addD(today, 6), days:3, applied:addD(today, -1), due:addD(today, 6), ticked:null },
@@ -2661,6 +2809,10 @@ const MOCK = (() => {
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
     getReports: () => mRep,
+    getIncidents: () => mIncOut(),
+    incTplSave: (t, old, name, text) => { if (!name.trim()) throw new Error('Give the template a name.'); const c = mInc.templates.find(x => x.name === old); if (c) { c.name = name.trim(); c.text = text; } else mInc.templates.push({ name: name.trim(), text }); return mIncOut(); },
+    incTplDelete: (t, name) => { mInc.templates = mInc.templates.filter(x => x.name !== name); return mIncOut(); },
+    incLog: (t, f) => { mInc.log.unshift({ id: 'I' + Date.now(), at: today + ' ' + hhmm(), type: f.type, date: f.date, time: f.time, loc: f.loc, by: S.me.name, msg: f.msg }); return mIncOut(); },
     dmCheckSave: (t, id, c, tm) => { mRep.dmchk[id] = { c: c.slice(), t: tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
     getAllergo: () => { const all = canManage(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
     allergoTick: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(); },
