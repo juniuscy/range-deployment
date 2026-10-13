@@ -175,6 +175,10 @@ textarea{min-height:80px;resize:vertical}
 .subrows{display:grid;gap:6px;margin:0 0 14px}.subrow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .subrow .chip{margin:0;min-width:0;padding:8px 4px;text-align:center;font-size:14px;line-height:1.15;white-space:normal}
 .dmrow td{cursor:pointer}
+.sheet.gcs{max-height:90vh;overflow:auto}
+.gcr{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;background:var(--card)}
+.gcr input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:#16A34A}.gcr small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
+.gct{font-size:14.5px;line-height:1.45}.gct del{background:#FDE2E1;color:#B3261E;text-decoration:line-through;padding:0 2px;border-radius:3px}.gct ins{background:#DCFCE7;color:#166534;text-decoration:none;padding:0 2px;border-radius:3px;margin-left:2px}
 .sheet.af{max-height:92vh;overflow:auto}.afd{margin:8px 0 6px}
 .afday{margin-top:10px}.afday h4{margin:6px 0;font-size:15px}.afday h4 small{color:var(--muted);font-weight:500}
 .afr{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-bottom:5px;background:var(--card)}
@@ -1161,6 +1165,7 @@ function drawIncForm(t){
     </div>
     <h3>Message</h3>
     <textarea id="wa-t" style="width:100%;min-height:260px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
+    <button class="btn ghost block" id="inc-gc" style="margin-top:8px">Check grammar and wording</button>
     <div class="acts" style="display:flex;gap:8px;margin-top:8px"><button class="btn ghost" id="wa-c">Copy</button>
       <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div>
     <button class="btn block" id="inc-log" style="margin-top:10px">Mark as sent and save to log</button>
@@ -1183,6 +1188,17 @@ function drawIncForm(t){
   });
   build();
   $('#inc-clr').onclick = () => { if (!confirm('Clear the boxes for this template?')) return; delete S.incVals[t.name]; drawIncForm(t); };
+  $('#inc-gc').onclick = async e => {
+    busy(e.target, true);
+    try {
+      const tidy = tidySpacing(t2.value);
+      const r = await call('incCheck', S.token, tidy.text);
+      busy(e.target, false);
+      r.tidied = tidy.n;
+      const fixed = await grammarReview(tidy.text, r);
+      if (fixed != null) { t2.value = fixed; link.href = WA + encodeURIComponent(t2.value); toast('Corrections applied to the message'); }
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
   $('#inc-ed').onclick = () => drawIncEdit(t);
   $('#wa-c').onclick = async () => {
     let ok = false;
@@ -2743,6 +2759,47 @@ function drawSup(d){
   };
 }
 
+/* Spacing tidy-up (free, done here): no spaces at line ends, single spaces between words,
+   at most one blank line between sections, nothing blank at the start or end. Returns { text, n fixes } */
+function tidySpacing(text){
+  let n = 0;
+  const count = (re, s) => (s.match(re) || []).length;
+  let t = String(text).replace(/\r\n?/g, '\n');
+  n += count(/[ \t]+$/gm, t);           t = t.replace(/[ \t]+$/gm, '');
+  n += count(/(\S)[ \t]{2,}(?=\S)/g, t); t = t.replace(/(\S)[ \t]{2,}(?=\S)/g, '$1 ');
+  n += count(/ +([,.;:!?])(?=\s|$)/g, t); t = t.replace(/ +([,.;:!?])(?=\s|$)/g, '$1');
+  n += count(/\n{3,}/g, t);             t = t.replace(/\n{3,}/g, '\n\n');
+  const trimmed = t.replace(/^\s+|\s+$/g, ''); if (trimmed !== t) n++; t = trimmed;
+  return { text: t, n };
+}
+/* Grammar check result: tick the suggestions to keep. Resolves with the corrected text, or null. */
+function grammarReview(text, r){
+  return new Promise(res => {
+    const ch = r.changes || [];
+    const bg = document.createElement('div');
+    bg.className = 'sheet-bg';
+    const ctx = c => { const a = text.lastIndexOf('\n', c.offset - 1) + 1, b0 = text.indexOf('\n', c.offset + c.from.length);
+      const b = b0 < 0 ? text.length : b0, s0 = Math.max(a, c.offset - 40), e0 = Math.min(b, c.offset + c.from.length + 40);
+      return (s0 > a ? '...' : '') + esc(text.slice(s0, c.offset)) + '<del>' + esc(c.from) + '</del><ins>' + esc(c.to) + '</ins>' + esc(text.slice(c.offset + c.from.length, e0)) + (e0 < b ? '...' : ''); };
+    bg.innerHTML = `<div class="sheet gcs" role="dialog" aria-modal="true"><h3>Grammar and wording</h3>
+      <div class="src">${r.tidied ? '<b>Spacing tidied</b> (' + r.tidied + ' fix' + (r.tidied === 1 ? '' : 'es') + ': extra spaces / blank lines). ' : ''}${ch.length ? ch.length + ' suggestion' + (ch.length === 1 ? '' : 's') + '. Untick any you don\'t want, then Apply.' : 'No grammar corrections needed.'}
+        <br><span class="small">Checked by ${esc(r.engine || 'the checker')}. Names, ranks, acronyms, numbers and times are left as they are.</span></div>
+      ${ch.map((c, i) => `<label class="gcr"><input type="checkbox" checked data-gc="${i}"><div><div class="gct">${ctx(c)}</div><small>${esc(c.why || '')}</small></div></label>`).join('')}
+      <div class="acts"><button class="btn ghost" id="gc-x">${ch.length || r.tidied ? 'Cancel' : 'Close'}</button>${ch.length || r.tidied ? '<button class="btn go" id="gc-y">Apply</button>' : ''}</div>
+      ${ch.length ? '<p class="small muted" style="margin-top:8px">Check the grammar last, just before sending: changing a box above rebuilds the message.</p>' : ''}</div>`;
+    document.body.appendChild(bg);
+    const done = v => { bg.remove(); res(v); };
+    $('#gc-x', bg).onclick = () => done(null);
+    bg.onclick = e => { if (e.target === bg) done(null); };
+    if ($('#gc-y', bg)) $('#gc-y', bg).onclick = () => {
+      let out = text;
+      ch.map((c, i) => ({ c, on: bg.querySelector(`[data-gc="${i}"]`).checked })).filter(x => x.on).map(x => x.c)
+        .sort((a, b) => b.offset - a.offset)
+        .forEach(c => { if (out.substr(c.offset, c.from.length) === c.from) out = out.slice(0, c.offset) + c.to + out.slice(c.offset + c.from.length); });
+      done(out);
+    };
+  });
+}
 /* Small confirm box: resolves with read(bg) (or true) on Confirm, null on Cancel */
 function askBox(title, body, ok, read){
   return new Promise(res => {
@@ -3151,6 +3208,11 @@ const MOCK = (() => {
         if (String(cur || '').trim()) { skipped.push(c.slot.label + ': already ' + cur); return; } MOCK.adminSetSlot(t, c.date, c.slot, c.value.toUpperCase()); applied++; });
       const m = mondayOf(changes[0].date); return { applied, skipped, weeks: { [m]: JSON.parse(JSON.stringify(getWk(m))) } }; },
     getIncidents: () => mIncOut(),
+    incCheck: (t, text) => { const out = [], add = (from, to, why) => { const i = text.indexOf(from); if (i >= 0) out.push({ offset: i, from, to, why }); };
+      add('before proceeding the live firing', 'before proceeding with the live firing', '"Proceed" needs "with" before what follows.');
+      add('conduct a debrief to all firers', 'conduct a debrief for all firers', 'A debrief is conducted "for" people.');
+      add('ascertained', 'established', 'Simpler word, same meaning.');
+      return { engine: 'Preview sample', changes: out }; },
     incTplSave: (t, old, name, text) => { if (!name.trim()) throw new Error('Give the template a name.'); const c = mInc.templates.find(x => x.name === old); if (c) { c.name = name.trim(); c.text = text; } else mInc.templates.push({ name: name.trim(), text }); return mIncOut(); },
     incTplDelete: (t, name) => { mInc.templates = mInc.templates.filter(x => x.name !== name); return mIncOut(); },
     incLog: (t, f) => { mInc.log.unshift({ id: 'I' + Date.now(), at: today + ' ' + hhmm(), type: f.type, date: f.date, time: f.time, loc: f.loc, by: S.me.name, msg: f.msg }); return mIncOut(); },
