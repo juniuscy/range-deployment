@@ -1686,8 +1686,14 @@ function drawBoard(wk){
 }
 
 /* Staff not posted and not listed as away on a given day */
+/* People whose last day of work is before this day: { NAME: lastDay } */
+function goneOn(day){
+  const out = {};
+  (S.staff || []).forEach(p => { const ld = p.lastDay || (S.lastDays || {})[p.name]; if (ld && day.date > ld) out[p.name] = ld; });
+  return out;
+}
 function busyOn(day){
-  const b = new Set();
+  const b = new Set(Object.keys(goneOn(day)));
   day.ranges.forEach(r => r.people.forEach(n => b.add(n)));
   day.duties.forEach(x => x.mainPeople.concat(x.sparePeople).forEach(n => b.add(n)));
   day.medics.forEach(m => m.people.forEach(n => b.add(n)));
@@ -1718,6 +1724,8 @@ function namesFor(pool){
 const NOT_AWAY = ['OFFDAYEARNED'];
 function awayOn(day){
   const m = {};
+  const g = goneOn(day);
+  Object.keys(g).forEach(n => { m[n] = ['Last day of work was ' + nice(g[n])]; });
   day.absences.forEach(a => {
     if (NOT_AWAY.includes(a.label.toUpperCase().replace(/\s+/g, ''))) return;
     a.people.forEach(n => {
@@ -2612,12 +2620,19 @@ function autoDraft(wk, idxs, st){
       else { const n = pick(apos, k); if (n) add(sl, n, T(f) + ' is ' + why(f) + '. Free APO; ' + fair(n, k), true, k); else out.notes.push('DAO main: no free APO.'); } }
     // 5. PLAD (Mon, Wed, Fri): people who usually do it, fewest this month
     sl = plad && duty('PLAD', 'main');
-    if (sl) { k = 'duty:PLAD:main'; const usual = apos.filter(n => hist(n, k) > 0), n = pick(usual, k) || pick(apos, k);
+    if (sl) { k = 'duty:PLAD:main'; const no = (st.noPlad || []).concat((S.staff || []).filter(p => p.noPlad).map(p => p.name)), ok = apos.filter(n => !no.includes(n));   // 'Not able to go PLAD' ticked on the account
+      const usual = ok.filter(n => hist(n, k) > 0), n = pick(usual, k) || pick(ok, k);
       if (n) add(sl, n, usual.includes(n) ? 'Usually does PLAD (' + hist(n, k) + 'x in 8 weeks); ' + fair(n, k) : 'Free; ' + fair(n, k), false, k);
       else out.notes.push('PLAD: no free APO.'); }
     // 6. RAI Party: anyone, fewest this month
     sl = duty('RAI Party', 'main');
-    if (sl) { k = 'duty:RAI Party:main'; const n = pick(apos, k); if (n) add(sl, n, 'Free; ' + fair(n, k), false, k); else out.notes.push('RAI Party: no free APO.'); }
+    if (sl) { k = 'duty:RAI Party:main'; const n = pick(apos, k);
+      if (n) add(sl, n, 'Free; ' + fair(n, k), false, k);
+      else {                                       // short of manpower: Ammo admin main doubles up as RAI
+        const drafted = out.items.find(x => x.slot.kind === 'duty' && lettersKey(x.slot.label) === 'AMMOADMIN' && x.slot.field === 'main');
+        const ex = d.duties.find(y => lettersKey(y.duty) === 'AMMOADMIN');
+        const am = drafted ? drafted.value : ex && ex.mainPeople[0];
+        if (am) add(sl, am, 'Dual role with Ammo admin (short of manpower)', true, k); else out.notes.push('RAI Party: no free APO.'); } }
     // 6b. Ammo admin spare (after the main slots, so it never leaves RAI or PLAD empty): another of Danial, Ivan or Wong; otherwise left empty
     sl = duty('Ammo admin', 'spare');
     if (sl) { k = 'duty:Ammo admin:spare'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k);
@@ -2684,7 +2699,7 @@ async function openAutoFill(wk){
     const i = +b.dataset.afd; sel = sel.includes(i) ? sel.filter(x => x !== i) : sel.concat(i);
     b.setAttribute('aria-pressed', sel.includes(i)); if (st) render();
   });
-  try { st = S.autoSt && S.autoSt.monday === wk.monday ? S.autoSt : await call('autoStats', S.token, wk.monday); S.autoSt = st; render(); }
+  try { st = S.autoSt && S.autoSt.monday === wk.monday ? S.autoSt : await call('autoStats', S.token, wk.monday); S.autoSt = st; S.lastDays = st.lastDay || {}; render(); }
   catch(e){ $('#af-b', bg).innerHTML = '<div class="note red">' + esc(e.message || e) + '</div>'; return; }
   $('#af-go', bg).onclick = async e => {
     const changes = [];
@@ -2858,11 +2873,14 @@ function drawStaff(list){
       <label class="f"><span>First PIN (4 to 6 digits)</span><input type="text" id="n-p" inputmode="numeric" maxlength="6" placeholder="e.g. 583104"></label></div>
       <div class="row2"><label class="f"><span>Birthday (needed)</span><input type="date" id="n-b" max="${S.today}"></label>
       <label class="f"><span>Staff ID</span><input type="text" id="n-id" inputmode="numeric" placeholder="e.g. 171590"></label></div>
+      <label class="f"><span>Last day of work (optional)</span><input type="date" id="n-ld" style="max-width:200px"></label>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="n-np" style="width:20px;height:20px">
+        <span>Not able to go PLAD</span></label>
       <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="n-db" checked style="width:20px;height:20px">
         <span>Also add to the Database tab so the sheet dropdowns list them</span></label>
       <button class="btn" id="n-go">Add staff</button></div>
     <div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th>Short names</th><th>PIN</th><th></th></tr>
-      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}${p.sid ? `<div class="small muted">ID ${esc(p.sid)}</div>` : ''}${!p.birthday && p.role !== 'Admin' ? '<div class="small" style="color:var(--flag)">No birthday yet</div>' : ''}</td><td>${esc(p.role)}</td>
+      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}${p.sid ? `<div class="small muted">ID ${esc(p.sid)}</div>` : ''}${p.lastDay ? `<div class="small" style="color:${p.lastDay < S.today ? 'var(--flag)' : '#B45309'}">${p.lastDay < S.today ? 'Left' : 'Last day'} ${esc(nice(p.lastDay))} ${pd(p.lastDay).getFullYear()}</div>` : ''}${!p.birthday && p.role !== 'Admin' ? '<div class="small" style="color:var(--flag)">No birthday yet</div>' : ''}</td><td>${esc(p.role)}</td>
         <td>${esc(p.aliases)}</td><td>${pinPill(p)}</td>
         <td style="white-space:nowrap"><button class="btn ghost" style="min-height:34px;padding:4px 10px" data-ed="${esc(p.name)}">Edit</button>
           <button class="btn ${p.active ? 'no' : 'ghost'}" style="min-height:34px;padding:4px 10px" data-act="${esc(p.name)}">${p.active ? 'Remove' : 'Restore'}</button></td></tr>`).join('')}</table></div>
@@ -2871,7 +2889,7 @@ function drawStaff(list){
     busy(e.target, true);
     try {
       const pin = $('#n-p').value.trim();
-      const r = await call('adminSaveStaff', S.token, { isNew:true, name:$('#n-n').value, role:$('#n-r').value, aliases:$('#n-a').value, email:$('#n-e').value, addToDb:$('#n-db').checked, pin, birthday:$('#n-b').value, sid:$('#n-id').value });
+      const r = await call('adminSaveStaff', S.token, { isNew:true, name:$('#n-n').value, role:$('#n-r').value, aliases:$('#n-a').value, email:$('#n-e').value, addToDb:$('#n-db').checked, pin, birthday:$('#n-b').value, sid:$('#n-id').value, noPlad:$('#n-np').checked, lastDay:$('#n-ld').value });
       setStaff(r.staff); toast(pin ? 'Staff added. Give them their first PIN; they will choose their own when they sign in.' : 'Staff added. Set a first PIN for them with Edit.'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -2902,8 +2920,11 @@ function editStaff(p){
     <label class="f"><span>Email</span><input type="text" id="s-e" value="${esc(p.email)}"></label>
     <div class="row2"><label class="f"><span>Birthday</span><input type="date" id="s-b" value="${esc(p.birthday || '')}" max="${S.today}"></label>
     <label class="f"><span>Staff ID</span><input type="text" id="s-id" value="${esc(p.sid || '')}" inputmode="numeric"></label></div>
+    <label class="f"><span>Last day of work (leave empty if still serving)</span><input type="date" id="s-ld" value="${esc(p.lastDay || '')}" style="max-width:200px">
+      <small class="muted" style="display:block;margin-top:4px">After this date they are left out of the plan, Auto-fill, undeployed lists, attendance and training.</small></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-act" ${p.active?'checked':''} style="width:20px;height:20px"><span>Active (unticked hides them from sign-in and lists)</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-att" ${p.att !== false ? 'checked' : ''} style="width:20px;height:20px"><span>Counted in daily attendance</span></label>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-np" ${p.noPlad ? 'checked' : ''} style="width:20px;height:20px"><span>Not able to go PLAD</span></label>
     ${p.locked ? `<div class="note red" style="display:flex;align-items:center;gap:10px;justify-content:space-between">Locked after 5 wrong PINs.<button class="btn" id="s-unl" style="min-height:38px">Unlock</button></div>` : ''}
     <label class="f"><span>${p.hasPin ? 'Give a new PIN (if they forgot theirs)' : 'Give a first PIN'}</span>
       <span style="display:flex;gap:8px"><input type="text" id="s-np" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits" style="min-width:0">
@@ -2927,7 +2948,7 @@ function editStaff(p){
   $('#s-ok', bg).onclick = async e => {
     busy(e.target, true);
     try {
-      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value });
+      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, noPlad:$('#s-np', bg).checked, lastDay:$('#s-ld', bg).value });
       setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -2980,7 +3001,7 @@ const MOCK = (() => {
       absences: i === 1 ? [{ label:'MC', text:'ARIF MC', people:['ARIF'] }] : i === 3 ? [{ label:'IPPT/ TRG etc', text:'WONG TEST SHOOT (1400hrs)', people:['WONG'] }] : [] };
   }
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
-  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO' }))
+  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO', noPlad: p.name === 'CHEW' }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
   const getWk = m => weeks[m] || (weeks[m] = SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] });
@@ -3122,7 +3143,7 @@ const MOCK = (() => {
       const first = monday.slice(0, 8) + '01'; for (let m = mondayOf(first); m < monday; m = addD(m, 7)) (getWk(m).days || []).forEach(d => { if (d.date < first || d.date >= monday) return;
         const inc = (n, k) => { (month[n] = month[n] || {})[k] = ((month[n] || {})[k] || 0) + 1; };
         d.ranges.forEach(r => r.people.forEach(n => inc(n, 'range'))); d.duties.forEach(x => { x.mainPeople.forEach(n => inc(n, 'duty:' + x.duty + ':main')); x.sparePeople.forEach(n => inc(n, 'duty:' + x.duty + ':spare')); }); d.medics.forEach(mm => mm.people.forEach(n => inc(n, 'medic:' + mm.role))); });
-      return { monday, tags: Object.assign({}, mSup), learned, hist, month }; },
+      return { monday, tags: Object.assign({}, mSup), learned, hist, month, noPlad: staffList.filter(p => p.noPlad).map(p => p.name), lastDay: staffList.filter(p => p.lastDay).reduce((o, p) => { o[p.name] = p.lastDay; return o; }, {}) }; },
     getSupTags: () => MOCK.autoStats('', addD(mondayOf(today), 7)),
     saveSupTags: (t, rows) => { Object.keys(mSup).forEach(k => delete mSup[k]); rows.forEach(r => mSup[offKey(r.sup)] = r.apo); return MOCK.getSupTags(); },
     adminApplySlots: (t, changes) => { let applied = 0; const skipped = [];
@@ -3190,9 +3211,10 @@ const MOCK = (() => {
     adminSaveStaff: (t, f) => {
       const name = String(f.name||'').trim().toUpperCase(); if (!name) throw new Error('Enter one name, without / or & or commas.');
       let p = staffList.find(x => x.name === name);
-      if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false }); }
-      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false });
-      return { list: staffList, staff: staffList.filter(x => x.active) };
+      if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false, noPlad: !!f.noPlad, lastDay: f.lastDay || '' }); }
+      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false, noPlad: !!f.noPlad, lastDay: f.lastDay || '' });
+      S.staff = staffList.filter(x => x.active).map(x => ({ name: x.name, role: x.role, aliases: x.aliases || [], noPlad: !!x.noPlad, lastDay: x.lastDay || '' }));
+      return { list: staffList, staff: S.staff };
     },
     adminResetPin: () => true,
     changeMyPin: (t, c, n) => { if (!/^\d{4,6}$/.test(n)) throw new Error('The new PIN must be 4 to 6 digits.'); return true; },
