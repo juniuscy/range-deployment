@@ -2618,6 +2618,11 @@ function autoDraft(wk, idxs, st){
     // 6. RAI Party: anyone, fewest this month
     sl = duty('RAI Party', 'main');
     if (sl) { k = 'duty:RAI Party:main'; const n = pick(apos, k); if (n) add(sl, n, 'Free; ' + fair(n, k), false, k); else out.notes.push('RAI Party: no free APO.'); }
+    // 6b. Ammo admin spare (after the main slots, so it never leaves RAI or PLAD empty): another of Danial, Ivan or Wong; otherwise left empty
+    sl = duty('Ammo admin', 'spare');
+    if (sl) { k = 'duty:Ammo admin:spare'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k);
+      if (n) add(sl, n, 'Admin team spare; ' + fair(n, k), false, k);
+      else out.notes.push('Ammo admin spare: Danial, Ivan and Wong not free, left empty.'); }
     // 7. DAO spare: the balance personnel
     sl = duty('DAO', 'spare');
     if (sl) { const rest = apos.filter(free); if (rest.length) add(sl, rest.join(' / '), 'Balance personnel (not posted)', false, 'duty:DAO:spare'); }
