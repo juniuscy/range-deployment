@@ -175,6 +175,14 @@ textarea{min-height:80px;resize:vertical}
 .subrows{display:grid;gap:6px;margin:0 0 14px}.subrow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .subrow .chip{margin:0;min-width:0;padding:8px 4px;text-align:center;font-size:14px;line-height:1.15;white-space:normal}
 .dmrow td{cursor:pointer}
+.sheet.af{max-height:92vh;overflow:auto}.afd{margin:8px 0 6px}
+.afday{margin-top:10px}.afday h4{margin:6px 0;font-size:15px}.afday h4 small{color:var(--muted);font-weight:500}
+.afr{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-bottom:5px;background:var(--card)}
+.afr.warn{background:#FFFBEB;border-color:#F0D98A}.afr input[type=checkbox]{width:22px;height:22px;margin-top:4px;flex:none;accent-color:#16A34A}
+.afr > div{flex:1;min-width:0;display:grid;grid-template-columns:118px 1fr;column-gap:8px;align-items:center}.afs{font-weight:700;font-size:13px;color:var(--steel);line-height:1.15}.afr small{grid-column:1 / -1}
+.sheet.af .acts{position:sticky;bottom:-16px;background:var(--card);padding:10px 0 4px;margin-bottom:-4px;box-shadow:0 -6px 10px -8px rgba(0,0,0,.25)}
+.afv{width:100%;min-height:34px;padding:3px 8px;margin:2px 0;font:600 15px var(--body);border:1px solid var(--line);border-radius:6px}
+.afr small{display:block;color:var(--muted);font-size:12.5px}
 .libc{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px}
 .libc.need{border-left-color:#DC2626}.libc.arr{border-left-color:#3B82F6}
 .libc .lh{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.libc .lh b{font-size:17px;margin-right:4px}
@@ -1637,7 +1645,7 @@ function drawBoard(wk){
         <span class="small muted">${ed ? 'Tap a medic row to change the name or location.' : ''}</span>
         <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit medics'}</button></span></div>` : admin ? `<div class="editbar">
         <span class="small muted">${ed ? 'Tap a range, duty or medic row to change who is posted. Undeployed staff are listed under Duties.' : ''}</span>
-        <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="wa">WhatsApp message</button>${ed ? '<button class="btn no" id="abs">Someone absent</button>' : ''}
+        <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="wa">WhatsApp message</button><button class="btn ghost" id="auto">Auto-fill</button>${ed ? '<button class="btn no" id="abs">Someone absent</button>' : ''}
         <button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit deployment'}</button></span></div>` : '';
     const loadKey = `<span><u style="background:#FFFBEB;border-radius:3px;box-shadow:0 0 0 1px #F0D98A"></u>5 ranges</span><span><u style="background:#FEF2F1;border-radius:3px;box-shadow:0 0 0 1px #EDB3AC"></u>6+ ranges</span>`;
     const keyItems = [['e','var(--ext)','EXT'],['a','var(--aps)','APS'],['g','var(--noapo)','No APO'],['c','var(--flag)','To cover']];
@@ -1664,6 +1672,7 @@ function drawBoard(wk){
     };
     if ($('#abs')) $('#abs').onclick = () => openAbsent({ day:d, onDone: w => drawBoard(w) });
     if ($('#wa')) $('#wa').onclick = () => openWhatsApp(d);
+    if ($('#auto')) $('#auto').onclick = () => openAutoFill(wk);
     if (ed) document.querySelectorAll(medOnly ? '.edit-on [data-slot^="medic|"]' : '.edit-on [data-slot]').forEach(el => el.onclick = () => {
       const [kind, label] = el.dataset.slot.split('|');
       openSlotEditor(wk, d, kind, label);
@@ -2195,13 +2204,13 @@ async function refreshPendingDot(){
 function viewAdmin(){
   const rows = [[['pending','Pending'],['att','Attendance'],['trn','Training'],['lib','LIB']],
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
-    [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report']]];
+    [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']]];
   V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
   $('#spd').onclick = speedCheck;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
-  ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
+  ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
 }
 const A = () => $('#adm');
 
@@ -2534,6 +2543,186 @@ function speedCheck(){
   $('#sp-x', bg).onclick = () => bg.remove();
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
 }
+/* ============================================================
+   Auto-fill (Admin / Manager): drafts the EMPTY slots of the plan from the rules below and from
+   how the plan was filled in the last 8 weeks. Shows a draft to tick / edit; Apply writes it.
+   ============================================================ */
+const AUTO_RULES = {
+  pladDays: [0, 2, 4],                  // PLAD and PLAD-Driver: Mon, Wed, Fri only
+  pladDriver: ['WONG', 'ONG'],          // driver Wong; Ong if Wong is not free
+  ammoAdmin: ['DANIAL', 'IVAN', 'WONG'], ammoBackup: 'ONG',
+  daoMain: 'FAIZAL',                    // DAO main by default; the balance go to DAO spare
+  medDriver: 'AZAHAR', medic2: 'FAHMI', medic1Fap: ['RASUL', 'SAFUDIN']   // Medic 1 / FAP rotate between the two
+};
+const offKey = s => String(s || '').replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+const lettersKey = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+function staffName(short){
+  const s = String(short || '').toUpperCase(), all = S.staff || [];
+  const p = all.find(x => x.name === s) || all.find(x => x.name.indexOf(s + ' ') === 0) || all.find(x => (x.aliases || []).includes(s));
+  return p ? p.name : '';
+}
+function autoDraft(wk, idxs, st){
+  const R = AUTO_RULES, N = staffName;
+  const mc = JSON.parse(JSON.stringify(st.month || {}));
+  const cnt = (n, k) => (mc[n] && mc[n][k]) || 0;
+  const inc = (n, k) => { (mc[n] = mc[n] || {})[k] = cnt(n, k) + 1; };
+  const hist = (n, k) => ((st.hist || {})[k] || {})[n] || 0;
+  const of = role => (S.staff || []).filter(p => role(p.role)).map(p => p.name);
+  const apos = of(r => APO_LIKE.includes(r)), meds = of(r => MEDIC_ROLES.includes(r)), backups = of(r => r === 'Backup Medic');
+  const T = n => titleCase(n);
+  const supName = x => String(x || '').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim();
+  return idxs.map(i => {
+    const d = wk.days[i], out = { date: d.date, items: [], notes: [] };
+    if (!d.ranges.some(r => r.active)) { out.notes.push('No ranges in use: nothing to fill.'); return out; }
+    const busy = busyOn(d), away = awayOn(d);
+    const free = n => !!n && !busy.has(n);
+    const why = n => away[n] ? away[n].join(', ') : 'already posted';
+    const fair = (n, k) => cnt(n, k) + 'x this month';
+    const add = (slot, value, reason, warn, k) => { out.items.push({ slot, value, reason, warn: !!warn }); value.split(' / ').forEach(n => { busy.add(n); if (k) inc(n, k); }); };
+    const pick = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k) || hist(b, k) - hist(a, k) || a.localeCompare(b))[0];
+    const duty = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && !String(x[field] || '').trim() ? { kind: 'duty', label: x.duty, field } : null; };
+    const med = role => { const m = d.medics.find(y => lettersKey(y.role) === lettersKey(role)); return m && !String(m.who || '').trim() ? { kind: 'medic', label: m.role, field: 'name' } : null; };
+    // 1. Ranges: the APO tagged to (or usually with) the supervising officer
+    d.ranges.filter(r => r.active && !String(r.emp || '').trim()).forEach(r => {
+      const slot = { kind: 'range', label: r.range, field: 'emp' }, k = offKey(r.sup);
+      const tag = (st.tags || {})[k], lr = (st.learned || {})[k], want = tag || (lr && lr.apo) || '';
+      const src = tag ? 'tagged to ' + supName(r.sup) : lr ? 'usually with ' + supName(r.sup) + ' (' + lr.n + ' of ' + lr.total + ' days)' : '';
+      if (want && free(want)) return add(slot, want, src.charAt(0).toUpperCase() + src.slice(1), false, 'range');
+      const alt = pick(apos, 'range');
+      if (!alt) return out.notes.push(r.range + ': no free APO left.');
+      add(slot, alt, want ? T(want) + ' (' + src + ') is ' + why(want) + '. Free APO instead.' : 'No APO tagged to ' + (supName(r.sup) || 'this range') + '. Free APO.', true, 'range');
+    });
+    // 2. PLAD-Driver (Mon, Wed, Fri)
+    const plad = R.pladDays.includes(dowIdx(d.date));
+    let sl = plad && duty('PLAD-Driver', 'main'), k;
+    if (sl) { k = 'duty:PLAD-Driver:main'; const [w, o] = R.pladDriver.map(N);
+      if (free(w)) add(sl, w, 'PLAD driver', false, k);
+      else if (free(o)) add(sl, o, 'Backup driver: ' + T(w) + ' is ' + why(w), true, k);
+      else out.notes.push('PLAD-Driver: ' + T(w) + ' and ' + T(o) + ' are both unavailable.'); }
+    // 3. Ammo admin: Danial, Ivan or Wong (fewest this month); Ong as backup
+    sl = duty('Ammo admin', 'main');
+    if (sl) { k = 'duty:Ammo admin:main'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k), b = N(R.ammoBackup);
+      if (n) add(sl, n, 'Admin team; ' + fair(n, k), false, k);
+      else if (free(b)) add(sl, b, 'Backup: Danial, Ivan and Wong are not free', true, k);
+      else out.notes.push('Ammo admin: no one from the admin team is free.'); }
+    // 4. DAO main: Faizal by default
+    sl = duty('DAO', 'main');
+    if (sl) { k = 'duty:DAO:main'; const f = N(R.daoMain);
+      if (free(f)) add(sl, f, 'DAO main by default', false, k);
+      else { const n = pick(apos, k); if (n) add(sl, n, T(f) + ' is ' + why(f) + '. Free APO; ' + fair(n, k), true, k); else out.notes.push('DAO main: no free APO.'); } }
+    // 5. PLAD (Mon, Wed, Fri): people who usually do it, fewest this month
+    sl = plad && duty('PLAD', 'main');
+    if (sl) { k = 'duty:PLAD:main'; const usual = apos.filter(n => hist(n, k) > 0), n = pick(usual, k) || pick(apos, k);
+      if (n) add(sl, n, usual.includes(n) ? 'Usually does PLAD (' + hist(n, k) + 'x in 8 weeks); ' + fair(n, k) : 'Free; ' + fair(n, k), false, k);
+      else out.notes.push('PLAD: no free APO.'); }
+    // 6. RAI Party: anyone, fewest this month
+    sl = duty('RAI Party', 'main');
+    if (sl) { k = 'duty:RAI Party:main'; const n = pick(apos, k); if (n) add(sl, n, 'Free; ' + fair(n, k), false, k); else out.notes.push('RAI Party: no free APO.'); }
+    // 7. DAO spare: the balance personnel
+    sl = duty('DAO', 'spare');
+    if (sl) { const rest = apos.filter(free); if (rest.length) add(sl, rest.join(' / '), 'Balance personnel (not posted)', false, 'duty:DAO:spare'); }
+    // 8. Medics
+    sl = med('Driver');
+    if (sl) { k = 'medic:Driver'; const a = N(R.medDriver);
+      if (free(a)) add(sl, a, 'Medic driver', false, k);
+      else { const b = pick(backups, k) || pick(meds, k); if (b) add(sl, b, T(a) + ' is ' + why(a), true, k); else out.notes.push('Medic driver: no one free.'); } }
+    sl = med('Medic 2');
+    if (sl) { k = 'medic:Medic 2'; const f = N(R.medic2);
+      if (free(f)) add(sl, f, 'Paramedic 2', false, k);
+      else { const b = pick(meds.filter(n => !R.medic1Fap.map(N).includes(n)), k) || pick(backups, k); if (b) add(sl, b, T(f) + ' is ' + why(f), true, k); else out.notes.push('Medic 2: no one free.'); } }
+    const pair = R.medic1Fap.map(N).filter(Boolean);
+    const order = () => pair.filter(free).sort((a, b) => cnt(a, 'medic:Medic 1') - cnt(b, 'medic:Medic 1') || cnt(b, 'medic:FAP') - cnt(a, 'medic:FAP') || a.localeCompare(b));
+    sl = med('Medic 1');
+    if (sl) { k = 'medic:Medic 1'; const n = order()[0];
+      if (n) add(sl, n, 'Rotation with ' + T(pair.find(x => x !== n) || '') + ': ' + fair(n, k) + ' as Medic 1', false, k);
+      else { const b = pick(backups, k); if (b) add(sl, b, T(pair[0]) + ' and ' + T(pair[1]) + ' are not free', true, k); else out.notes.push('Medic 1: no one free.'); } }
+    sl = med('FAP');
+    if (sl) { k = 'medic:FAP'; const n = order()[0];
+      if (n) add(sl, n, 'Rotation: ' + fair(n, k) + ' on FAP', false, k);
+      else { const b = pick(backups, k); if (b) add(sl, b, 'Rasul / Safudin not free: backup medic', true, k); else out.notes.push('FAP: no one free.'); } }
+    if (!out.items.length && !out.notes.length) out.notes.push('Everything is already filled.');
+    return out;
+  });
+}
+const autoSlotTxt = s => s.kind === 'range' ? s.label + ' APO' : s.kind === 'duty' ? s.label + ' ' + (s.field === 'main' ? 'Main' : 'Spare') : s.label;
+async function openAutoFill(wk){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  const end = addD(wk.monday, 6);
+  let sel = wk.days.map((d, i) => i < 5 && d.ranges.some(r => r.active) ? i : -1).filter(i => i >= 0);
+  if (wk.days[S.dayIdx] && !sel.includes(S.dayIdx) && wk.days[S.dayIdx].ranges.some(r => r.active)) sel.push(S.dayIdx);
+  bg.innerHTML = `<div class="sheet af" role="dialog" aria-modal="true"><h3>Auto-fill draft</h3>
+    <div class="src">${nice(wk.monday)} to ${nice(end)}. Fills <b>empty</b> slots only, from your rules and the last 8 weeks of the plan. Untick or change anything, then Apply.</div>
+    <div class="chips afd">${wk.days.map((d, i) => `<button class="chip" data-afd="${i}" aria-pressed="${sel.includes(i)}">${DOW[i]} ${pd(d.date).getDate()}</button>`).join('')}</div>
+    <div id="af-b"><div class="loading">Studying the plan\u2026</div></div>
+    <div class="acts"><button class="btn ghost" id="af-x">Close</button><button class="btn" id="af-go" disabled>Apply</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#af-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  let st, draft = [];
+  const names = (S.staff || []).filter(p => APO_LIKE.includes(p.role) || MEDIC_ROLES.includes(p.role) || p.role === 'Backup Medic' || MGR_ROLES.includes(p.role)).map(p => p.name).sort();
+  const render = () => {
+    draft = autoDraft(wk, sel.slice().sort((a, b) => a - b), st);
+    const n = draft.reduce((t, d) => t + d.items.length, 0);
+    $('#af-b', bg).innerHTML = (draft.length ? draft.map((d, di) => `<div class="afday"><h4>${nice(d.date)} <small>${d.items.length} to fill</small></h4>
+        ${d.items.map((x, ii) => `<label class="afr${x.warn ? ' warn' : ''}"><input type="checkbox" checked data-afc="${di}|${ii}">
+          <div><span class="afs">${esc(autoSlotTxt(x.slot))}</span><input type="text" class="afv" data-afv="${di}|${ii}" value="${esc(x.value)}" list="af-n" autocomplete="off"><small>${esc(x.reason)}</small></div></label>`).join('')}
+        ${d.notes.map(t => `<div class="small muted" style="margin:4px 2px">${esc(t)}</div>`).join('')}</div>`).join('')
+      : '<p class="muted">Pick at least one day above.</p>') + `<datalist id="af-n">${names.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      <p class="small muted" style="margin-top:8px">Yellow = not the usual choice (the usual person is away or busy). Supervising to APO tags: Admin, Supervising.</p>`;
+    const count = () => { const c = bg.querySelectorAll('[data-afc]:checked').length; const b = $('#af-go', bg); b.disabled = !c; b.textContent = c ? 'Apply ' + c + ' slot' + (c === 1 ? '' : 's') : 'Apply'; };
+    bg.querySelectorAll('[data-afc]').forEach(c => c.onchange = count);
+    count();
+  };
+  bg.querySelectorAll('[data-afd]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.afd; sel = sel.includes(i) ? sel.filter(x => x !== i) : sel.concat(i);
+    b.setAttribute('aria-pressed', sel.includes(i)); if (st) render();
+  });
+  try { st = S.autoSt && S.autoSt.monday === wk.monday ? S.autoSt : await call('autoStats', S.token, wk.monday); S.autoSt = st; render(); }
+  catch(e){ $('#af-b', bg).innerHTML = '<div class="note red">' + esc(e.message || e) + '</div>'; return; }
+  $('#af-go', bg).onclick = async e => {
+    const changes = [];
+    bg.querySelectorAll('[data-afc]:checked').forEach(c => {
+      const [di, ii] = c.dataset.afc.split('|').map(Number), x = draft[di].items[ii];
+      const v = bg.querySelector(`[data-afv="${di}|${ii}"]`).value.trim();
+      if (v) changes.push({ date: draft[di].date, slot: x.slot, value: v });
+    });
+    if (!changes.length) return;
+    busy(e.target, true);
+    try {
+      const r = await call('adminApplySlots', S.token, changes);
+      const w = r.weeks && r.weeks[wk.monday];
+      if (w) { S.cache[wk.monday] = w; lsWeekSave(w); }
+      S.autoSt = null;
+      close();
+      if (w && S.view === 'board') drawBoard(w);
+      toast('Filled ' + r.applied + ' slot' + (r.applied === 1 ? '' : 's') + (r.skipped.length ? '. Skipped ' + r.skipped.length + ': ' + r.skipped.slice(0, 3).join('; ') : '') + '. Undo any in Admin, Changes.', !!r.skipped.length);
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+}
+/* Admin > Supervising: which APO goes with each supervising officer */
+async function admSup(){
+  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  try { drawSup(await call('getSupTags', S.token)); } catch(e){ fail(e); }
+}
+function drawSup(d){
+  const apos = (S.staff || []).filter(p => APO_LIKE.includes(p.role)).map(p => p.name).sort();
+  const offs = Object.keys(Object.assign({}, d.learned, d.tags)).sort();
+  const opt = (sel, lr) => `<option value="">${lr ? 'Usual: ' + esc(titleCase(lr.apo)) + ' (' + lr.n + ' of ' + lr.total + ')' : 'No tag'}</option>` + apos.map(n => `<option value="${esc(n)}"${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  A().innerHTML = `<p class="small muted">Auto-fill puts this APO on any range with that supervising officer. "Usual" is learned from the last 8 weeks of the plan; pick a name to fix the tag yourself.</p>
+    <div class="scroll"><table class="t"><tr><th>Supervising officer</th><th>APO</th></tr>
+      ${offs.map(o => `<tr><td><b>${esc(titleCase(o))}</b></td><td><select data-sup="${esc(o)}" style="min-height:38px;max-width:220px">${opt(d.tags[o] || '', d.learned[o])}</select></td></tr>`).join('')}
+      <tr><td><input type="text" id="sup-n" placeholder="New officer, e.g. Tay CK" style="min-height:38px;max-width:170px"></td><td><select id="sup-a" style="min-height:38px;max-width:220px">${opt('', null)}</select></td></tr></table></div>
+    <button class="btn" id="sup-s" style="margin-top:12px">Save tags</button>`;
+  $('#sup-s').onclick = async e => {
+    const rows = [...A().querySelectorAll('[data-sup]')].map(x => ({ sup: x.dataset.sup, apo: x.value })).filter(r => r.apo);
+    if ($('#sup-n').value.trim() && $('#sup-a').value) rows.push({ sup: $('#sup-n').value.trim(), apo: $('#sup-a').value });
+    busy(e.target, true);
+    try { S.autoSt = null; drawSup(await call('saveSupTags', S.token, rows)); toast('Tags saved'); } catch(x){ fail(x); busy(e.target, false); }
+  };
+}
+
 /* Small confirm box: resolves with read(bg) (or true) on Confirm, null on Cancel */
 function askBox(title, body, ok, read){
   return new Promise(res => {
@@ -2837,6 +3026,7 @@ const MOCK = (() => {
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
   const mRep = { date: today, sent: {}, dmchk: {} };
+  const mSup = {};
   const mInc = { templates: [{ name: 'Negligent Discharge (ND)', text: ['{Greeting} Sirs, MMRC would like to report a Negligent Discharge Incident.', '', 'Details of the incident are as follows:', '', '1) When:', '{Date}, at about {Time}hrs', '', '2) Where:', 'MMRC {Range}', '', '3) Who:', '{Rank Name} ({Masked NRIC}) from {Unit}', '', '4) What:', 'At about {Time}hrs, during {TF}, Stage {Stage} Practice {Practice}, {Rank Name} negligently discharged 1x 5.56mm live round to the ground after contacting the target.', '', 'MMRC FPSO activated the E-whistle and informed the CSO to stop the range immediately. MMRC RSO called for a safety pause to determine if ND occurred.', '', 'From the range camera footage, it was ascertained that the ND occurred when the firer discharged an unaimed shot to the ground while he was lowering his weapon.', '', 'MMRC will conduct a debrief to all firers on observing weapon safety and weapon handling before proceeding the live firing.', '', 'The verbal report to TRMC Ops room was made at {Verbal report time}hrs.'].join('\n') }], log: [] };
   const mIncOut = () => JSON.parse(JSON.stringify(Object.assign({ today, dm: mDm[today] || '' }, mInc)));
   const mDm = {}; ['Lucas Law','Ridauddin','Chan Yang','Calvin Chua','James Lai'].forEach((n, i) => { for (let k = i; k < 12; k += 5) mDm[addD(today, k - 2)] = n; });
@@ -2917,6 +3107,23 @@ const MOCK = (() => {
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
     getReports: () => mRep,
+    autoStats: (t, monday) => { const hist = {}, pairs = {}, month = {};
+      const add = (k, n) => { (hist[k] = hist[k] || {})[n] = (hist[k][n] || 0) + 1; };
+      for (let w = 8; w >= 1; w--) { const wk = getWk(addD(monday, -7 * w)); (wk.days || []).forEach(d => {
+        d.ranges.forEach(r => { if (r.sup && r.people.length) { const k = offKey(r.sup); (pairs[k] = pairs[k] || {})[r.people[0]] = (pairs[k][r.people[0]] || 0) + 1; } r.people.forEach(n => add('range', n)); });
+        d.duties.forEach(x => { x.mainPeople.forEach(n => add('duty:' + x.duty + ':main', n)); x.sparePeople.forEach(n => add('duty:' + x.duty + ':spare', n)); });
+        d.medics.forEach(m => m.people.forEach(n => add('medic:' + m.role, n))); }); }
+      const learned = {}; Object.keys(pairs).forEach(k => { const ns = Object.keys(pairs[k]).sort((a, b) => pairs[k][b] - pairs[k][a]); learned[k] = { apo: ns[0], n: pairs[k][ns[0]], total: ns.reduce((x, n) => x + pairs[k][n], 0) }; });
+      const first = monday.slice(0, 8) + '01'; for (let m = mondayOf(first); m < monday; m = addD(m, 7)) (getWk(m).days || []).forEach(d => { if (d.date < first || d.date >= monday) return;
+        const inc = (n, k) => { (month[n] = month[n] || {})[k] = ((month[n] || {})[k] || 0) + 1; };
+        d.ranges.forEach(r => r.people.forEach(n => inc(n, 'range'))); d.duties.forEach(x => { x.mainPeople.forEach(n => inc(n, 'duty:' + x.duty + ':main')); x.sparePeople.forEach(n => inc(n, 'duty:' + x.duty + ':spare')); }); d.medics.forEach(mm => mm.people.forEach(n => inc(n, 'medic:' + mm.role))); });
+      return { monday, tags: Object.assign({}, mSup), learned, hist, month }; },
+    getSupTags: () => MOCK.autoStats('', addD(mondayOf(today), 7)),
+    saveSupTags: (t, rows) => { Object.keys(mSup).forEach(k => delete mSup[k]); rows.forEach(r => mSup[offKey(r.sup)] = r.apo); return MOCK.getSupTags(); },
+    adminApplySlots: (t, changes) => { let applied = 0; const skipped = [];
+      changes.forEach(c => { const d = getWk(mondayOf(c.date)).days[dowIdx(c.date)]; const cur = c.slot.kind === 'range' ? d.ranges.find(x => x.range === c.slot.label).emp : c.slot.kind === 'duty' ? d.duties.find(x => x.duty === c.slot.label)[c.slot.field] : d.medics.find(x => x.role === c.slot.label).who;
+        if (String(cur || '').trim()) { skipped.push(c.slot.label + ': already ' + cur); return; } MOCK.adminSetSlot(t, c.date, c.slot, c.value.toUpperCase()); applied++; });
+      const m = mondayOf(changes[0].date); return { applied, skipped, weeks: { [m]: JSON.parse(JSON.stringify(getWk(m))) } }; },
     getIncidents: () => mIncOut(),
     incTplSave: (t, old, name, text) => { if (!name.trim()) throw new Error('Give the template a name.'); const c = mInc.templates.find(x => x.name === old); if (c) { c.name = name.trim(); c.text = text; } else mInc.templates.push({ name: name.trim(), text }); return mIncOut(); },
     incTplDelete: (t, name) => { mInc.templates = mInc.templates.filter(x => x.name !== name); return mIncOut(); },
