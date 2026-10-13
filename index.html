@@ -435,14 +435,19 @@ function apiOnce(fn, args){
     try { return JSON.parse(t); } catch(e) { const x = new Error('BADREPLY'); x.net = true; throw x; }
   }, () => { const x = new Error('NONET'); x.net = true; throw x; });
 }
+const PERF = [];   /* last calls, for Admin > Speed check */
 async function apiCall(fn, args){
   const read = READ_FNS.indexOf(fn) >= 0;
   const tries = read ? 3 : 1;
   let o = null, last = null;
+  const t0 = Date.now();
   for (let i = 0; i < tries; i++) {
     try { o = await apiOnce(fn, args); break; }
     catch(e) { last = e; if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1))); }
   }
+  if (!read && o && o.ok) liveVer = null;        // own change: next check just takes the new stamp
+  PERF.unshift({ fn, at: new Date().toTimeString().slice(0, 8), total: Date.now() - t0, srv: o && o.ms != null ? o.ms : null, ok: !!(o && o.ok) });
+  PERF.length = Math.min(PERF.length, 30);
   if (!o) {
     if (!read) throw new Error('No reply from the server, so this may or may not have been saved. Refresh and check before trying again.');
     throw new Error(last && last.message === 'BADREPLY'
@@ -742,6 +747,10 @@ function drawHome(h, stale){
     });
     drawSched();
     if (canManage()) refreshPendingDot();
+    if (!stale) {                                   // get this week's plan ready for the Deployment Plan tab
+      const m = mondayOf(S.today);
+      if (!S.cache[m]) setTimeout(() => call('getWeek', S.token, m).then(w => { S.cache[m] = w; lsWeekSave(w); }).catch(() => {}), 200);
+    }
   }
 }
 /* ---------- APO training ---------- */
@@ -1531,13 +1540,23 @@ function dayRow(d){
 /* ============================================================
    Board (weekly roster)
    ============================================================ */
-async function viewBoard(){
-  loading();
+/* Last few weeks kept on the phone, so the plan shows at once and then updates */
+function lsWeeks(){ try { return JSON.parse(localStorage.getItem('rdp_wks') || '{}') || {}; } catch(e){ return {}; } }
+function lsWeekSave(wk){
+  if (!wk || !wk.monday || !wk.days || !wk.days.length) return;
+  try { const m = lsWeeks(); m[wk.monday] = wk; Object.keys(m).sort().reverse().slice(4).forEach(k => delete m[k]); localStorage.setItem('rdp_wks', JSON.stringify(m)); } catch(e) {}
+}
+async function viewBoard(force){
+  const key = S.monday;
+  const old = !force && (S.cache[key] || lsWeeks()[key]);
+  if (old && old.days && old.days.length) {
+    drawBoard(old);
+    const r = $('#wr'); if (r) r.insertAdjacentHTML('beforebegin', '<span class="small muted" id="wk-upd" style="margin-right:8px">updating...</span>');
+  } else loading();
   try {
-    const key = S.monday;
     const isAdm = S.me && S.me.role === 'Admin';
     const [wk, insp, bd, rp] = await Promise.all([
-      call('getWeek', S.token, key),                   // always read fresh from the sheet
+      call('getWeek', S.token, key, !!force),          // fresh from the sheet (cached on the server until the sheet changes)
       isAdm ? call('getInspections', S.token).catch(() => S.insp || null) : Promise.resolve(null),
       isAdm ? call('getBirthdays', S.token).catch(() => S.bdays || []) : Promise.resolve(null),
       isAdm ? call('getReports', S.token).catch(() => S.rep || null) : Promise.resolve(null)]);
@@ -1545,8 +1564,11 @@ async function viewBoard(){
     if (insp) S.insp = insp;
     if (bd) S.bdays = bd;
     S.cache[key] = wk;
+    lsWeekSave(wk);
+    if (S.view !== 'board' || S.monday !== key) return;   // moved on while it loaded
+    if (document.querySelector('.sheet-bg')) { const u = $('#wk-upd'); if (u) u.remove(); return; }   // an editor is open: don't redraw under it
     drawBoard(wk);
-  } catch(e){ fail(e); }
+  } catch(e){ if (old) { const u = $('#wk-upd'); if (u) u.textContent = 'could not update'; } else fail(e); }
 }
 function moveWeek(n){ S.monday = addD(S.monday, 7*n); viewBoard(); }
 function drawBoard(wk){
@@ -1649,7 +1671,7 @@ function drawBoard(wk){
   }
   if (isAdmAcct && S.insp) wireInsp(S.insp);
   if (isAdmAcct && S.rep) wireRep(S.rep);
-  $('#wr').onclick = () => viewBoard();
+  $('#wr').onclick = () => viewBoard(true);
   $('#wp').onclick = () => moveWeek(-1);
   $('#wn').onclick = () => moveWeek(1);
 }
@@ -2175,7 +2197,9 @@ function viewAdmin(){
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
     [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report']]];
   V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
-    `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>`;
+    `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
+    <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
+  $('#spd').onclick = speedCheck;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
   ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
 }
@@ -2495,6 +2519,21 @@ const LIB_MONTHS = 6;   // LIB is valid for 6 months from the test date
 /* add n months to a yyyy-mm-dd date, keeping month ends (31 Aug + 6 = 28 Feb) */
 const addMonths = (d, n) => { const x = pd(d), day = x.getDate(); x.setDate(1); x.setMonth(x.getMonth() + n);
   x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return ymd(x); };
+/* Admin > Speed check: how long the last calls took (server = Google reading the sheet; the rest = network and start-up) */
+function speedCheck(){
+  const s1 = v => v == null ? '-' : (v / 1000).toFixed(1) + 's';
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Speed check</h3>
+    <div class="src">The last ${PERF.length} calls from this phone. <b>Sheet</b> = time Google spent reading or writing the sheet. <b>Network</b> = the rest (connection and Google starting up).</div>
+    ${PERF.length ? `<div class="scroll"><table class="t"><tr><th>Time</th><th>Action</th><th class="num">Total</th><th class="num">Sheet</th><th class="num">Network</th></tr>
+      ${PERF.map(p => `<tr><td>${p.at}</td><td>${esc(p.fn)}${p.ok ? '' : ' (failed)'}</td><td class="num"><b>${s1(p.total)}</b></td><td class="num">${s1(p.srv)}</td><td class="num">${p.srv == null ? '-' : s1(p.total - p.srv)}</td></tr>`).join('')}</table></div>`
+      : '<p>No calls yet. Use the app for a bit, then open this again.</p>'}
+    <div class="acts"><button class="btn ghost" id="sp-x">Close</button></div></div>`;
+  document.body.appendChild(bg);
+  $('#sp-x', bg).onclick = () => bg.remove();
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+}
 /* Small confirm box: resolves with read(bg) (or true) on Confirm, null on Cancel */
 function askBox(title, body, ok, read){
   return new Promise(res => {
@@ -2867,6 +2906,7 @@ const MOCK = (() => {
       n = who.name;
       const role = who ? who.role : 'APO';
       return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || role !== 'Admin'), today, staff: staffList.filter(p => p.active) }; },
+    ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
       attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
@@ -2991,6 +3031,68 @@ const MOCK = (() => {
 // used by onclick="\u2026" buttons in the page
 window.boot = boot;
 window.go = go;
+/* ============================================================
+   Live updates: every ~30 seconds while the app is on screen (and as soon as it comes back),
+   ask the server whether anything changed. If so, quietly reload what is on screen.
+   Skipped while a pop-up is open or something is being typed; done when that finishes.
+   ============================================================ */
+const LIVE_MS = 30000;
+let liveVer = null, liveBusy = false, liveWant = false, liveTimer = null;
+function pingNow(){
+  if (!S.token) return Promise.resolve(null);
+  if (!GAS && API_URL) return apiOnce('ping', [S.token]).then(o => o && o.ok ? o.result : null).catch(() => null);
+  if (!LIVE) return Promise.resolve(MOCK.ping ? MOCK.ping() : null);
+  return new Promise(res => google.script.run.withSuccessHandler(res).withFailureHandler(() => res(null)).ping(S.token));
+}
+function uiBusy(){
+  if (document.querySelector('.sheet-bg')) return true;                 // a pop-up / editor is open
+  const a = document.activeElement;
+  return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest('#view'));
+}
+async function liveRefresh(){
+  if (uiBusy()) { liveWant = true; return; }
+  liveWant = false;
+  const y = window.scrollY;
+  const keep = () => window.scrollTo(0, y);
+  try {
+    if (S.view === 'home') {
+      const h = await call('getHome', S.token);
+      h.today = S.today;
+      try { localStorage.setItem('rdp_home_' + S.me.name, JSON.stringify(h)); } catch(e) {}
+      if (S.view === 'home' && !uiBusy()) { drawHome(h, false); keep(); }
+    } else if (S.view === 'board') {
+      const key = S.monday, wk = await call('getWeek', S.token, key);
+      S.cache[key] = wk; lsWeekSave(wk);
+      if (S.view === 'board' && S.monday === key && !uiBusy()) { drawBoard(wk); keep(); }
+    } else if (S.view === 'requests') { await viewRequests(); keep(); }
+    else if (S.view === 'admin' && ['pending','att','team','alg','changes','dm','trn'].includes(S.adminTab)) { await viewAdmin(); keep(); }
+    else { Object.keys(S.cache).forEach(k => delete S.cache[k]); }       // other screens: next open reads fresh
+    if (canManage()) refreshPendingDot();
+  } catch(e) { /* quiet: try again next time */ }
+}
+async function liveTick(){
+  if (liveBusy || !S.token || !S.me || document.hidden) return;
+  liveBusy = true;
+  try {
+    const r = await pingNow();
+    if (r) {
+      if (S.today && r.today && r.today !== S.today) { location.reload(); return; }   // a new day: start fresh
+      if (liveVer && r.v !== liveVer) await liveRefresh();
+      else if (liveWant) await liveRefresh();
+      liveVer = r.v;
+    }
+  } finally { liveBusy = false; }
+}
+function liveStart(){
+  if (liveTimer) return;
+  liveTimer = setInterval(liveTick, LIVE_MS + Math.floor(Math.random() * 5000));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) liveTick(); });
+  window.addEventListener('focus', () => liveTick());
+  document.addEventListener('focusout', () => { if (liveWant) setTimeout(() => { if (liveWant) liveTick(); }, 300); });
+  document.addEventListener('click', () => { if (liveWant) setTimeout(() => { if (liveWant && !uiBusy()) liveRefresh(); }, 400); }, true);
+}
+liveStart();
+
 boot();
 })();
 </script>
