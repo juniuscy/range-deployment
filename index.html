@@ -2924,7 +2924,7 @@ function editStaff(p){
       <small class="muted" style="display:block;margin-top:4px">After this date they are left out of the plan, Auto-fill, undeployed lists, attendance and training.</small></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-act" ${p.active?'checked':''} style="width:20px;height:20px"><span>Active (unticked hides them from sign-in and lists)</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-att" ${p.att !== false ? 'checked' : ''} style="width:20px;height:20px"><span>Counted in daily attendance</span></label>
-    <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-np" ${p.noPlad ? 'checked' : ''} style="width:20px;height:20px"><span>Not able to go PLAD</span></label>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-noplad" ${p.noPlad ? 'checked' : ''} style="width:20px;height:20px"><span>Not able to go PLAD</span></label>
     ${p.locked ? `<div class="note red" style="display:flex;align-items:center;gap:10px;justify-content:space-between">Locked after 5 wrong PINs.<button class="btn" id="s-unl" style="min-height:38px">Unlock</button></div>` : ''}
     <label class="f"><span>${p.hasPin ? 'Give a new PIN (if they forgot theirs)' : 'Give a first PIN'}</span>
       <span style="display:flex;gap:8px"><input type="text" id="s-np" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits" style="min-width:0">
@@ -2948,7 +2948,7 @@ function editStaff(p){
   $('#s-ok', bg).onclick = async e => {
     busy(e.target, true);
     try {
-      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, noPlad:$('#s-np', bg).checked, lastDay:$('#s-ld', bg).value });
+      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value });
       setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
