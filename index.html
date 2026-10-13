@@ -175,6 +175,17 @@ textarea{min-height:80px;resize:vertical}
 .subrows{display:grid;gap:6px;margin:0 0 14px}.subrow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .subrow .chip{margin:0;min-width:0;padding:8px 4px;text-align:center;font-size:14px;line-height:1.15;white-space:normal}
 .dmrow td{cursor:pointer}
+.libc{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px}
+.libc.need{border-left-color:#DC2626}.libc.arr{border-left-color:#3B82F6}
+.libc .lh{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.libc .lh b{font-size:17px;margin-right:4px}
+.libc .lnext{margin-top:10px}
+.larr{background:#DBEAFE;border-radius:10px;padding:8px 12px}.larr span{display:block;font-size:12px;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:.05em}.larr b{font-size:16px}.larr em{display:block;font-size:13px;color:#1E40AF;font-style:normal}
+.lpick{display:flex;gap:8px;flex-wrap:wrap}.lpick label{display:flex;flex-direction:column;gap:3px;font-size:13px;font-weight:600}
+.lpick input{min-height:42px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:16px}.lpick input[data-lt]{width:92px;text-align:center;font-family:ui-monospace,monospace}
+.lpick input.bad{border-color:#DC2626;background:#FEF2F2}
+.lbtns{display:flex;gap:8px;margin-top:8px}.lbtns .btn{flex:1;min-height:42px}
+.lmore{display:flex;gap:14px;margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+.linkbtn{background:none;border:0;padding:0;color:var(--steel);font:600 13px var(--body);text-decoration:underline;cursor:pointer}
 .incf textarea{width:100%;min-height:44px;resize:vertical;font:15px/1.4 var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:8px}
 .incf .tm{font:600 18px/1.2 ui-monospace,monospace;width:110px;text-align:center}
 .incf .tm.bad{border-color:#DC2626;background:#FEF2F2}
@@ -685,11 +696,13 @@ function drawHome(h, stale){
   {
     const b = h.balances;
     let lib = '';
+    const arrL = h.libArranged && h.libArranged >= S.today ? ` Your next LIB test is arranged on <b>${nice(h.libArranged)}${h.libTime ? ', ' + esc(h.libTime) + 'hrs' : ''}</b>.` : '';
     if (h.lib) {
       const left = nDays(S.today, h.lib) - 1;
-      if (left < 0) lib = `<div class="note red">Your LIB expired on ${nice(h.lib)}. Book your LIB test with your admin.</div>`;
-      else if (left <= 45) lib = `<div class="note">Your LIB expires on ${nice(h.lib)}, in ${left} day${left===1?'':'s'}.</div>`;
-    }
+      if (left < 0) lib = `<div class="note red">Your LIB expired on ${nice(h.lib)}.${arrL || ' Book your LIB test with your admin.'}</div>`;
+      else if (left <= 45) lib = `<div class="note">Your LIB expires on ${nice(h.lib)}, in ${left} day${left===1?'':'s'}.${arrL}</div>`;
+      else if (arrL) lib = `<div class="note blue">${arrL.trim()}</div>`;
+    } else if (arrL) lib = `<div class="note blue">${arrL.trim()}</div>`;
     const dmToday = (h.dmMap || {})[S.today] || (S.dm || {})[S.today] || '';
     const dmMine = isMeDm(dmToday);
     V().innerHTML = `
@@ -2482,10 +2495,27 @@ const LIB_MONTHS = 6;   // LIB is valid for 6 months from the test date
 /* add n months to a yyyy-mm-dd date, keeping month ends (31 Aug + 6 = 28 Feb) */
 const addMonths = (d, n) => { const x = pd(d), day = x.getDate(); x.setDate(1); x.setMonth(x.getMonth() + n);
   x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return ymd(x); };
+/* Small confirm box: resolves with read(bg) (or true) on Confirm, null on Cancel */
+function askBox(title, body, ok, read){
+  return new Promise(res => {
+    const bg = document.createElement('div');
+    bg.className = 'sheet-bg';
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${title}</h3><div class="src" style="font-size:15px;color:var(--ink)">${body}</div>
+      <div class="yn"><button class="btn ghost" id="ab-n">Cancel</button><button class="btn go" id="ab-y">${ok || 'Confirm'}</button></div></div>`;
+    document.body.appendChild(bg);
+    const done = v => { bg.remove(); res(v); };
+    $('#ab-y', bg).onclick = () => { try { done(read ? read(bg) : true); } catch(m){ toast(String(m), true); } };
+    $('#ab-n', bg).onclick = () => done(null);
+    bg.onclick = e => { if (e.target === bg) done(null); };
+    const f = bg.querySelector('input'); if (f) f.focus();
+  });
+}
+const fullDate = d => nice(d) + ' ' + pd(d).getFullYear();
+const hhmmTxt = t => t ? ', ' + t + 'hrs' : '';
 function drawLib(list){
   const days = d => d ? Math.round((pd(d) - pd(S.today)) / 864e5) : null;
-  const pill = d => {
-    const n = days(d);
+  const pill = x => {
+    const n = days(x.date);
     if (n == null) return '<span class="pill Cancelled">No date</span>';
     if (n < 0) return '<span class="pill Rejected">Expired</span>';
     if (n <= 45) return `<span class="pill Pending">${n} day${n === 1 ? '' : 's'} left</span>`;
@@ -2495,43 +2525,81 @@ function drawLib(list){
   const have = list.map(x => x.name);
   const missing = (S.staff || []).filter(p => (APO_LIKE.includes(p.role) || MGR_ROLES.includes(p.role)) && !have.includes(p.name)).map(p => p.name).sort();
   const late = list.filter(x => days(x.date) != null && days(x.date) < 0).length;
-  const small = 'min-height:36px;padding:4px 10px;font-size:14px';
+  const need = list.filter(x => !x.arranged && days(x.date) != null && days(x.date) <= 45).length;
+  const card = x => {
+    const editing = S.libEdit === x.name;
+    const n = days(x.date);
+    const cls = x.arranged ? 'arr' : n != null && n <= 45 ? 'need' : '';
+    let next;
+    if (x.arranged && !editing) {
+      const due = x.arranged <= S.today;
+      next = `<div class="larr"><span>Next LIB test</span><b>${esc(fullDate(x.arranged))}${esc(hhmmTxt(x.time))}</b>${due ? '<em>Mark Attended once done</em>' : ''}</div>
+        <div class="lbtns"><button class="btn go" data-lat="${esc(x.name)}">Attended</button><button class="btn ghost" data-lre="${esc(x.name)}">Reschedule</button></div>`;
+    } else {
+      next = `<div class="lpick"><label><span>Next LIB test date</span><input type="date" min="${S.today}" data-ld="${esc(x.name)}" value="${esc(editing ? x.arranged : '')}"></label>
+          <label><span>Time (24hrs)</span><input type="text" inputmode="numeric" maxlength="4" placeholder="0900" data-lt="${esc(x.name)}" value="${esc(editing ? x.time : '')}"></label></div>
+        <div class="lbtns"><button class="btn" data-larr="${esc(x.name)}">Arrange</button><button class="btn ghost" data-lclr="${esc(x.name)}">${editing ? 'Back' : 'Clear'}</button></div>
+        ${editing ? `<button class="linkbtn" data-lcancel="${esc(x.name)}" style="margin-top:6px">Cancel this LIB test</button>` : ''}`;
+    }
+    return `<div class="libc ${cls}"><div class="lh"><b>${esc(x.label)}</b>${pill(x)}${!x.arranged && n != null && n <= 45 ? '<span class="pill Rejected">Not arranged</span>' : ''}</div>
+      <div class="small muted">Expires ${x.date ? esc(fullDate(x.date)) : '-'}${x.date ? ' &middot; last test ' + esc(fullDate(addMonths(x.date, -LIB_MONTHS))) : ''}</div>
+      <div class="lnext">${next}</div>
+      <div class="lmore"><button class="linkbtn" data-lfix="${esc(x.name)}">Correct last test date</button><button class="linkbtn" data-librm="${x.row}" data-libname="${esc(x.name)}">Remove from list</button></div></div>`;
+  };
   A().innerHTML = `
-    <p class="small muted">Enter the date each person <b>took the LIB test</b>. The expiry is set to six months later and saved in the <b>Database</b> tab (column H), which the LIB EXPIRY list on every weekly tab reads.</p>
-    ${late ? `<div class="note red">${late} LIB${late === 1 ? ' has' : 's have'} expired.</div>` : ''}
-    <div class="scroll"><table class="t"><tr><th>Name and expiry</th><th>LIB test taken</th></tr>
-      ${list.map(x => `<tr><td><b>${esc(x.label)}</b>
-          <div class="small" style="margin-top:4px;white-space:nowrap">Expires ${x.date ? nice(x.date) + ' ' + pd(x.date).getFullYear() : '-'}</div>
-          <div style="margin-top:4px">${pill(x.date)}</div></td>
-        <td><input type="date" value="${x.date ? addMonths(x.date, -LIB_MONTHS) : ''}" max="${S.today}" data-libd="${esc(x.name)}" style="min-height:38px;padding:6px 8px;max-width:160px">
-          <div class="small muted" data-libx="${esc(x.name)}" style="margin-top:4px"></div>
-          <div style="margin-top:6px;display:flex;gap:6px"><button class="btn" style="${small}" data-libsave="${esc(x.name)}">Save</button>
-          <button class="btn ghost" style="${small}" data-librm="${x.row}" data-libname="${esc(x.name)}">Remove</button></div></td></tr>`).join('')}</table></div>
+    <p class="small muted">LIB is valid for six months from the test date. Arrange the next test, then mark it <b>Attended</b>: the new expiry is saved in the <b>Database</b> tab (column H), which the LIB EXPIRY list on every weekly tab reads.</p>
+    ${late ? `<div class="note red">${late} LIB${late === 1 ? ' has' : 's have'} expired.</div>` : ''}${need ? `<div class="note yellow">${need} need${need === 1 ? 's' : ''} a LIB test arranged (expired or expiring within 45 days).</div>` : ''}
+    ${list.map(card).join('')}
     <div class="sec" style="margin-top:16px"><h3 style="margin-top:0">Add someone to the LIB list</h3>
       ${missing.length ? `<label class="f"><span>Name</span><select id="l-n"><option value="">Choose a name</option>${missing.map(n => `<option>${esc(n)}</option>`).join('')}</select></label>
-      <label class="f"><span>Date they took the LIB test</span><input type="date" id="l-d" max="${S.today}"></label>
+      <label class="f"><span>Date they last took the LIB test</span><input type="date" id="l-d" max="${S.today}"></label>
       <p class="small muted" id="l-x" style="margin-top:-8px"></p>
       <button class="btn" id="l-go">Add to LIB list</button>` : '<p class="muted">Every APO and manager is already on the list.</p>'}</div>`;
-  // live preview of the new expiry as the test date changes
-  A().querySelectorAll('[data-libd]').forEach(inp => inp.oninput = () => {
-    const out = A().querySelector(`[data-libx="${inp.dataset.libd}"]`);
-    out.textContent = inp.value ? 'New expiry: ' + nice(addMonths(inp.value, LIB_MONTHS)) + ' ' + addMonths(inp.value, LIB_MONTHS).slice(0, 4) : '';
+  const okT = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
+  const run = async (fn, btn, msg) => { if (btn) busy(btn, true); try { const r = await fn(); S.libEdit = ''; drawLib(r.list || r); if (r.warn) toast(r.warn, true); else if (msg) toast(msg); } catch(x){ fail(x); if (btn) busy(btn, false); } };
+  const find = n => list.find(x => x.name === n);
+  A().querySelectorAll('[data-lt]').forEach(inp => inp.oninput = () => { inp.value = inp.value.replace(/[^0-9]/g, '').slice(0, 4); inp.classList.toggle('bad', inp.value.length === 4 && !okT(inp.value)); });
+  A().querySelectorAll('[data-larr]').forEach(b => b.onclick = async () => {
+    const n = b.dataset.larr, d = A().querySelector(`[data-ld="${n}"]`).value, t = A().querySelector(`[data-lt="${n}"]`).value;
+    if (!d) return toast('Pick the date of the LIB test.', true);
+    if (d < S.today) return toast('Pick today or a later date.', true);
+    if (!okT(t)) return toast('Key in the time as 24hrs, e.g. 0900.', true);
+    const x = find(n);
+    const ok = await askBox(x.arranged ? 'Reschedule LIB test?' : 'Arrange LIB test?',
+      `<b style="font-size:17px">${esc(x.label)}</b><br>${esc(fullDate(d))}, ${esc(t)}hrs${x.arranged ? `<br><span class="muted">Was ${esc(fullDate(x.arranged))}${esc(hhmmTxt(x.time))}</span>` : ''}`);
+    if (ok) run(() => call('adminArrangeLib', S.token, n, d, t), b, 'LIB test arranged: ' + x.label + ', ' + nice(d) + ' ' + t + 'hrs');
   });
-  if ($('#l-d')) $('#l-d').oninput = () => { const v = $('#l-d').value; $('#l-x').textContent = v ? 'Expires ' + nice(addMonths(v, LIB_MONTHS)) + ' ' + addMonths(v, LIB_MONTHS).slice(0, 4) : ''; };
-  const save = async (name, testDate, btn) => {
-    busy(btn, true);
-    try { drawLib(await call('adminSetLib', S.token, { name, testDate })); toast('LIB saved for ' + name + '. Expires ' + nice(addMonths(testDate, LIB_MONTHS)) + ' ' + addMonths(testDate, LIB_MONTHS).slice(0, 4)); }
-    catch(x){ fail(x); busy(btn, false); }
-  };
-  A().querySelectorAll('[data-libsave]').forEach(b => b.onclick = () => save(b.dataset.libsave, A().querySelector(`[data-libd="${b.dataset.libsave}"]`).value, b));
+  A().querySelectorAll('[data-lclr]').forEach(b => b.onclick = () => {
+    if (S.libEdit === b.dataset.lclr) { S.libEdit = ''; drawLib(list); return; }
+    A().querySelector(`[data-ld="${b.dataset.lclr}"]`).value = ''; A().querySelector(`[data-lt="${b.dataset.lclr}"]`).value = '';
+  });
+  A().querySelectorAll('[data-lre]').forEach(b => b.onclick = () => { S.libEdit = b.dataset.lre; drawLib(list); });
+  A().querySelectorAll('[data-lcancel]').forEach(b => b.onclick = async () => {
+    const x = find(b.dataset.lcancel);
+    const ok = await askBox('Cancel this LIB test?', `<b style="font-size:17px">${esc(x.label)}</b><br>${esc(fullDate(x.arranged))}${esc(hhmmTxt(x.time))}<br><span class="muted">The name is taken out of that day in the weekly tab.</span>`, 'Yes, cancel it');
+    if (ok) run(() => call('adminArrangeLib', S.token, x.name, '', ''), b, 'LIB test cancelled for ' + x.label);
+  });
+  A().querySelectorAll('[data-lat]').forEach(b => b.onclick = async () => {
+    const x = find(b.dataset.lat);
+    if (x.arranged > S.today) return toast('The test is on ' + nice(x.arranged) + '. Mark it Attended on or after that day.', true);
+    const ok = await askBox('Confirm LIB test attended?', `<b style="font-size:17px">${esc(x.label)}</b><br>${esc(fullDate(x.arranged))}${esc(hhmmTxt(x.time))}<br>New LIB expiry: <b>${esc(fullDate(addMonths(x.arranged, LIB_MONTHS)))}</b>`);
+    if (ok) run(() => call('adminLibAttended', S.token, x.name), b, 'Attended. ' + x.label + "'s LIB now expires " + fullDate(addMonths(x.arranged, LIB_MONTHS)));
+  });
+  A().querySelectorAll('[data-lfix]').forEach(b => b.onclick = async () => {
+    const x = find(b.dataset.lfix);
+    const d = await askBox('Correct last LIB test date', `<b>${esc(x.label)}</b><label class="f" style="margin-top:10px"><span>Date they took the LIB test</span><input type="date" id="fx-d" max="${S.today}" value="${x.date ? addMonths(x.date, -LIB_MONTHS) : ''}"></label>`, 'Save',
+      bg => { const v = $('#fx-d', bg).value; if (!v) throw 'Pick the date.'; return v; });
+    if (d) run(() => call('adminSetLib', S.token, { name: x.name, testDate: d }), null, 'Saved. Expires ' + fullDate(addMonths(d, LIB_MONTHS)));
+  });
   A().querySelectorAll('[data-librm]').forEach(b => b.onclick = async () => {
     if (!confirm('Remove ' + b.dataset.libname + ' from the LIB list?')) return;
-    busy(b, true);
-    try { drawLib(await call('adminRemoveLib', S.token, b.dataset.librm, b.dataset.libname)); toast('Removed'); } catch(x){ fail(x); busy(b, false); }
+    run(() => call('adminRemoveLib', S.token, b.dataset.librm, b.dataset.libname), b, 'Removed');
   });
+  if ($('#l-d')) $('#l-d').oninput = () => { const v = $('#l-d').value; $('#l-x').textContent = v ? 'Expires ' + fullDate(addMonths(v, LIB_MONTHS)) : ''; };
   if ($('#l-go')) $('#l-go').onclick = e => {
     if (!$('#l-n').value) return toast('Choose a name.', true);
-    save($('#l-n').value, $('#l-d').value, e.target);
+    if (!$('#l-d').value) return toast('Pick the date they last took the LIB test.', true);
+    run(() => call('adminSetLib', S.token, { name: $('#l-n').value, testDate: $('#l-d').value }), e.target, 'Added to the LIB list');
   };
 }
 
@@ -2909,8 +2977,10 @@ const MOCK = (() => {
       f.date = addMonths(f.testDate, LIB_MONTHS);
       let x = libList.find(y => y.name === f.name);
       if (!x) { x = { row: libList.length + 2, label: f.name, name: f.name, date:'' }; libList.push(x); }
-      x.date = f.date; SNAP.lib[f.name] = f.date; return libList.filter(y => y.label);
+      x.date = f.date; SNAP.lib[f.name] = f.date; if (x.arranged && x.arranged <= today) x.arranged = ''; return libList.filter(y => y.label);
     },
+    adminArrangeLib: (t, name, date, time) => { const x = libList.find(y => y.name === name); if (x) { x.arranged = date; x.time = date ? time : ''; } return { list: libList.filter(y => y.label), warn: '' }; },
+    adminLibAttended: (t, name) => { const x = libList.find(y => y.name === name); x.date = addMonths(x.arranged, LIB_MONTHS); SNAP.lib[name] = x.date; x.arranged = ''; x.time = ''; return libList.filter(y => y.label); },
     adminRemoveLib: (t, row, name) => { const i = libList.findIndex(y => y.name === name); if (i >= 0) libList.splice(i, 1); delete SNAP.lib[name]; return libList; },
     adminVoidOil: (t, id) => { oil.splice(oil.findIndex(o => o.id === id), 1); return true; },
     adminScanOil: () => [],
