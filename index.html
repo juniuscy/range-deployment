@@ -1312,21 +1312,23 @@ const REPORTS = [
   { id:'am-plan', win:['07:00','08:30'], title:'Deployment Plan (today)', grp:'RSO & RCO grp' },
   { id:'am-att',  win:['07:00','08:30'], title:'Attendance (today)', grp:'MMRC Daily Attendance grp' },
   { id:'am-med',  win:['07:00','08:30'], title:'Medical Support Readiness', grp:'Certis Management Team grp' },
-  { id:'dm-start', win:['07:00','08:30'], title:'DM Report Start Range', grp:'', dm:true },
+  { id:'dm-start', win:['07:00','08:30'], title:'DM Report Start Range', grp:'MMRC Mgt Group', dm:true },
   { id:'pm-plan', win:['17:00','17:30'], title:'Next day Deployment Plan', grp:'OPS SP Ammo Team' },
   { id:'pm-good', win:['17:00','23:59'], label:'Good Day', title:'Medical Support Standdown', grp:'OPS SP - Medical grp' },
-  { id:'dm-end', win:['17:00','23:59'], label:'Good Day', title:'DM Report End Range', grp:'', dm:true }
+  { id:'dm-end', win:['17:00','23:59'], label:'Good Day', title:'DM Report End Range', grp:'MMRC Mgt Group', dm:true },
+  { id:'wk-cert', win:['17:00','23:59'], label:'Good Day', title:'Prepare Weekly Ammo Cert 4 x SEAL', grp:'', task:true, weekly:true }
 ];
 /* DM reports: only for today's Duty Manager. The last check of each has a time (24hrs). */
 const DM_CHECKS = {
   'dm-start': ['Medical Support', 'Ammo status', 'Range Deployment', 'Range systems & Infrastructure', 'In Pro completed at'],
   'dm-end': ['All range completed', 'All ammo accounted', 'All troops out pro without issues', 'All Units left MMRC at']
 };
-const repShown = r => r.dm ? isMeDm((S.dm || {})[S.today]) : canManage();
+const repShown = (r, st) => r.dm ? isMeDm((S.dm || {})[S.today]) : r.weekly ? canManage() && !!(st && st.certDay) : canManage();
 const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
 function repStatus(r, st){
   const sent = st && st.date === S.today ? st.sent[r.id] : null;
-  if (sent) return { cls:'sent', line:'Sent at ' + sent.at + ' by ' + sent.by };
+  if (sent) return { cls:'sent', line:(r.task ? 'Done at ' : 'Sent at ') + sent.at + ' by ' + sent.by };
+  if (r.weekly) return { cls:'now', line:'Last range day of the week. Tap Done once prepared.' };
   const now = hhmm();
   if (r.win[1] === '23:59') return { cls:'now', line:'Not sent yet. Send after ' + hrs(r.win[0]) };   // no deadline
   if (now < r.win[0]) return { cls:'now', line:'Not sent yet. Send from ' + hrs(r.win[0]) + ' to ' + hrs(r.win[1]) };
@@ -1336,13 +1338,13 @@ function repStatus(r, st){
 function repCard(st){
   if (!st) return '';
   const groups = [];
-  REPORTS.filter(repShown).forEach(r => { const k = r.win[0] + '|' + r.win[1] + '|' + (r.label || ''); let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, win:r.win, label:r.label, list:[] }); g.list.push(r); });
+  REPORTS.filter(r => repShown(r, st)).forEach(r => { const k = r.win[0] + '|' + r.win[1] + '|' + (r.label || ''); let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, win:r.win, label:r.label, list:[] }); g.list.push(r); });
   return `<div class="insp rep" id="rep"><h3>Timeline Reporting</h3>${groups.map(g => `
     <h4>${g.label ? esc(g.label) : g.win[1] > addMin(g.win[0], 30) ? hrs(g.win[0]) + ' to ' + hrs(g.win[1]) : hrs(g.win[0])}</h4>
     ${g.list.map((r, i) => { const x = repStatus(r, st); return `<div class="irow ${x.cls}">
-      <div class="it2"><b>${i + 1}. ${esc(r.title)}</b>${r.grp ? `<span class="grp">To ${esc(r.grp)}</span>` : r.dm ? '<span class="grp">Duty Manager report</span>' : ''}<span>${esc(x.line)}</span></div>
-      ${x.cls === 'sent' ? `<button class="btn ghost ib" data-rundo="${r.id}">Undo</button>` : `<button class="btn ib" data-rprep="${r.id}">Prepare</button>`}</div>`; }).join('')}`).join('')}
-    <p class="small muted" style="margin:8px 0 0">Yellow: not sent yet. Green: sent. Red: past the time and not sent. ${canManage() ? 'Either manager can send; once sent, it shows as sent for everyone.' : ''}${REPORTS.some(r => r.dm && repShown(r)) ? ' DM reports show on your Duty Manager days.' : ''}</p></div>`;
+      <div class="it2"><b>${i + 1}. ${esc(r.title)}</b>${r.grp ? `<span class="grp">To ${esc(r.grp)}${r.dm ? ' &middot; Duty Manager report' : ''}</span>` : r.task ? '<span class="grp">Weekly task, no message to send</span>' : ''}<span>${esc(x.line)}</span></div>
+      ${x.cls === 'sent' ? `<button class="btn ghost ib" data-rundo="${r.id}">Undo</button>` : r.task ? `<button class="btn ib" data-rdone="${r.id}">Done</button>` : `<button class="btn ib" data-rprep="${r.id}">Prepare</button>`}</div>`; }).join('')}`).join('')}
+    <p class="small muted" style="margin:8px 0 0">Yellow: not sent yet. Green: sent. Red: past the time and not sent. ${canManage() ? 'Either manager can send; once sent, it shows as sent for everyone.' : ''}${REPORTS.some(r => r.dm && repShown(r, st)) ? ' DM reports show on your Duty Manager days.' : ''}</p></div>`;
 }
 function addMin(hm, n){ const p = hm.split(':').map(Number), t = p[0] * 60 + p[1] + n; return String(Math.floor(t / 60)).padStart(2,'0') + ':' + String(t % 60).padStart(2,'0'); }
 async function repDay(date){
@@ -1376,7 +1378,7 @@ function openDmReport(r, st, redraw){
   bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
     <h3>${esc(r.title)}</h3>
-    <div class="src">Tick each check once done. Ticks are saved as you go, so you can close this and come back.</div>
+    <div class="src">Send to: <b>${esc(r.grp)}</b>. Tick each check once done. Ticks are saved as you go, so you can close this and come back.</div>
     <div class="dmchk">${L.map((x, i) => { const last = i === L.length - 1;
       return `<label class="dmc${chk.c[i] ? ' on' : ''}" data-i="${i}"><input type="checkbox" ${chk.c[i] ? 'checked' : ''} data-ci="${i}"><span>${i + 1}) ${esc(x)}${last ? ` <input type="text" id="dm-time" inputmode="numeric" maxlength="4" placeholder="0815" value="${esc(chk.t)}" aria-label="Time, 24hrs"> hrs` : ''}</span></label>`; }).join('')}</div>
     <div class="small muted" id="dm-sv" style="margin:4px 0 8px">${saved ? 'Last saved ' + esc(saved.at) + ' by ' + esc(saved.by) : 'Not saved yet'}</div>
@@ -1474,8 +1476,15 @@ function wireRep(st){
     try { await repPrepare(r, st, redraw); } catch(e){ fail(e); }
     busy(b, false);
   });
+  box.querySelectorAll('[data-rdone]').forEach(b => b.onclick = async () => {
+    const r = REPORTS.find(x => x.id === b.dataset.rdone);
+    if (!confirm('Confirmed done prepared?')) return;
+    busy(b, true);
+    try { redraw(await call('reportSent', S.token, r.id, false)); toast(r.title + ': done'); } catch(e){ fail(e); busy(b, false); }
+  });
   box.querySelectorAll('[data-rundo]').forEach(b => b.onclick = async () => {
-    if (!confirm('Mark this report as not sent?')) return;
+    const r = REPORTS.find(x => x.id === b.dataset.rundo);
+    if (!confirm(r && r.task ? 'Mark this as not done?' : 'Mark this report as not sent?')) return;
     busy(b, true);
     try { redraw(await call('reportSent', S.token, b.dataset.rundo, true)); } catch(e){ fail(e); busy(b, false); }
   });
@@ -3175,7 +3184,7 @@ const MOCK = (() => {
       rows: mrows.filter(r => names.includes(r.name) && keys[r.t + '|' + r.period]) };
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
-  const mRep = { date: today, sent: {}, dmchk: {} };
+  const mRep = { date: today, sent: {}, dmchk: {}, certDay: /certday/.test(location.search) || (w => { const ds = (w && w.days || []).filter(x => (x.ranges || []).some(r => r.active)).map(x => x.date); return ds.length > 0 && ds[ds.length - 1] === today; })(SNAP.weeks[mondayOf(today)]) };
   const mSup = {};
   const mInc = { templates: [{ name: 'Negligent Discharge (ND)', text: ['{Greeting} Sirs, MMRC would like to report a Negligent Discharge Incident.', '', 'Details of the incident are as follows:', '', '1) When:', '{Date}, at about {Time}hrs', '', '2) Where:', 'MMRC {Range}', '', '3) Who:', '{Rank Name} ({Masked NRIC}) from {Unit}', '', '4) What:', 'At about {Time}hrs, during {TF}, Stage {Stage} Practice {Practice}, {Rank Name} negligently discharged 1x 5.56mm live round to the ground after contacting the target.', '', 'MMRC FPSO activated the E-whistle and informed the CSO to stop the range immediately. MMRC RSO called for a safety pause to determine if ND occurred.', '', 'From the range camera footage, it was ascertained that the ND occurred when the firer discharged an unaimed shot to the ground while he was lowering his weapon.', '', 'MMRC will conduct a debrief to all firers on observing weapon safety and weapon handling before proceeding the live firing.', '', 'The verbal report to TRMC Ops room was made at {Verbal report time}hrs.'].join('\n') }], log: [] };
   const mIncOut = () => JSON.parse(JSON.stringify(Object.assign({ today, dm: mDm[today] || '' }, mInc)));
