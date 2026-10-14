@@ -5,6 +5,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Deployment">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest?v=3">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=3">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3">
@@ -175,6 +176,11 @@ textarea{min-height:80px;resize:vertical}
 .subrows{display:grid;gap:6px;margin:0 0 14px}.subrow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .subrow .chip{margin:0;min-width:0;padding:8px 4px;text-align:center;font-size:14px;line-height:1.15;white-space:normal}
 .dmrow td{cursor:pointer}
+.inst{display:flex;gap:10px;align-items:flex-start;background:#EFF6FF;border:1px solid #93C5FD;border-radius:var(--r-md);padding:10px 12px;margin:0 0 14px;text-align:left}
+.inst .ii{font-size:26px;line-height:1}.inst .it{display:block;font-size:15px}.inst p,.inst ol{margin:4px 0 6px;font-size:14px}.inst ol{padding-left:18px}.inst li{margin:2px 0}
+.shr{display:inline-block;width:14px;height:16px;vertical-align:-2px;border:2px solid #2563EB;border-top:0;border-radius:0 0 3px 3px;position:relative;margin:0 2px}
+.shr::before{content:'';position:absolute;left:50%;top:-7px;width:2px;height:12px;background:#2563EB;transform:translateX(-50%)}
+.shr::after{content:'';position:absolute;left:50%;top:-8px;width:6px;height:6px;border-left:2px solid #2563EB;border-top:2px solid #2563EB;transform:translateX(-50%) rotate(45deg)}
 .sheet.gcs{max-height:90vh;overflow:auto}
 .gcr{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;background:var(--card)}
 .gcr input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:#16A34A}.gcr small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
@@ -578,13 +584,47 @@ async function boot(){
   }
 }
 
+/* ---------- "Install this app" helper (only on the GitHub page, not once installed) ---------- */
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => {            // Android / Chrome: offer a real Install button
+  e.preventDefault(); deferredInstall = e;
+  const box = $('#inst-slot'); if (box) { box.innerHTML = installBanner(); wireInstall(); }
+});
+function installBanner(){
+  if (!(API_URL || /installtest/.test(location.search)) || isStandalone()) return '';
+  try { const t = +localStorage.getItem('rdp_noinst') || 0; if (Date.now() - t < 14 * 864e5) return ''; } catch(e) {}
+  const ua = navigator.userAgent;
+  if (isIOS()) {
+    const safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA|FBAN|FBAV|Instagram|Line\//.test(ua);
+    return `<div class="inst" id="inst"><div class="ii">&#128242;</div><div><b class="it">Install this app on your iPhone</b>
+      ${safari ? `<ol><li>Tap the <b>Share</b> button <span class="shr" aria-hidden="true"></span> at the bottom of Safari</li><li>Scroll down, tap <b>Add to Home Screen</b>, then <b>Add</b></li><li>Open it from the new icon on your Home Screen</li></ol>`
+        : `<p>Open this page in <b>Safari</b> first: tap the <b>&#8943;</b> or compass button and choose <b>Open in Safari</b>. Then Share, <b>Add to Home Screen</b>.</p>`}
+      <button class="linkbtn" id="inst-x">Not now</button></div></div>`;
+  }
+  if (deferredInstall) return `<div class="inst" id="inst"><div class="ii">&#128242;</div><div><b class="it">Install this app</b><p>Put it on your home screen and open it like any other app.</p>
+      <div style="display:flex;gap:8px;align-items:center"><button class="btn go" id="inst-go" style="min-height:40px">Install</button><button class="linkbtn" id="inst-x">Not now</button></div></div></div>`;
+  return '';
+}
+function wireInstall(){
+  if ($('#inst-x')) $('#inst-x').onclick = () => { try { localStorage.setItem('rdp_noinst', String(Date.now())); } catch(e) {} const b = $('#inst'); if (b) b.remove(); };
+  if ($('#inst-go')) $('#inst-go').onclick = async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    try { await deferredInstall.userChoice; } catch(e) {}
+    deferredInstall = null; const b = $('#inst'); if (b) b.remove();
+  };
+}
 function renderLogin(){
+  setTimeout(wireInstall, 0);
   let last = '';
   try { last = localStorage.getItem('rdp_name') || ''; } catch(e) {}
   $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview using a snapshot of your workbook (Aug 2026 to Mar 2027). Nothing here is saved.</div>') + `
   <main class="login">
     <h1>Range Deployment Portal</h1>
     <p class="muted">Ammo officers and medics: see your postings, check your off days, and apply for leave.</p>
+    <div id="inst-slot">${installBanner()}</div>
     <div class="sec">
       <label class="f"><span>Your name</span>
         <input id="lg-name" type="text" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="As on the roster, e.g. LEONARD" value="${esc(last)}"></label>
@@ -722,7 +762,7 @@ function drawHome(h, stale){
     } else if (arrL) lib = `<div class="note blue">${arrL.trim()}</div>`;
     const dmToday = (h.dmMap || {})[S.today] || (S.dm || {})[S.today] || '';
     const dmMine = isMeDm(dmToday);
-    V().innerHTML = `
+    V().innerHTML = `<div id="inst-slot">${stale ? '' : installBanner()}</div>
       <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="small muted" style="font:500 14px var(--body)">updating...</span>' : ''}</h2>
         <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div><div class="hiright">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div></div>
       ${h.attendance ? clockNotes(h.attendance) : ''}
@@ -743,6 +783,7 @@ function drawHome(h, stale){
         <button class="chip" data-m="month" aria-pressed="${S.hmode === 'month'}">Full schedule by month</button></div>
       <div id="sched"></div>`;
     S.next14 = h.upcoming;
+    wireInstall();
     wireClock();
     if (h.inspections) wireInsp(h.inspections);
     if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
@@ -772,6 +813,7 @@ const resWord = r => ({ PASSED:'Passed', FAILED:'Failed', ABSENT:'Absent', DONE:
 const sdt = s => pd(s).getDate() + ' ' + MON[pd(s).getMonth()];
 /* State of one APO's training for the current period */
 function trnCell(d, person, per){
+  if ((person.ex || []).includes(per.k)) return { st:'na', ex:true };
   if (per.minAge && person.age != null && person.age < per.minAge) return { st:'na' };
   const rs = d.rows.filter(r => r.name === person.name && r.t === per.t && r.period === per.id);
   const done = rs.find(r => r.result === 'PASSED' || r.result === 'DONE');
@@ -872,7 +914,8 @@ function trnEditor(d, person, c){
   const needNote = per.needs ? (c.st === 'locked' ? `<div class="note red">${esc(person.name)} must pass TS first. TEST TS can be arranged once TS is passed.</div>`
     : `<div class="note" style="border-color:#22C55E;background:#DCFCE7">TS passed, so TEST TS can be arranged.</div>`) : '';
   let body = '';
-  if (c.st === 'na') body = `<div class="note blue">MA Checkup is only needed from age ${per.minAge}. ${esc(person.name)} is ${person.age}.</div>`;
+  if (c.st === 'na') body = c.ex ? `<div class="note blue">${esc(person.name)} does not need ${esc(per.label)}. Change this in Admin &rarr; Staff &rarr; Edit.</div>`
+    : `<div class="note blue">MA Checkup is only needed from age ${per.minAge}. ${esc(person.name)} is ${person.age}.</div>`;
   else if (c.st === 'locked') body = '';
   else if (c.st === 'done') body = `<div class="note" style="border-color:#22C55E;background:#DCFCE7"><b>${esc(resWord(c.row.result))}</b> on ${esc(nice(c.date))}</div>
     <label class="f"><span>Change the result (if it was entered wrongly)</span></label>
@@ -919,7 +962,7 @@ function myTrnText(c){
     case 'done': return resWord(c.row.result) + ' ' + nice(c.date);
     case 'arr': return 'Arranged: <b>' + esc(nice(c.date) + trnT(c)) + '</b>';
     case 'fail': return esc(resWord(c.result)) + ' ' + esc(nice(c.date)) + '. Your manager will rebook';
-    case 'na': return 'Not needed (under ' + c.per.minAge + ')';
+    case 'na': return c.ex ? 'Not needed' : 'Not needed (under ' + c.per.minAge + ')';
     case 'locked': return 'After TS';
     case 'soon2': return 'Opens 1 Jul';
     case 'missed': return 'Missed';
@@ -2928,6 +2971,17 @@ function byRole(list){
   const r = p => { const i = ROLE_RANK.indexOf(p.role); return i < 0 ? ROLE_RANK.length : i; };
   return (list || []).slice().sort((a, b) => (r(a) - r(b)) || ((b.name === 'JAMES LAI') - (a.name === 'JAMES LAI')) || a.name.localeCompare(b.name));
 }
+/* APO only: ticks for not needing MA Checkup / IPPT (shown only while the role is APO) */
+function exBox(px, p){
+  const ck = (id, on, txt) => `<label style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="checkbox" id="${px}-${id}" ${on ? 'checked' : ''} style="width:20px;height:20px"><span>${txt}</span></label>`;
+  return `<div id="${px}-ex" class="note blue" style="padding:10px 12px 4px;margin-bottom:12px"><div class="small" style="margin-bottom:6px"><b>APO training</b></div>
+    ${ck('xma', p.noMa, 'Does not need MA Checkup')}${ck('xip', p.noIppt, 'Does not need IPPT')}</div>`;
+}
+function exWire(px, root){
+  const sel = $('#' + px + '-r', root), box = $('#' + px + '-ex', root);
+  const sync = () => { const apo = sel.value === 'APO'; box.style.display = apo ? '' : 'none'; if (!apo) box.querySelectorAll('input').forEach(i => { i.checked = false; }); };
+  sel.addEventListener('change', sync); sync();
+}
 function drawStaff(list){
   list = byRole(list);
   A().innerHTML = `
@@ -2942,11 +2996,12 @@ function drawStaff(list){
       <label class="f"><span>Last day of work (optional)</span><input type="date" id="n-ld" style="max-width:200px"></label>
       <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="n-np" style="width:20px;height:20px">
         <span>Not able to go PLAD</span></label>
+      ${exBox('n', {})}
       <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="n-db" checked style="width:20px;height:20px">
         <span>Also add to the Database tab so the sheet dropdowns list them</span></label>
       <button class="btn" id="n-go">Add staff</button></div>
     <div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th>Short names</th><th>PIN</th><th></th></tr>
-      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}${p.sid ? `<div class="small muted">ID ${esc(p.sid)}</div>` : ''}${p.lastDay ? `<div class="small" style="color:${p.lastDay < S.today ? 'var(--flag)' : '#B45309'}">${p.lastDay < S.today ? 'Left' : 'Last day'} ${esc(nice(p.lastDay))} ${pd(p.lastDay).getFullYear()}</div>` : ''}${!p.birthday && p.role !== 'Admin' ? '<div class="small" style="color:var(--flag)">No birthday yet</div>' : ''}</td><td>${esc(p.role)}</td>
+      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}${p.sid ? `<div class="small muted">ID ${esc(p.sid)}</div>` : ''}${p.lastDay ? `<div class="small" style="color:${p.lastDay < S.today ? 'var(--flag)' : '#B45309'}">${p.lastDay < S.today ? 'Left' : 'Last day'} ${esc(nice(p.lastDay))} ${pd(p.lastDay).getFullYear()}</div>` : ''}${!p.birthday && p.role !== 'Admin' ? '<div class="small" style="color:var(--flag)">No birthday yet</div>' : ''}${p.role === 'APO' && (p.noMa || p.noIppt) ? `<div class="small muted">No ${[p.noMa ? 'MA' : '', p.noIppt ? 'IPPT' : ''].filter(Boolean).join(' / ')}</div>` : ''}</td><td>${esc(p.role)}</td>
         <td>${esc(p.aliases)}</td><td>${pinPill(p)}</td>
         <td style="white-space:nowrap"><button class="btn ghost" style="min-height:34px;padding:4px 10px" data-ed="${esc(p.name)}">Edit</button>
           <button class="btn ${p.active ? 'no' : 'ghost'}" style="min-height:34px;padding:4px 10px" data-act="${esc(p.name)}">${p.active ? 'Remove' : 'Restore'}</button></td></tr>`).join('')}</table></div>
@@ -2955,10 +3010,11 @@ function drawStaff(list){
     busy(e.target, true);
     try {
       const pin = $('#n-p').value.trim();
-      const r = await call('adminSaveStaff', S.token, { isNew:true, name:$('#n-n').value, role:$('#n-r').value, aliases:$('#n-a').value, email:$('#n-e').value, addToDb:$('#n-db').checked, pin, birthday:$('#n-b').value, sid:$('#n-id').value, noPlad:$('#n-np').checked, lastDay:$('#n-ld').value });
+      const r = await call('adminSaveStaff', S.token, { isNew:true, name:$('#n-n').value, role:$('#n-r').value, aliases:$('#n-a').value, email:$('#n-e').value, addToDb:$('#n-db').checked, pin, birthday:$('#n-b').value, sid:$('#n-id').value, noPlad:$('#n-np').checked, lastDay:$('#n-ld').value, noMa:$('#n-xma').checked, noIppt:$('#n-xip').checked });
       setStaff(r.staff); toast(pin ? 'Staff added. Give them their first PIN; they will choose their own when they sign in.' : 'Staff added. Set a first PIN for them with Edit.'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
+  exWire('n', A());
   A().querySelectorAll('[data-ed]').forEach(b => b.onclick = () => editStaff(list.find(p => p.name === b.dataset.ed)));
   A().querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
     const p = list.find(x => x.name === b.dataset.act);
@@ -2991,6 +3047,7 @@ function editStaff(p){
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-act" ${p.active?'checked':''} style="width:20px;height:20px"><span>Active (unticked hides them from sign-in and lists)</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-att" ${p.att !== false ? 'checked' : ''} style="width:20px;height:20px"><span>Counted in daily attendance</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-noplad" ${p.noPlad ? 'checked' : ''} style="width:20px;height:20px"><span>Not able to go PLAD</span></label>
+    ${exBox('s', p)}
     ${p.locked ? `<div class="note red" style="display:flex;align-items:center;gap:10px;justify-content:space-between">Locked after 5 wrong PINs.<button class="btn" id="s-unl" style="min-height:38px">Unlock</button></div>` : ''}
     <label class="f"><span>${p.hasPin ? 'Give a new PIN (if they forgot theirs)' : 'Give a first PIN'}</span>
       <span style="display:flex;gap:8px"><input type="text" id="s-np" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits" style="min-width:0">
@@ -2999,6 +3056,7 @@ function editStaff(p){
     <div class="acts"><button class="btn ghost" id="s-x">Cancel</button><button class="btn" id="s-ok">Save</button></div></div>`;
   document.body.appendChild(bg);
   const close = () => bg.remove();
+  exWire('s', bg);
   $('#s-x', bg).onclick = close;
   bg.onclick = e => { if (e.target === bg) close(); };
   $('#s-pin', bg).onclick = async e => {
@@ -3014,7 +3072,7 @@ function editStaff(p){
   $('#s-ok', bg).onclick = async e => {
     busy(e.target, true);
     try {
-      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value });
+      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value, noMa:$('#s-xma', bg).checked, noIppt:$('#s-xip', bg).checked });
       setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -3113,7 +3171,7 @@ const MOCK = (() => {
     const periods = TDF.map(d => Object.assign({ k:d.k, t:d.t, label:d.label, needs:d.needs || '', minAge:d.minAge || 0, doneWord:d.doneWord || 'PASSED' }, mPer(d, today)));
     const keys = {}; periods.forEach(p => { keys[p.t + '|' + p.id] = 1; });
     const names = mine.map(p => p.name);
-    return { today, canEdit: canManage(), periods, people: mine.map(p => ({ name:p.name, sid:MID[p.name] || '', age:mAge(MB[p.name]) })),
+    return { today, canEdit: canManage(), periods, people: mine.map(p => ({ name:p.name, sid:MID[p.name] || '', age:mAge(MB[p.name]), ex:(x => x && x.role === 'APO' ? [x.noMa ? 'MA' : '', x.noIppt ? 'IPPT' : ''].filter(Boolean) : [])(staffList.find(y => y.name === p.name)) })),
       rows: mrows.filter(r => names.includes(r.name) && keys[r.t + '|' + r.period]) };
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
@@ -3282,8 +3340,8 @@ const MOCK = (() => {
     adminSaveStaff: (t, f) => {
       const name = String(f.name||'').trim().toUpperCase(); if (!name) throw new Error('Enter one name, without / or & or commas.');
       let p = staffList.find(x => x.name === name);
-      if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false, noPlad: !!f.noPlad, lastDay: f.lastDay || '' }); }
-      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false, noPlad: !!f.noPlad, lastDay: f.lastDay || '' });
+      if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false, noPlad: !!f.noPlad, lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt }); }
+      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false, noPlad: !!f.noPlad, lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt });
       S.staff = staffList.filter(x => x.active).map(x => ({ name: x.name, role: x.role, aliases: x.aliases || [], noPlad: !!x.noPlad, lastDay: x.lastDay || '' }));
       return { list: staffList, staff: S.staff };
     },
