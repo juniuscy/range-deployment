@@ -1319,6 +1319,7 @@ const REPORTS = [
   { id:'pm-plan', win:['17:00','17:30'], title:'Next day Deployment Plan', grp:'OPS SP Ammo Team' },
   { id:'pm-good', win:['17:00','23:59'], label:'Good Day', title:'Medical Support Standdown', grp:'OPS SP - Medical grp' },
   { id:'dm-end', win:['17:00','23:59'], label:'Good Day', title:'DM Report End Range', grp:'MMRC Mgt Group', dm:true },
+  { id:'dm-ammo', win:['17:00','23:59'], label:'Good Day', title:'DM Ammo Storage Report', grp:'I2RMS Approval by DM', dm:true, ammo:true },
   { id:'wk-cert', win:['17:00','23:59'], label:'Good Day', title:'Prepare Weekly Ammo Cert 4 x SEAL', grp:'', task:true, weekly:true }
 ];
 /* DM reports: only for today's Duty Manager. The last check of each has a time (24hrs). */
@@ -1439,7 +1440,102 @@ function openDmReport(r, st, redraw){
     } catch(x){ fail(x); busy(e.target, false); }
   };
 }
+/* DM Ammo Storage Report: tick the doors that were opened (with the time locked) and/or sealed, attach a photo */
+function ammoText(chk){
+  const dt = pd(S.today), t = chk.t || {};
+  const out = ['Ammo Status for ' + String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getFullYear()).slice(2) + '.'];
+  if (chk.c[0]) out.push('Small Door Closed and Locked at ' + (t.s || '____') + 'hrs.');
+  if (chk.c[1]) out.push('Big Door Closed and Locked at ' + (t.b || '____') + 'hrs.');
+  if (chk.c[2]) out.push('Both Big and Small Door are Sealed.');
+  return out.join('\n');
+}
+function openAmmoReport(r, st, redraw){
+  const saved = (st.dmchk || {})[r.id];
+  const st0 = saved && saved.t && typeof saved.t === 'object' ? saved.t : {};
+  const chk = { c: [0, 1, 2].map(i => !!(saved && saved.c[i])), t: { s: st0.s || '', b: st0.b || '' } };
+  let photo = null;
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  const row = (i, txt, key) => `<label class="dmc${chk.c[i] ? ' on' : ''}"><input type="checkbox" data-ci="${i}" ${chk.c[i] ? 'checked' : ''}><span>${txt}${key ? ` at <input type="text" data-tk="${key}" inputmode="numeric" maxlength="4" placeholder="1700" value="${esc(chk.t[key])}" aria-label="Time locked, 24hrs"> hrs` : ''}</span></label>`;
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
+    <h3>${esc(r.title)}</h3>
+    <div class="src">Send to: <b>${esc(r.grp)}</b>. Tick the door(s) opened today with the time locked, and/or sealed. Ticks are saved as you go.</div>
+    <div class="dmchk">${row(0, 'Small Door Closed and Locked', 's')}${row(1, 'Big Door Closed and Locked', 'b')}${row(2, 'Both Big and Small Door are Sealed', '')}</div>
+    <div class="small muted" id="dm-sv" style="margin:4px 0 8px">${saved ? 'Last saved ' + esc(saved.at) + ' by ' + esc(saved.by) : 'Not saved yet'}</div>
+    <label class="f"><span>Photo (needed)</span><input type="file" id="am-ph" accept="image/*"></label>
+    <img id="am-pv" alt="" style="display:none;max-width:100%;max-height:220px;border-radius:10px;margin:-4px 0 10px;border:1px solid var(--line)">
+    <textarea id="wa-t" style="min-height:120px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
+    <button class="btn go block" id="am-sh" style="margin-top:4px">Share photo + message to WhatsApp</button>
+    <p class="small muted" style="margin:6px 0 8px">Pick <b>${esc(r.grp)}</b> in WhatsApp. The message is also copied, so if WhatsApp sends only the photo, paste it as the caption.</p>
+    <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy text</button>
+      <a class="btn ghost" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Text only</a></div>
+    <button class="btn block" id="wa-s" style="margin-top:10px">Mark as sent</button></div>`;
+  document.body.appendChild(bg);
+  const t = $('#wa-t', bg), link = $('#wa-o', bg), sv = $('#dm-sv', bg), ph = $('#am-ph', bg), pv = $('#am-pv', bg);
+  const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
+  const okTime = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
+  const setLink = () => link.href = WA + encodeURIComponent(t.value);
+  const render = () => { t.value = ammoText(chk); setLink();
+    bg.querySelectorAll('[data-ci]').forEach(cb => { const i = +cb.dataset.ci; cb.checked = chk.c[i]; cb.closest('.dmc').classList.toggle('on', chk.c[i]); }); };
+  let timer = null, saving = Promise.resolve();
+  const save = () => { clearTimeout(timer); sv.textContent = 'Saving...';
+    timer = setTimeout(() => { saving = call('dmCheckSave', S.token, r.id, chk.c, chk.t)
+      .then(ns => { S.rep = ns; st.dmchk = ns.dmchk; sv.textContent = 'Saved ' + ns.dmchk[r.id].at; })
+      .catch(e => { sv.textContent = 'Not saved'; fail(e); }); }, 400); };
+  bg.querySelectorAll('[data-ci]').forEach(cb => cb.onchange = () => {
+    const i = +cb.dataset.ci, key = ['s', 'b', ''][i];
+    if (key && cb.checked && !okTime(chk.t[key])) { cb.checked = false; bg.querySelector('[data-tk="' + key + '"]').focus(); toast('Key in the time locked first (24hrs, e.g. 1709)', true); return; }
+    chk.c[i] = cb.checked; render(); save();
+  });
+  bg.querySelectorAll('[data-tk]').forEach(inp => inp.oninput = () => {
+    const key = inp.dataset.tk, i = key === 's' ? 0 : 1;
+    inp.value = inp.value.replace(/[^0-9]/g, '').slice(0, 4);
+    chk.t[key] = inp.value;
+    if (inp.value.length === 4 && !okTime(inp.value)) { inp.classList.add('bad'); return; }
+    inp.classList.remove('bad');
+    chk.c[i] = okTime(inp.value);                     // a valid time ticks that door
+    render();
+    if (!inp.value || okTime(inp.value)) save();
+  });
+  ph.onchange = () => { photo = ph.files && ph.files[0] || null;
+    if (photo) { pv.src = URL.createObjectURL(photo); pv.style.display = 'block'; } else pv.style.display = 'none'; };
+  t.oninput = setLink;
+  render();
+  const copy = async () => { let ok = false;
+    try { await navigator.clipboard.writeText(t.value); ok = true; } catch(e) {}
+    if (!ok) { t.focus(); t.select(); try { ok = document.execCommand('copy'); } catch(e) {} }
+    return ok; };
+  const ready = () => {
+    if (!chk.c.some(Boolean)) { toast('Tick at least one door, or Sealed.', true); return false; }
+    return true; };
+  $('#am-sh', bg).onclick = async () => {
+    if (!ready()) return;
+    if (!photo) { toast('Attach the photo first.', true); ph.focus(); return; }
+    await copy();
+    const data = { files: [photo], text: t.value };
+    if (!(navigator.canShare && navigator.canShare({ files: [photo] }))) {
+      toast('This browser cannot share photos. Message copied: tap Text only, then attach the photo in WhatsApp.', true); return; }
+    try { await navigator.share(data); toast('Shared. Tap Mark as sent once it is in the group.'); }
+    catch(e){ if (e && e.name !== 'AbortError') toast('Could not share. Message copied: send the photo in WhatsApp and paste it.', true); }
+  };
+  const close = async () => { clearTimeout(timer); if (sv.textContent === 'Saving...') { await call('dmCheckSave', S.token, r.id, chk.c, chk.t).then(ns => { S.rep = ns; }).catch(() => {}); } await saving; if (pv.src) URL.revokeObjectURL(pv.src); bg.remove(); redraw(S.rep); };
+  $('#wa-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  $('#wa-c', bg).onclick = async () => { const ok = await copy(); toast(ok ? 'Copied. Attach the photo in WhatsApp and paste this as the caption.' : 'Select the text and copy it manually.', !ok); };
+  $('#wa-s', bg).onclick = async e => {
+    if (!ready()) return;
+    if (!photo && !confirm('No photo attached in the app. Did you send the photo in WhatsApp?')) return;
+    busy(e.target, true);
+    try {
+      clearTimeout(timer);
+      await call('dmCheckSave', S.token, r.id, chk.c, chk.t);
+      const ns = await call('reportSent', S.token, r.id, false);
+      bg.remove(); redraw(ns); toast(r.title + ' marked as sent');
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+}
 async function repPrepare(r, st, redraw){
+  if (r.ammo) return openAmmoReport(r, st, redraw);
   if (r.dm) return openDmReport(r, st, redraw);
   const tomorrow = addD(S.today, 1);
   let text = '', warn = '';
@@ -3295,7 +3391,7 @@ const MOCK = (() => {
     incTplSave: (t, old, name, text) => { if (!name.trim()) throw new Error('Give the template a name.'); const c = mInc.templates.find(x => x.name === old); if (c) { c.name = name.trim(); c.text = text; } else mInc.templates.push({ name: name.trim(), text }); return mIncOut(); },
     incTplDelete: (t, name) => { mInc.templates = mInc.templates.filter(x => x.name !== name); return mIncOut(); },
     incLog: (t, f) => { mInc.log.unshift({ id: 'I' + Date.now(), at: today + ' ' + hhmm(), type: f.type, date: f.date, time: f.time, loc: f.loc, by: S.me.name, msg: f.msg }); return mIncOut(); },
-    dmCheckSave: (t, id, c, tm) => { mRep.dmchk[id] = { c: c.slice(), t: tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
+    dmCheckSave: (t, id, c, tm) => { mRep.dmchk[id] = { c: c.slice(), t: tm && typeof tm === 'object' ? Object.assign({}, tm) : tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
     getAllergo: () => { const all = canManage(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
     allergoTick: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(); },
     reportSent: (t, id, undo) => { if (undo) delete mRep.sent[id]; else mRep.sent[id] = { by:S.me.name, at:String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return mRep; },
