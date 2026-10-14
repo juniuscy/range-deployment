@@ -375,7 +375,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .mtr{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;margin-top:5px;font-size:14px;border-left:4px solid}
 .mtr span{font-size:13px;text-align:right}.mtr.ts-done{border-color:#22C55E}.mtr.ts-arr,.mtr.ts-wait{border-color:#3B82F6}.mtr.ts-todo{border-color:#EAB308}
 .mtr.ts-late,.mtr.ts-missed,.mtr.ts-fail{border-color:var(--flag)}.mtr.ts-na,.mtr.ts-locked,.mtr.ts-soon2{border-color:#B8C1C8}
-.mtr.ask{display:block}.mtr.ask .q{font-weight:700;margin:4px 0 0;font-size:13px}
+.mtr.ask{display:block}.mtr{flex-wrap:wrap}.mtr .rmk{flex-basis:100%;display:block;font-size:12.5px;color:var(--muted);text-align:left;margin-top:-4px}.mtr.ask .q{font-weight:700;margin:4px 0 0;font-size:13px}
 /* greeting row with clock-in, birthday */
 .hirow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .hiright{display:flex;gap:8px;align-items:stretch;margin-left:auto}
@@ -874,8 +874,8 @@ function drawTraining(d){
     ${nToArr ? `<div class="note"><b>${nToArr} training${nToArr === 1 ? '' : 's'} still to be arranged.</b> Red from the last month of the period (December; June for WHT Jan-Jun; March for IPPT) if still not arranged.</div>` : ''}
     ${Object.keys(toArr).length ? `<h3>Waiting to be arranged</h3>${Object.keys(toArr).map(k => `<div class="tlist ts-todo"><b>${esc(k)} (${toArr[k].length})</b>${esc(toArr[k].join(', '))}</div>`).join('')}` : ''}
     ${rebook.length ? `<h3>Failed / absent &ndash; rebook</h3>${rebook.map(x => `<div class="tlist ts-fail">${who(x)}${esc(x.c.per.label)} &middot; ${esc(resWord(x.c.result))} ${esc(sdt(x.c.date))}</div>`).join('')}` : ''}
-    ${waiting.length ? `<h3>Waiting for the APO's result</h3>${waiting.map(x => `<div class="tlist ts-wait">${who(x)}${esc(x.c.per.label)} &middot; ${esc(nice(x.c.date) + trnT(x.c))}</div>`).join('')}` : ''}
-    ${coming.length ? `<h3>Arranged, coming up</h3>${coming.map(x => `<div class="tlist ts-arr"><b>${esc(nice(x.c.date) + trnT(x.c))}</b>${esc(x.p.name)} &middot; ${esc(x.c.per.label)}</div>`).join('')}` : ''}
+    ${waiting.length ? `<h3>Waiting for the APO's result</h3>${waiting.map(x => `<div class="tlist ts-wait">${who(x)}${esc(x.c.per.label)} &middot; ${esc(nice(x.c.date) + trnT(x.c))}${trnR(x.c) ? `<small style="display:block">${esc(trnR(x.c))}</small>` : ''}</div>`).join('')}` : ''}
+    ${coming.length ? `<h3>Arranged, coming up</h3>${coming.map(x => `<div class="tlist ts-arr"><b>${esc(nice(x.c.date) + trnT(x.c))}</b>${esc(x.p.name)} &middot; ${esc(x.c.per.label)}${trnR(x.c) ? `<small style="display:block">${esc(trnR(x.c))}</small>` : ''}</div>`).join('')}` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
       ${d.canEdit ? '<button class="btn go" id="t-wa">WhatsApp reminder to managers</button>' : ''}<button class="btn ghost" id="t-rf">Refresh</button></div>
     ${d.canEdit ? '' : '<p class="small muted" style="margin:-4px 0 8px">View only. Managers arrange the dates.</p>'}
@@ -896,7 +896,7 @@ function drawTraining(d){
     if (Object.keys(toArr).length) { L.push('', '*TO ARRANGE*'); Object.keys(toArr).forEach(k => L.push(k + ': ' + toArr[k].join(', '))); }
     if (rebook.length) { L.push('', '*REBOOK (FAILED / ABSENT)*'); rebook.forEach(x => L.push(x.p.name + ' - ' + x.c.per.label + ' (' + resWord(x.c.result) + ' ' + sdt(x.c.date) + ')')); }
     if (waiting.length) { L.push('', '*WAITING FOR RESULT*'); waiting.forEach(x => L.push(x.p.name + ' - ' + x.c.per.label + ' (' + sdt(x.c.date) + trnT(x.c) + ')')); }
-    if (coming.length) { L.push('', '*COMING UP*'); coming.forEach(x => L.push(sdt(x.c.date) + trnT(x.c) + ' - ' + x.p.name + ' ' + x.c.per.label)); }
+    if (coming.length) { L.push('', '*COMING UP*'); coming.forEach(x => L.push(sdt(x.c.date) + trnT(x.c) + ' - ' + x.p.name + ' ' + x.c.per.label + (trnR(x.c) ? ' (' + trnR(x.c) + ')' : ''))); }
     if (L.length === 2) L.push('', 'All trainings are arranged or done.');
     openWaSheet('Training reminder', 'For the managers. You can edit it before sending.', '', L.join('\n'));
   };
@@ -910,7 +910,7 @@ function trnEditor(d, person, c){
   const per = c.per;
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
-  const hist = (c.rs || []).map(r => `<div><span>${esc(nice(r.arranged) + (r.time && !r.result ? ' ' + r.time + 'hrs' : ''))}</span><b>${esc(r.result ? resWord(r.result) : (r.arranged <= d.today ? 'Waiting for result' : 'Arranged'))}</b></div>`).join('');
+  const hist = (c.rs || []).map(r => `<div><span>${esc(nice(r.arranged) + (r.time && !r.result ? ' ' + r.time + 'hrs' : ''))}</span><b>${esc(r.result ? resWord(r.result) : (r.arranged <= d.today ? 'Waiting for result' : 'Arranged'))}</b></div>${r.remark ? `<div class="small muted" style="margin:-2px 0 4px">${esc(r.remark)}</div>` : ''}`).join('');
   const needNote = per.needs ? (c.st === 'locked' ? `<div class="note red">${esc(person.name)} must pass TS first. TEST TS can be arranged once TS is passed.</div>`
     : `<div class="note" style="border-color:#22C55E;background:#DCFCE7">TS passed, so TEST TS can be arranged.</div>`) : '';
   let body = '';
@@ -925,6 +925,7 @@ function trnEditor(d, person, c){
     body = `<div class="row2"><label class="f"><span>${open ? 'Arranged date' : 'Arrange a date'}</span>
         <input type="date" id="te-d" value="${esc(open ? open.arranged : '')}" min="${per.start}" max="${per.end}"></label>
       <label class="f"><span>Time of booking (24hrs)</span><input type="text" id="te-tm" class="tm" inputmode="numeric" maxlength="4" placeholder="0900" value="${esc(open && open.time ? open.time : '')}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
+      <label class="f"><span>Remarks (optional)</span><textarea id="te-rm" maxlength="200" rows="2" placeholder="e.g. Report at Gym Block B, bring PT kit" style="min-height:60px">${esc(open && open.remark ? open.remark : '')}</textarea></label>
       <p class="small muted" style="margin-top:-8px">Saving puts <b>${esc(person.name + ' ' + per.t)} (time hrs)</b> in that day's IPPT/ TRG row, so they show as away.</p>
       <div class="acts" style="margin-top:6px">${open ? '<button class="btn ghost" id="te-clr">Clear date</button>' : ''}<button class="btn" id="te-save">Save date</button></div>
       ${open ? `<label class="f" style="margin-top:14px"><span>Result (the APO normally enters this)</span></label>
@@ -948,7 +949,7 @@ function trnEditor(d, person, c){
     const dt = $('#te-d', bg).value, tm = $('#te-tm', bg).value;
     if (!dt) return toast('Pick the date.', true);
     if (!/^([01][0-9]|2[0-3])[0-5][0-9]$/.test(tm)) return toast('Key in the time of the booking as 24hrs, e.g. 0900.', true);
-    run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:dt, time:tm }, 'Booked ' + nice(dt) + ', ' + tm + 'hrs');
+    run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:dt, time:tm, remark:$('#te-rm', bg).value }, 'Booked ' + nice(dt) + ', ' + tm + 'hrs');
   };
   if ($('#te-clr', bg)) $('#te-clr', bg).onclick = e => run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:'' }, 'Date cleared');
   if ($('#te-pass', bg)) $('#te-pass', bg).onclick = e => run(e.target, 'trainingResult', { name:person.name, k:per.k, date:$('#te-pd', bg).value, result: per.k === 'MA' ? 'DONE' : 'PASSED' }, 'Saved');
@@ -956,6 +957,8 @@ function trnEditor(d, person, c){
 }
 /* time of an arranged (open) booking: ' 0900hrs' */
 const trnT = c => c && c.row && !c.row.result && c.row.time ? ' ' + c.row.time + 'hrs' : '';
+/* remark of an arranged (open) booking */
+const trnR = c => c && c.row && !c.row.result && c.row.remark ? c.row.remark : '';
 /* APO: own training on My Deploy */
 function myTrnText(c){
   switch (c.st) {
@@ -973,9 +976,9 @@ function myTrnCard(d){
   if (!d || !d.people.length) return '';
   const me = d.people[0], cs = d.periods.map(per => Object.assign({ per }, trnCell(d, me, per)));
   return `<div class="mytrn" id="mytrn"><h3>My training <small>work year ${esc(d.periods.find(p => p.k === 'PCT').id)}</small></h3>
-    ${cs.map(c => c.st === 'wait' ? `<div class="mtr ts-wait ask"><div style="display:flex;justify-content:space-between"><b>${esc(c.per.label)}</b><span>${esc(nice(c.date) + trnT(c))}</span></div>
+    ${cs.map(c => c.st === 'wait' ? `<div class="mtr ts-wait ask"><div style="display:flex;justify-content:space-between"><b>${esc(c.per.label)}</b><span>${esc(nice(c.date) + trnT(c))}</span></div>${trnR(c) ? `<div class="small muted">${esc(trnR(c))}</div>` : ''}
         <div class="q">How did it go?</div><div class="rbtn">${TRN_RES(c.per.k).map(r => `<button class="btn rb-${r}" data-myr="${esc(c.row.id)}|${r}">${resWord(r)}</button>`).join('')}</div></div>`
-      : `<div class="mtr ts-${c.st}"><b>${esc(c.per.k === 'IPPT' ? 'IPPT (' + c.per.start.slice(2,4) + '/' + c.per.end.slice(2,4) + ')' : c.per.label)}</b><span>${c.st === 'arr' ? myTrnText(c) : esc(myTrnText(c))}</span></div>`).join('')}</div>`;
+      : `<div class="mtr ts-${c.st}"><b>${esc(c.per.k === 'IPPT' ? 'IPPT (' + c.per.start.slice(2,4) + '/' + c.per.end.slice(2,4) + ')' : c.per.label)}</b><span>${c.st === 'arr' ? myTrnText(c) : esc(myTrnText(c))}</span>${trnR(c) ? `<span class="rmk">${esc(trnR(c))}</span>` : ''}</div>`).join('')}</div>`;
 }
 function wireMyTrn(){
   document.querySelectorAll('[data-myr]').forEach(b => b.onclick = async () => {
@@ -3300,8 +3303,8 @@ const MOCK = (() => {
     getBirthdays: () => mBdays(),
     trainingArrange: (t, f) => { const d = TDF.find(z => z.k === f.k), per = mPer(d, today);
       const open = mrows.filter(r => r.name === f.name && r.t === d.t && r.period === per.id && !r.result).pop();
-      if (open && !f.date) mrows.splice(mrows.indexOf(open), 1); else if (open) { open.arranged = f.date; open.time = f.time; }
-      else if (f.date) mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:per.id, arranged:f.date, time:f.time, result:'', resultDate:'' });
+      if (open && !f.date) mrows.splice(mrows.indexOf(open), 1); else if (open) { open.arranged = f.date; open.time = f.time; open.remark = f.remark || ''; }
+      else if (f.date) mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:per.id, arranged:f.date, time:f.time, remark:f.remark || '', result:'', resultDate:'' });
       else throw new Error('Pick a date.'); return mTrn(); },
     trainingResult: (t, f) => { if (f.id) { const r = mrows.find(x => x.id === f.id); r.result = f.result; r.resultDate = f.result ? r.arranged : ''; }
       else { const d = TDF.find(z => z.k === f.k); mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:mPer(d, f.date).id, arranged:f.date, result:f.result, resultDate:f.date }); }
