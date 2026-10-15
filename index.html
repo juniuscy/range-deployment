@@ -414,6 +414,14 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .clock.late{background:var(--wait-soft);border-color:#E0A021}
 .clock.away{background:var(--steel-soft);border-color:var(--steel)}
 .demo{background:var(--wait-soft);color:var(--wait);text-align:center;font-size:13px;padding:5px}
+.news{border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;background:var(--card)}
+.news .nhd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}.news h3{margin:0}
+.nws{border-left:4px solid #3B82F6;background:#F1F5FF;border-radius:8px;padding:8px 10px;margin-top:8px}.nws.pin{border-left-color:#F59E0B;background:#FFFBEB}
+.nws .nh{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.nws .nh b{font-size:15px}
+.ntag{font:700 10.5px/1.6 inherit;padding:0 6px;border-radius:6px;background:#FDE68A;color:#92400E}.ntag.new{background:#DC2626;color:#fff}
+.nws .nm{white-space:pre-wrap;font-size:14px;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}
+.nws .nf{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
+.lnk{background:none;border:0;padding:0 0 0 10px;color:var(--accent,#1D4ED8);font:600 13px inherit;text-decoration:underline;cursor:pointer}
 .shf{display:inline-block;font:700 11px/1.6 inherit;padding:0 6px;border-radius:6px;background:#E0E7FF;color:#3730A3;margin-right:4px;vertical-align:1px}.shf.pm{background:#FDE68A;color:#92400E;margin-left:8px}
 .spbox{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 12px;background:var(--card)}
 .spbox .row2 select{min-width:0}
@@ -771,6 +779,7 @@ function drawHome(h, stale){
       ${h.attendance ? clockNotes(h.attendance) : ''}
       ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
+      <div id="news-slot">${newsCard(h.news)}</div>
       ${h.allergo && h.allergo.length ? algCard(h.allergo, 'Submit in Allergo') : ''}
       ${h.inspections ? inspCard(h.inspections) : ''}
       ${h.reports ? repCard(h.reports) : ''}
@@ -788,6 +797,7 @@ function drawHome(h, stale){
     S.next14 = h.upcoming;
     wireInstall();
     wireClock();
+    wireNews(h.news, !stale);
     if (h.inspections) wireInsp(h.inspections);
     if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
     if (h.training) wireMyTrn();
@@ -808,6 +818,67 @@ function drawHome(h, stale){
       if (!S.cache[m]) setTimeout(() => call('getWeek', S.token, m).then(w => { S.cache[m] = w; lsWeekSave(w); }).catch(() => {}), 200);
     }
   }
+}
+/* ---------- News / updates (everyone reads; Admin and Managers post) ---------- */
+const NEWS_SHOW = 3;
+function newsSeen(){ try { return localStorage.getItem('rdp_news_seen') || ''; } catch(e){ return ''; } }
+function newsLink(t){ return esc(t).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`); }
+function newsItem(n, seen, mgr){
+  const isNew = !seen || n.posted > seen;
+  return `<div class="nws${n.pinned ? ' pin' : ''}"><div class="nh"><b>${esc(n.title)}</b>${n.pinned ? '<span class="ntag">Pinned</span>' : ''}${isNew ? '<span class="ntag new">New</span>' : ''}</div>
+    ${n.msg ? `<div class="nm">${newsLink(n.msg)}</div>` : ''}
+    <div class="nf"><span>${esc(nice(n.posted.slice(0, 10)))}, ${esc(n.posted.slice(11, 16).replace(':', ''))}hrs &middot; ${esc(n.by)}${n.until ? ' &middot; until ' + esc(nice(n.until)) : ''}</span>
+      ${mgr ? `<span><button class="lnk" data-ned="${esc(n.id)}">Edit</button><button class="lnk" data-ndel="${esc(n.id)}">Delete</button></span>` : ''}</div></div>`;
+}
+function newsCard(list){
+  list = list || [];
+  const mgr = canManage();
+  if (!list.length && !mgr) return '';
+  const seen = newsSeen(), more = list.length > NEWS_SHOW && !S.newsAll;
+  return `<div class="news" id="news"><div class="nhd"><h3>News and updates</h3>${mgr ? '<button class="btn ib" id="n-add">Post update</button>' : ''}</div>
+    ${list.length ? (more ? list.slice(0, NEWS_SHOW) : list).map(n => newsItem(n, seen, mgr)).join('') : '<p class="small muted" style="margin:4px 0 0">No updates yet. Post one and every account sees it here.</p>'}
+    ${list.length > NEWS_SHOW ? `<button class="lnk" id="n-more" style="margin-top:6px">${more ? 'Show all ' + list.length : 'Show less'}</button>` : ''}</div>`;
+}
+function wireNews(list, markSeen){
+  const box = $('#news'); if (!box) return;
+  const redraw = l => { S.news = l; const slot = $('#news-slot'); if (slot) { slot.innerHTML = newsCard(l); wireNews(l, false); } };
+  if ($('#n-more')) $('#n-more').onclick = () => { S.newsAll = !S.newsAll; redraw(list); };
+  if ($('#n-add')) $('#n-add').onclick = () => newsEditor(null, redraw);
+  box.querySelectorAll('[data-ned]').forEach(b => b.onclick = () => newsEditor(list.find(n => n.id === b.dataset.ned), redraw));
+  box.querySelectorAll('[data-ndel]').forEach(b => b.onclick = async () => {
+    const n = list.find(x => x.id === b.dataset.ndel);
+    if (!confirm('Delete "' + n.title + '"? It disappears for everyone.')) return;
+    busy(b, true);
+    try { redraw(await call('newsDelete', S.token, n.id)); toast('Update deleted'); } catch(e){ fail(e); busy(b, false); }
+  });
+  if (markSeen && list && list.length) {           // "New" stays until the next time My Deploy is opened
+    const top = list.map(n => n.posted).sort().pop();
+    try { if (top > newsSeen()) localStorage.setItem('rdp_news_seen', top); } catch(e) {}
+  }
+}
+function newsEditor(n, redraw){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${n ? 'Edit update' : 'Post an update'}</h3>
+    <div class="src">Shows on everyone's My Deploy page.</div>
+    <label class="f"><span>Title</span><input type="text" id="nw-t" maxlength="100" value="${esc(n ? n.title : '')}" placeholder="e.g. New range timing from 1 Nov"></label>
+    <label class="f"><span>Message</span><textarea id="nw-m" maxlength="2000" style="min-height:150px" placeholder="Details. Links are clickable.">${esc(n ? n.msg : '')}</textarea></label>
+    <div class="row2"><label class="f"><span>Show until (optional)</span><input type="date" id="nw-u" min="${S.today}" value="${esc(n ? n.until : '')}"></label>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:18px"><input type="checkbox" id="nw-p" ${n && n.pinned ? 'checked' : ''} style="width:20px;height:20px"><span>Pin to top</span></label></div>
+    <p class="small muted" style="margin-top:-4px">Leave "show until" empty to keep it until you delete it.</p>
+    <div class="acts"><button class="btn ghost" id="nw-x">Cancel</button><button class="btn" id="nw-ok">${n ? 'Save' : 'Post'}</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#nw-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  $('#nw-ok', bg).onclick = async e => {
+    busy(e.target, true);
+    try {
+      const l = await call('newsSave', S.token, { id: n ? n.id : '', title: $('#nw-t', bg).value, msg: $('#nw-m', bg).value, until: $('#nw-u', bg).value, pinned: $('#nw-p', bg).checked });
+      close(); redraw(l); toast(n ? 'Update saved' : 'Posted. Everyone sees it on My Deploy.');
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
+  $('#nw-t', bg).focus();
 }
 /* ---------- APO training ---------- */
 const TRN_TXT = { done:'', arr:'', wait:'', todo:'Arrange', late:'Arrange', missed:'Missed', fail:'', na:'N/A', locked:'TS first', soon2:'Jul' };
@@ -3329,6 +3400,9 @@ const MOCK = (() => {
       rows: mrows.filter(r => names.includes(r.name) && keys[r.t + '|' + r.period]) };
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
+  const mNews = [{ id:'N1', posted: addD(today, -1) + ' 16:20', by:'CHAN YANG', title:'New PLAD timing from 1 Nov', msg:'PLAD collection moves to 0730hrs from 1 Nov.\nDrivers please report 15 minutes earlier.', until:'', pinned:true },
+    { id:'N2', posted: today + ' 08:05', by:'JAMES LAI', title:'Range 50M2 maintenance', msg:'50M2 closed next Tue for target maintenance.', until: addD(today, 7), pinned:false }];
+  const mNewsList = () => mNews.filter(n => !n.until || n.until >= today).sort((a, b) => (b.pinned - a.pinned) || (a.posted < b.posted ? 1 : -1)).map(n => Object.assign({}, n));
   const mRep = { date: today, sent: {}, dmchk: {}, certDay: /certday/.test(location.search) || (w => { const ds = (w && w.days || []).filter(x => (x.ranges || []).some(r => r.active)).map(x => x.date); return ds.length > 0 && ds[ds.length - 1] === today; })(SNAP.weeks[mondayOf(today)]) };
   const mSup = {};
   const mInc = { templates: [{ name: 'Negligent Discharge (ND)', text: ['{Greeting} Sirs, MMRC would like to report a Negligent Discharge Incident.', '', 'Details of the incident are as follows:', '', '1) When:', '{Date}, at about {Time}hrs', '', '2) Where:', 'MMRC {Range}', '', '3) Who:', '{Rank Name} ({Masked NRIC}) from {Unit}', '', '4) What:', 'At about {Time}hrs, during {TF}, Stage {Stage} Practice {Practice}, {Rank Name} negligently discharged 1x 5.56mm live round to the ground after contacting the target.', '', 'MMRC FPSO activated the E-whistle and informed the CSO to stop the range immediately. MMRC RSO called for a safety pause to determine if ND occurred.', '', 'From the range camera footage, it was ascertained that the ND occurred when the firer discharged an unaimed shot to the ground while he was lowering his weapon.', '', 'MMRC will conduct a debrief to all firers on observing weapon safety and weapon handling before proceeding the live firing.', '', 'The verbal report to TRMC Ops room was made at {Verbal report time}hrs.'].join('\n') }], log: [] };
@@ -3403,7 +3477,7 @@ const MOCK = (() => {
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
+      news: mNewsList(), attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
@@ -3411,6 +3485,14 @@ const MOCK = (() => {
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
     getReports: () => mRep,
+    getNews: () => mNewsList(),
+    newsSave: (t, f) => { if (!String(f.title || '').trim()) throw new Error('Give the update a title.');
+      const hm = String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0');
+      const n = f.id ? mNews.find(x => x.id === f.id) : null;
+      if (n) Object.assign(n, { title:f.title.trim(), msg:f.msg.trim(), until:f.until, pinned:!!f.pinned });
+      else mNews.push({ id:'N' + Date.now(), posted: today + ' ' + hm, by:S.me.name, title:f.title.trim(), msg:f.msg.trim(), until:f.until, pinned:!!f.pinned });
+      return mNewsList(); },
+    newsDelete: (t, id) => { const i = mNews.findIndex(x => x.id === id); if (i >= 0) mNews.splice(i, 1); return mNewsList(); },
     autoStats: (t, monday) => { const hist = {}, pairs = {}, month = {};
       const add = (k, n) => { (hist[k] = hist[k] || {})[n] = (hist[k][n] || 0) + 1; };
       for (let w = 8; w >= 1; w--) { const wk = getWk(addD(monday, -7 * w)); (wk.days || []).forEach(d => {
