@@ -422,6 +422,10 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .nws .nm{white-space:pre-wrap;font-size:14px;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}
 .nws .nf{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
 .lnk{background:none;border:0;padding:0 0 0 10px;color:var(--accent,#1D4ED8);font:600 13px inherit;text-decoration:underline;cursor:pointer}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.tags[hidden]{display:none}
+.tag{display:inline-flex;align-items:center;gap:2px;background:#E8EEF7;border:1px solid #C9D5E6;border-radius:16px;padding:2px 4px 2px 10px;font:600 13px/1.6 inherit}
+.tag button{border:0;background:none;font:700 17px/1 inherit;color:#64748B;cursor:pointer;padding:2px 6px;min-height:0}
+.tgt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin:2px 0 10px}
 .shf{display:inline-block;font:700 11px/1.6 inherit;padding:0 6px;border-radius:6px;background:#E0E7FF;color:#3730A3;margin-right:4px;vertical-align:1px}.shf.pm{background:#FDE68A;color:#92400E;margin-left:8px}
 .spbox{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 12px;background:var(--card)}
 .spbox .row2 select{min-width:0}
@@ -2017,6 +2021,7 @@ function clashes(day, text, kind, label, field){
 }
 
 /* Bottom-sheet editor for one slot */
+const NAME_KEYS = ['emp', 'main', 'spare', 'name'];
 function openSlotEditor(wk, day, kind, label){
   let fields, src = '', pool;
   let sp0 = null;
@@ -2053,13 +2058,15 @@ function openSlotEditor(wk, day, kind, label){
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-t">
     <h3 id="ed-t">${esc(label)}, ${nice(day.date)}</h3>
     <div class="src">${src}</div>
-    ${fields.map(([k, l, v]) => `<label class="f"><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${k === who ? 'list="ed-names"' : ''} autocomplete="off"></label>` +
-      (k === who ? `<label class="f" style="margin-top:-6px"><span class="small muted" style="font-weight:600">Or choose from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '') + (k === who ? spHtml : '')).join('')}
+    ${fields.map(([k, l, v]) => `<label class="f"${NAME_KEYS.includes(k) ? ' style="margin-bottom:4px"' : ''}><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${NAME_KEYS.includes(k) ? 'list="ed-names" data-nk="' + k + '"' : ''} autocomplete="off"></label>` +
+      (NAME_KEYS.includes(k) ? `<div class="tags" data-tags="${k}"></div>` : '') +
+      (k === who ? `<label class="f" style="margin-top:2px"><span class="small muted" style="font-weight:600">Add a name from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '') + (k === who ? spHtml : '')).join('')}
+    ${fields.filter(f => NAME_KEYS.includes(f[0])).length > 1 ? `<div class="tgt" id="ed-tgt">Names you tap go to: ${fields.filter(f => NAME_KEYS.includes(f[0])).map(f => `<button class="chip" data-tg="${f[0]}" aria-pressed="${f[0] === who}">${esc(f[1])}</button>`).join('')}</div>` : ''}
     <datalist id="ed-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     <div id="ed-warn"></div>
-    ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to fill in:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+    ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to add:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup medics' : 'Managers (reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-    <p class="small muted" style="margin-top:10px">Combos like "ONG / JAMES" are fine. Leave blank to clear the slot.</p>
+    <p class="small muted" style="margin-top:10px">Tap more than one name to post several people. Tap &times; on a name to take it out. Leave blank to clear the slot.</p>
     ${namesIn(fields[0][2]).length && canManage() ? `<button class="btn ghost block" id="ed-abs" style="margin-top:12px">Absent today (MC or urgent leave)? Mark and replace</button>` : ''}
     <div class="acts"><button class="btn ghost" id="ed-x">Cancel</button>${fields[0][2] ? '<button class="btn no" id="ed-un">Undeploy</button>' : ''}<button class="btn" id="ed-ok">Save</button></div></div>`;
   document.body.appendChild(bg);
@@ -2075,7 +2082,10 @@ function openSlotEditor(wk, day, kind, label){
     if (sp0) { setSel(am, sp0.am); setSel(pm, sp0.pm); }
     const okT = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
     const compose = () => { if (!on.checked) return; tm.classList.toggle('bad', tm.value.length === 4 && !okT(tm.value)); inp.value = splitTxt(am.value, pm.value, okT(tm.value) ? tm.value : '1200'); warn(); };
+    on.addEventListener('change', () => setTimeout(() => { const tb = bg.querySelector('[data-tags="' + who + '"]'); if (tb) { tb.hidden = on.checked || !inp.value.trim(); if (!on.checked) inp.dispatchEvent(new Event('input')); } }, 0));
+    let beforeSplit = inp.value;
     on.onchange = () => { box.hidden = !on.checked; inp.readOnly = on.checked;
+      if (on.checked) beforeSplit = inp.value; else { inp.value = beforeSplit; warn(); }
       if (on.checked && !sp0 && !am.value && namesIn(inp.value).length === 1) setSel(am, namesIn(inp.value)[0]);
       if (on.checked) compose(); };
     am.onchange = pm.onchange = compose;
@@ -2083,8 +2093,29 @@ function openSlotEditor(wk, day, kind, label){
     inp.readOnly = on.checked;
   }
   const splitOn = () => $('#sp-on', bg) && $('#sp-on', bg).checked;
-  $('#ed-pick', bg).onchange = e => { if (e.target.value && !splitOn()) { inp.value = e.target.value; warn(); } e.target.value = ''; };
-  bg.querySelectorAll('[data-n]').forEach(c => c.onclick = () => { if (splitOn()) { toast('Pick AM / PM in the boxes below.'); return; } inp.value = c.dataset.n; warn(); });
+  /* several names per slot: each name is a tag; tapping a name adds it to the chosen field */
+  let target = who;
+  const parts = el => el.value.split(/\s*\/\s*/).map(x => x.trim()).filter(Boolean);
+  const drawTags = k => {
+    const box = bg.querySelector('[data-tags="' + k + '"]'), el = $('#ed-' + k, bg);
+    if (!box) return;
+    const ps = parts(el);
+    box.hidden = (k === who && splitOn()) || !ps.length;
+    box.innerHTML = ps.map((x, i) => `<span class="tag">${esc(x)}<button type="button" data-rm="${k}|${i}" aria-label="Remove ${esc(x)}">&times;</button></span>`).join('');
+    box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
+      const ps2 = parts(el); ps2.splice(+b.dataset.rm.split('|')[1], 1); el.value = ps2.join(' / '); drawTags(k); warn(); });
+  };
+  const addName = n => {
+    if (target === who && splitOn()) { toast('Pick AM / PM in the boxes below.'); return; }
+    const el = $('#ed-' + target, bg), ps = parts(el);
+    if (ps.some(x => namesIn(x).includes(n) || x.toUpperCase() === n)) { toast(n + ' is already in.'); return; }
+    ps.push(n); el.value = ps.join(' / '); drawTags(target); warn();
+  };
+  const setTarget = k => { target = k; bg.querySelectorAll('[data-tg]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tg === k)); };
+  bg.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => setTarget(b.dataset.tg));
+  bg.querySelectorAll('[data-nk]').forEach(el => { el.addEventListener('input', () => drawTags(el.dataset.nk)); el.addEventListener('focus', () => setTarget(el.dataset.nk)); drawTags(el.dataset.nk); });
+  $('#ed-pick', bg).onchange = e => { if (e.target.value) addName(e.target.value); e.target.value = ''; };
+  bg.querySelectorAll('[data-n]').forEach(c => c.onclick = () => addName(c.dataset.n));
   const close = () => bg.remove();
   $('#ed-x', bg).onclick = close;
   bg.onclick = e => { if (e.target === bg) close(); };
