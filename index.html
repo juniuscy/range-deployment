@@ -3048,6 +3048,18 @@ function staffName(short){
   const p = all.find(x => x.name === s) || all.find(x => x.name.indexOf(s + ' ') === 0) || all.find(x => (x.aliases || []).includes(s));
   return p ? p.name : '';
 }
+/* A cell's text with one person taken out ("TOH / LIM" -> "LIM"; shift parts keep their AM / PM) */
+function dropNameTxt(text, n){
+  const out = [];
+  String(text || '').split(/\s*\/\s*/).filter(Boolean).forEach(part => {
+    if (!namesIn(part).includes(n)) { out.push(part); return; }
+    const m = /\(\s*(AM|PM)\b[^)]*\)/i.exec(part), who = (m ? part.replace(m[0], ' ') : part).replace(/\s+/g, ' ').trim();
+    const keep = who.split(/\s*(?:&|,|\bAND\b)\s*/i).filter(x => x && !namesIn(x).includes(n));
+    if (keep.length) out.push(keep.join(' & ') + (m ? ' ' + m[0] : '')); else if (m && m[1].toUpperCase() === 'AM') out.push('NA ' + m[0]);
+  });
+  const left = out.join(' / ');
+  return /^NA \(AM\)$/i.test(left) ? '' : left;
+}
 function autoDraft(wk, idxs, st){
   const R = AUTO_RULES, N = staffName;
   const mc = JSON.parse(JSON.stringify(st.month || {}));
@@ -3062,6 +3074,12 @@ function autoDraft(wk, idxs, st){
     const d = wk.days[i], out = { date: d.date, items: [], notes: [] };
     if (!d.ranges.some(r => r.active)) { out.notes.push('No ranges in use: nothing to fill.'); return out; }
     const busy = busyOn(d), away = awayOn(d);
+    // DAO spare is where balance personnel are parked: they are still free for ranges and duties
+    const daoX = d.duties.find(y => lettersKey(y.duty) === 'DAO');
+    const elsewhere = n => d.ranges.some(r => r.people.includes(n)) || d.medics.some(m => m.people.includes(n)) || d.absences.some(a => a.people.includes(n))
+      || d.duties.some(x => x.mainPeople.includes(n) || (x !== daoX && x.sparePeople.includes(n))) || !!goneOn(d)[n];
+    const parked = (daoX ? daoX.sparePeople : []).filter(n => !elsewhere(n));
+    parked.forEach(n => busy.delete(n));
     const free = n => !!n && !busy.has(n);
     const why = n => away[n] ? away[n].join(', ') : 'already posted';
     const fair = (n, k) => cnt(n, k) + 'x this month';
@@ -3069,25 +3087,45 @@ function autoDraft(wk, idxs, st){
     const pick = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k) || hist(b, k) - hist(a, k) || a.localeCompare(b))[0];
     const duty = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && !String(x[field] || '').trim() ? { kind: 'duty', label: x.duty, field } : null; };
     const med = role => { const m = d.medics.find(y => lettersKey(y.role) === lettersKey(role)); return m && !String(m.who || '').trim() ? { kind: 'medic', label: m.role, field: 'name' } : null; };
-    // 1. Ranges: the APO tagged to (or usually with) the supervising officer
-    d.ranges.filter(r => r.active && !String(r.emp || '').trim()).forEach(r => {
+    // 1. Ranges: the APO tagged to (or usually with) the supervising officer.
+    //    Tagged ranges go first, so a "usual" pairing never takes an APO who is tagged to another officer that day.
+    const tagOf = r => (st.tags || {})[offKey(r.sup)] || '';
+    const taggedToday = {};
+    d.ranges.filter(r => r.active && tagOf(r)).forEach(r => { taggedToday[tagOf(r)] = supName(r.sup); });
+    const todo = d.ranges.filter(r => r.active && !String(r.emp || '').trim());
+    todo.sort((a, b) => (tagOf(a) ? 0 : 1) - (tagOf(b) ? 0 : 1));
+    todo.forEach(r => {
       const slot = { kind: 'range', label: r.range, field: 'emp' }, k = offKey(r.sup);
-      const tag = (st.tags || {})[k], lr = (st.learned || {})[k], want = tag || (lr && lr.apo) || '';
+      const tag = tagOf(r), lr0 = (st.learned || {})[k];
+      const lr = lr0 && !(taggedToday[lr0.apo] && offKey(taggedToday[lr0.apo]) !== k) ? lr0 : null;   // usual APO is tagged to another officer today
+      const want = tag || (lr && lr.apo) || '';
       const src = tag ? 'tagged to ' + supName(r.sup) : lr ? 'usually with ' + supName(r.sup) + ' (' + lr.n + ' of ' + lr.total + ' days)' : '';
       if (want && free(want)) return add(slot, want, src.charAt(0).toUpperCase() + src.slice(1), false, 'range');
       const alt = pick(apos, 'range');
       if (!alt) return out.notes.push(r.range + ': no free APO left.');
-      add(slot, alt, want ? T(want) + ' (' + src + ') is ' + why(want) + '. Free APO instead.' : 'No APO tagged to ' + (supName(r.sup) || 'this range') + '. Free APO.', true, 'range');
+      add(slot, alt, want ? T(want) + ' (' + src + ') is ' + why(want) + '. Free APO instead.'
+        : lr0 && !lr ? 'Usual APO ' + T(lr0.apo) + ' is tagged to ' + taggedToday[lr0.apo] + ' today. Free APO.'
+        : 'No APO tagged to ' + (supName(r.sup) || 'this range') + '. Free APO.', true, 'range');
     });
+    // Weekends: only the range APOs, DAO main, and a Manager as Ammo admin
+    const wkend = dowIdx(d.date) >= 5;
+    if (wkend) out.notes.push('Weekend: only range APOs, DAO main and Ammo admin (a Manager); no PLAD, RAI or spares. Medics are filled as usual.');
     // 2. PLAD-Driver (Mon, Wed, Fri)
-    const plad = R.pladDays.includes(dowIdx(d.date));
+    const plad = !wkend && R.pladDays.includes(dowIdx(d.date));
     let sl = plad && duty('PLAD-Driver', 'main'), k;
     if (sl) { k = 'duty:PLAD-Driver:main'; const [w, o] = R.pladDriver.map(N);
       if (free(w)) add(sl, w, 'PLAD driver', false, k);
       else if (free(o)) add(sl, o, 'Backup driver: ' + T(w) + ' is ' + why(w), true, k);
       else out.notes.push('PLAD-Driver: ' + T(w) + ' and ' + T(o) + ' are both unavailable.'); }
-    // 3. Ammo admin: Danial, Ivan or Wong (fewest this month); Ong as backup
+    // 3. Ammo admin: Danial, Ivan or Wong (fewest this month); Ong as backup. Weekends: a Manager (the Duty Manager first)
     sl = duty('Ammo admin', 'main');
+    if (sl && wkend) { k = 'duty:Ammo admin:main';
+      const mgrs = of(r => MGR_ROLES.includes(r)), dmN = lettersKey((S.dm || {})[d.date] || '');
+      const isDm = n => { const p = (S.staff || []).find(x => x.name === n) || {}; return !!dmN && [n].concat(p.aliases || []).some(a => lettersKey(a) === dmN); };
+      const dm = mgrs.find(isDm), n = dm && free(dm) ? dm : pick(mgrs, k);
+      if (n) add(sl, n, n === dm ? 'Weekend: Duty Manager as Ammo admin' : 'Weekend: Manager as Ammo admin; ' + fair(n, k), false, k);
+      else out.notes.push('Ammo admin: no Manager free this weekend day.');
+      sl = null; }
     if (sl) { k = 'duty:Ammo admin:main'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k), b = N(R.ammoBackup);
       if (n) add(sl, n, 'Admin team; ' + fair(n, k), false, k);
       else if (free(b)) add(sl, b, 'Backup: Danial, Ivan and Wong are not free', true, k);
@@ -3103,8 +3141,8 @@ function autoDraft(wk, idxs, st){
       const usual = ok.filter(n => hist(n, k) > 0), n = pick(usual, k) || pick(ok, k);
       if (n) add(sl, n, usual.includes(n) ? 'Usually does PLAD (' + hist(n, k) + 'x in 8 weeks); ' + fair(n, k) : 'Free; ' + fair(n, k), false, k);
       else out.notes.push('PLAD: no free APO.'); }
-    // 6. RAI Party: anyone, fewest this month
-    sl = duty('RAI Party', 'main');
+    // 6. RAI Party: anyone, fewest this month (not on weekends)
+    sl = !wkend && duty('RAI Party', 'main');
     if (sl) { k = 'duty:RAI Party:main'; const n = pick(apos, k);
       if (n) add(sl, n, 'Free; ' + fair(n, k), false, k);
       else {                                       // short of manpower: Ammo admin main doubles up as RAI
@@ -3113,12 +3151,21 @@ function autoDraft(wk, idxs, st){
         const am = drafted ? drafted.value : ex && ex.mainPeople[0];
         if (am) add(sl, am, 'Dual role with Ammo admin (short of manpower)', true, k); else out.notes.push('RAI Party: no free APO.'); } }
     // 6b. Ammo admin spare (after the main slots, so it never leaves RAI or PLAD empty): another of Danial, Ivan or Wong; otherwise left empty
-    sl = duty('Ammo admin', 'spare');
+    sl = !wkend && duty('Ammo admin', 'spare');
     if (sl) { k = 'duty:Ammo admin:spare'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k);
       if (n) add(sl, n, 'Admin team spare; ' + fair(n, k), false, k);
       else out.notes.push('Ammo admin spare: Danial, Ivan and Wong not free, left empty.'); }
-    // 7. DAO spare: the balance personnel
-    sl = duty('DAO', 'spare');
+    // 7. DAO spare: the balance personnel. If some parked there were posted above, take them out of DAO spare.
+    const moved = parked.filter(n => busy.has(n));
+    if (moved.length && daoX) {
+      let left = daoX.spare;
+      moved.forEach(n => { left = dropNameTxt(left, n); });
+      const rest = wkend ? [] : apos.filter(free).filter(n => !parked.includes(n));
+      left = [left].concat(rest).filter(Boolean).join(' / ');
+      out.items.push({ slot: { kind: 'duty', label: daoX.duty, field: 'spare' }, value: left, old: daoX.spare, replace: true,
+        reason: 'Updated: ' + moved.map(T).join(', ') + (moved.length === 1 ? ' was' : ' were') + ' moved from DAO spare to the postings above', warn: false });
+    }
+    sl = !wkend && duty('DAO', 'spare');
     if (sl) { const rest = apos.filter(free); if (rest.length) add(sl, rest.join(' / '), 'Balance personnel (not posted)', false, 'duty:DAO:spare'); }
     // 8. Medics
     sl = med('Driver');
@@ -3185,7 +3232,7 @@ async function openAutoFill(wk){
     bg.querySelectorAll('[data-afc]:checked').forEach(c => {
       const [di, ii] = c.dataset.afc.split('|').map(Number), x = draft[di].items[ii];
       const v = bg.querySelector(`[data-afv="${di}|${ii}"]`).value.trim();
-      if (v) changes.push({ date: draft[di].date, slot: x.slot, value: v });
+      if (v || x.replace) changes.push(Object.assign({ date: draft[di].date, slot: x.slot, value: v }, x.replace ? { replace: true, old: x.old } : {}));
     });
     if (!changes.length) return;
     busy(e.target, true);
@@ -3720,7 +3767,9 @@ const MOCK = (() => {
     saveSupTags: (t, rows) => { Object.keys(mSup).forEach(k => delete mSup[k]); rows.forEach(r => mSup[offKey(r.sup)] = r.apo); return MOCK.getSupTags(); },
     adminApplySlots: (t, changes) => { let applied = 0; const skipped = [];
       changes.forEach(c => { const d = getWk(mondayOf(c.date)).days[dowIdx(c.date)]; const cur = c.slot.kind === 'range' ? d.ranges.find(x => x.range === c.slot.label).emp : c.slot.kind === 'duty' ? d.duties.find(x => x.duty === c.slot.label)[c.slot.field] : d.medics.find(x => x.role === c.slot.label).who;
-        if (String(cur || '').trim()) { skipped.push(c.slot.label + ': already ' + cur); return; } MOCK.adminSetSlot(t, c.date, c.slot, c.value.toUpperCase()); applied++; });
+        if (c.replace) { if (String(cur || '').toUpperCase() !== String(c.old || '').toUpperCase()) { skipped.push('DAO spare changed meanwhile'); return; } }
+        else if (String(cur || '').trim()) { skipped.push(c.slot.label + ': already ' + cur); return; }
+        MOCK.adminSetSlot(t, c.date, c.slot, c.value.toUpperCase()); applied++; });
       const m = mondayOf(changes[0].date); return { applied, skipped, weeks: { [m]: JSON.parse(JSON.stringify(getWk(m))) } }; },
     getIncidents: () => mIncOut(),
     incCheck: (t, text) => { const out = [], add = (from, to, why) => { const i = text.indexOf(from); if (i >= 0) out.push({ offset: i, from, to, why }); };
