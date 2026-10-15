@@ -2281,8 +2281,9 @@ function waText(day, rangesOnly){
     const emp = String(r.emp || '').replace(/\(\s*PM\b[^)]*\)/i, '(PM)');
     L.push(b(r.range + (xt ? ' (EXT)' : '')) + ' - ' + (emp ? b(emp) : 'No APO') + (r.sup ? ' (with ' + r.sup + ')' : ''));
     const dur = r.dur && r.dur !== r.tf ? r.dur : '';   // the sheet sometimes repeats the TF here
-    const d = [r.tf, r.unit, [dur, ext ? rmkNoExt(r.rmk) : r.rmk].filter(Boolean).join(' '), r.note].filter(Boolean).join(' | ');
+    const d = [r.tf, r.unit, [dur, ext ? rmkNoExt(r.rmk) : r.rmk].filter(Boolean).join(' ')].filter(Boolean).join(' | ');
     if (d) L.push('    ' + d);
+    if (r.note) L.push('    Note: ' + r.note);          // the range note on its own line
   });
   if (rangesOnly) return L.join('\n');                  // e.g. for the RSO & RCO group
   const du = day.duties.filter(x => x.main || x.spare);
@@ -2295,6 +2296,8 @@ function waText(day, rangesOnly){
   L.push('', b('UNDEPLOYED APO'), freeA.length ? freeA.join(', ') : 'NIL');
   const rg = reportGroups(day);
   if (rg.length) { L.push('', b('EXT HOURS')); rg.forEach(g => L.push(hrs(g.t).toUpperCase() + ' - ' + g.names.join(', '))); }
+  const nt = rs.filter(r => r.note);
+  if (nt.length) { L.push('', b('NOTES')); nt.forEach(r => L.push(r.range + ' - ' + r.note)); }
   const medics = (S.staff || []).filter(p => MEDIC_ROLES.includes(p.role) || p.role === 'Backup Medic').map(p => p.name);
   const aw = day.absences.filter(a => !NOT_AWAY.includes(a.label.toUpperCase().replace(/\s+/g, '')))
     .map(a => ({ label:a.label, text:dropMedics(a.text, x => namesIn(x).some(n => medics.includes(n))) }))
