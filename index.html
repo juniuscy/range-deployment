@@ -395,6 +395,11 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .bday{cursor:pointer;position:relative;overflow:hidden}.bday .ck{font-size:26px;line-height:1;display:inline-block;animation:bdwig 1.6s ease-in-out infinite}@keyframes bdwig{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg) scale(1.08)}50%{transform:rotate(0)}75%{transform:rotate(12deg) scale(1.08)}}.bday::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.75) 50%,transparent 70%);transform:translateX(-100%);animation:bdshine 3.5s ease-in-out infinite;pointer-events:none}@keyframes bdshine{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}#fxc{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}.bday b{display:block;color:#9D174D;font-size:16px}.bday small{color:var(--muted);font-size:13px}
 
 
+.dsel.hasbd{padding-top:14px}
+.dsel button .pcap{position:absolute;top:-17px;left:50%;width:20px;height:24px;transform:translateX(-50%) rotate(-14deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));pointer-events:none}
+.dsel button.hasbday{border-color:#F9A8D4;overflow:visible}
+.bdline{display:flex;align-items:center;gap:8px;background:#FDF2F8;border:1px solid #F9A8D4;border-radius:10px;padding:6px 10px;margin:-4px 0 10px;font-size:14px}
+.bdline .pcap{width:18px;height:22px;flex:none}
 .dsel button.busy{background:#FFFBEB;border-color:#F8E7A8}
 .dsel button.full{background:#FEF2F1;border-color:#F6C9C4}
 .dsel button.busy[aria-pressed="true"]{background:var(--ink);border:3px solid #F5C842}
@@ -1884,6 +1889,10 @@ async function viewBoard(force){
   } catch(e){ if (old) { const u = $('#wk-upd'); if (u) u.textContent = 'could not update'; } else fail(e); }
 }
 function moveWeek(n){ S.monday = addD(S.monday, 7*n); viewBoard(); }
+/* little party cap drawn on top of a day card when someone has a birthday that day */
+const PARTY_CAP = '<svg class="pcap" viewBox="0 0 24 28" aria-hidden="true"><path d="M12 3 L21 25 L3 25 Z" fill="#F43F5E"/>'
+  + '<path d="M8.6 11.3 L15.4 11.3 L16.6 14.2 L7.4 14.2 Z M6.2 17 L17.8 17 L19 19.9 L5 19.9 Z" fill="#FDE047"/>'
+  + '<rect x="2" y="24" width="20" height="3" rx="1.5" fill="#6D28D9"/><circle cx="12" cy="3" r="2.6" fill="#22C55E"/></svg>';
 function drawBoard(wk){
   const end = addD(wk.monday, 6);
   const admin = canManage();
@@ -1907,7 +1916,9 @@ function drawBoard(wk){
       const nc = clashesOn(x).length, ng = noApoOn(x).length;
       const live = x.ranges.filter(r => r.active);
       const hx = live.some(r => extOf(r.rmk) || splitOf(r.emp)), ha = live.some(r => isApsTf(r.tf));
-      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${n >= 6 ? 'full ' : n === 5 ? 'busy ' : ''}${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}" ${nc || ng ? `title="${[nc && nc + ' to cover', ng && ng + ' without APO'].filter(Boolean).join(', ')}"` : ''}>${hx || ha ? `<span class="mk">${hx ? '<u class="e" title="Extended hours"></u>' : ''}${ha ? '<u class="a" title="APS range"></u>' : ''}</span>` : ''}<span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
+      const bd = (wk.bdays || {})[x.date] || [];
+      const tip = [nc && nc + ' to cover', ng && ng + ' without APO', bd.length && 'Birthday: ' + bd.join(', ')].filter(Boolean).join(', ');
+      return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${n >= 6 ? 'full ' : n === 5 ? 'busy ' : ''}${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}${bd.length ? ' hasbday' : ''}" ${tip ? `title="${esc(tip)}"` : ''}>${bd.length ? PARTY_CAP : ''}${hx || ha ? `<span class="mk">${hx ? '<u class="e" title="Extended hours"></u>' : ''}${ha ? '<u class="a" title="APS range"></u>' : ''}</span>` : ''}<span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
     }).join('');
     const away = awayOn(d);
     const dayClash = clashesOn(d), dayGap = noApoOn(d);
@@ -1956,8 +1967,10 @@ function drawBoard(wk){
     const loadKey = `<span><u style="background:#FFFBEB;border-radius:3px;box-shadow:0 0 0 1px #F0D98A"></u>5 ranges</span><span><u style="background:#FEF2F1;border-radius:3px;box-shadow:0 0 0 1px #EDB3AC"></u>6+ ranges</span>`;
     const keyItems = [['e','var(--ext)','EXT'],['a','var(--aps)','APS'],['g','var(--noapo)','No APO'],['c','var(--flag)','To cover']];
     const dayKey = `<div class="daykey">${keyItems.map(k => `<span><u style="background:${k[1]}"></u>${k[2]}</span>`).join('')}${loadKey}</div>`;
-    V().innerHTML = head + `<div class="dsel">${sel}</div>${dayKey}
+    const bdToday = (wk.bdays || {})[d.date] || [];
+    V().innerHTML = head + `<div class="dsel${Object.keys(wk.bdays || {}).length ? ' hasbd' : ''}">${sel}</div>${dayKey}
       <p class="daytitle">${nice(d.date)}${d.title && /\(/.test(d.title) ? ' ' + esc(d.title.replace(/^\w+\s*/, '')) : ''}</p>
+      ${bdToday.length ? `<div class="bdline">${PARTY_CAP}<span>Birthday: <b>${esc(bdToday.map(n => titleCase(n)).join(', '))}</b></span></div>` : ''}
       ${S.dm && S.dm[d.date] ? `<${admin ? 'button' : 'div'} class="dmline" id="dm-ed"${admin ? ' title="Change the Duty Manager"' : ''}><span>DM</span>Duty Manager: <b>${esc(S.dm[d.date])}</b>${admin ? '<u>Change</u>' : ''}</${admin ? 'button' : 'div'}>`
         : admin ? '<button class="dmline none" id="dm-ed"><span>DM</span>No Duty Manager set <u>Add</u></button>' : ''}
       ${dayClash.length ? `<div class="note red"><b>${dayClash.length} posting${dayClash.length === 1 ? '' : 's'} to cover</b> (deployed but away):
@@ -3739,7 +3752,8 @@ const MOCK = (() => {
       const ds = []; for (let d = st; d <= en; d = addD(d, 1)) if (d < was[0] || d > was[1]) ds.push(d); return { pulled: mPull(r.name, ds), notWritten:[] }; },
     adminSetLateAfter: (t, hm, d) => { lateAfter = hm; return mockAtt(d); },
     adminClockIn: (t, d, n, hm) => { const r = attRec(d, n); r.clockIn = hm; r.by = hm ? S.me.name : ''; return mockAtt(d); },
-    getWeek: (t, d) => { const m = mondayOf(d); const dm = {}; for (let i = 0; i < 7; i++) { const x = addD(m, i); if (mDm[x]) dm[x] = mDm[x]; } return Object.assign({}, getWk(m), { dmMap: dm }); },
+    getWeek: (t, d) => { const m = mondayOf(d); const dm = {}, bdays = {}; for (let i = 0; i < 7; i++) { const x = addD(m, i); if (mDm[x]) dm[x] = mDm[x];
+      const bn = Object.keys(MB).filter(n => MB[n].slice(5) === x.slice(5)); if (bn.length) bdays[x] = bn; } return Object.assign({}, getWk(m), { dmMap: dm, bdays }); },
     getDm: (t, ym) => { ym = ym || today.slice(0, 7); const end = ym2 => new Date(+ym2.slice(0, 4), +ym2.slice(5, 7), 0).getDate();
       const rows = {}; Object.keys(mDm).filter(x => x.slice(0, 7) === ym).forEach(x => rows[x] = mDm[x]);
       const cnt = ym2 => Object.keys(mDm).filter(x => x.slice(0, 7) === ym2).length, nm = ymAdd(today.slice(0, 7), 1);
