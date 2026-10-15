@@ -895,7 +895,7 @@ function openMonthSum(kind, ym){
       return `<div class="msd${kind === 'wkend' ? ' wk' : ''}${past ? ' past' : ''}${x.date === S.today ? ' today' : ''}"><div class="msh"><b>${DOW[dowIdx(x.date)]} ${dt.getDate()} ${MON[dt.getMonth()]}</b>
           <span>${x.ranges.length} range${x.ranges.length === 1 ? '' : 's'}${x.date === S.today ? ' &middot; today' : past ? ' &middot; done' : ''}</span></div>
         ${x.ranges.map(r => { const sp = splitOf(r.emp);
-          return `<div class="msr"><span class="code">${esc(r.range)}</span><span>${sp ? splitHtml(sp) : r.emp ? esc(r.emp) : '<span class="muted">No APO yet</span>'}${[r.tf, r.unit].filter(Boolean).length ? `<small>${esc([r.tf, r.unit].filter(Boolean).join(' | '))}</small>` : ''}</span></div>`; }).join('')}
+          return `<div class="msr"><span class="code">${esc(r.range)}</span><span>${sp ? splitHtml(sp) : r.emp ? esc(r.emp) : '<span class="muted">No APO yet</span>'}${[r.tf, r.unit, r.note].filter(Boolean).length ? `<small>${esc([r.tf, r.unit, r.note].filter(Boolean).join(' | '))}</small>` : ''}</span></div>`; }).join('')}
         ${rg.length ? `<div class="msrep">${rg.map(g => `<span class="extag">Report ${esc(hrs(g.t))}</span> ${esc(g.names.join(', '))}`).join('<br>')}</div>` : ''}</div>`;
     };
     $('#ms-in', bg).innerHTML = `<div class="mstab" role="group"><button class="chip" data-k="ext" aria-pressed="${kind === 'ext'}">Extension (EXT) ${d.ext.length}</button><button class="chip" data-k="wkend" aria-pressed="${kind === 'wkend'}">Weekends ${d.wkend.length}</button></div>
@@ -1916,7 +1916,7 @@ function drawBoard(wk){
       const slot = `data-slot="range|${esc(r.range)}"`;
       if (!r.active) return `<div class="rg idle" ${slot}><div class="code">${esc(r.range)}</div><div class="body">Not in use</div></div>`;
       const mine = r.people.indexOf(me) >= 0;
-      const meta = [['TF', r.tf], ['Unit', r.unit], ['', r.dur], ['', r.rmk]].filter(m => m[1])
+      const meta = [['TF', r.tf], ['Unit', r.unit], ['', r.dur], ['', r.rmk], ['Note', r.note]].filter(m => m[1])
         .map(m => `<span>${m[0] ? m[0]+' ' : ''}<b>${esc(m[1])}</b></span>`).join('');
       const bad = r.people.some(n => away[n]);
       const gap = !String(r.emp || '').trim();
@@ -2079,7 +2079,8 @@ function openSlotEditor(wk, day, kind, label){
   if (kind === 'range') {
     const r = day.ranges.find(x => x.range === label);
     sp0 = splitOf(r.emp);
-    fields = [['emp', 'APO', r.emp], ['rmk', 'Remark (WD, AM, PM, M, CXL, EXT = extended hours 1200hrs, EXT 1300 = other time)', r.rmk]];
+    fields = [['emp', 'APO', r.emp], ['rmk', 'Remark code (WD, AM, PM, M, CXL, EXT = extended hours 1200hrs, EXT 1300 = other time)', r.rmk],
+      ['note', 'Note (saved in row 62 of the weekly tab, e.g. FAIZAL DEMO SHOOT)', r.note || '']];
     src = [r.sup && 'Officer ' + r.sup, r.tf && 'TF ' + r.tf, r.unit && 'Unit ' + r.unit].filter(Boolean).join('  |  ');
     src = src ? src + '<br>Officer, TF and unit come from Initial Recce and stay as they are.' : 'No officer booked from Initial Recce for this range yet.';
     pool = 'APO';
@@ -2280,7 +2281,7 @@ function waText(day, rangesOnly){
     const emp = String(r.emp || '').replace(/\(\s*PM\b[^)]*\)/i, '(PM)');
     L.push(b(r.range + (xt ? ' (EXT)' : '')) + ' - ' + (emp ? b(emp) : 'No APO') + (r.sup ? ' (with ' + r.sup + ')' : ''));
     const dur = r.dur && r.dur !== r.tf ? r.dur : '';   // the sheet sometimes repeats the TF here
-    const d = [r.tf, r.unit, [dur, ext ? rmkNoExt(r.rmk) : r.rmk].filter(Boolean).join(' ')].filter(Boolean).join(' | ');
+    const d = [r.tf, r.unit, [dur, ext ? rmkNoExt(r.rmk) : r.rmk].filter(Boolean).join(' '), r.note].filter(Boolean).join(' | ');
     if (d) L.push('    ' + d);
   });
   if (rangesOnly) return L.join('\n');                  // e.g. for the RSO & RCO group
@@ -3575,7 +3576,7 @@ const MOCK = (() => {
     for (let d = 1; d <= last; d++) { const ds = ym + '-' + String(d).padStart(2, '0'), wk = getWk(mondayOf(ds)); const x = (wk.days || [])[dowIdx(ds)]; if (x) days.push(x); }
     const isExt = x => /(^|[^A-Z])EXT([^A-Z]|$)/i.test(x.title || '') || x.ranges.some(r => r.active && (extOf(r.rmk) || splitOf(r.emp)));
     const isWk = x => dowIdx(x.date) >= 5 && x.ranges.some(r => r.active);
-    const out = x => ({ date:x.date, title:x.title, ranges:x.ranges.filter(r => r.active).map(r => ({ range:r.range, emp:r.emp, tf:r.tf, unit:r.unit, dur:r.dur, rmk:r.rmk, sup:r.sup })), report:x.report || {} });
+    const out = x => ({ date:x.date, title:x.title, ranges:x.ranges.filter(r => r.active).map(r => ({ range:r.range, emp:r.emp, tf:r.tf, unit:r.unit, dur:r.dur, rmk:r.rmk, sup:r.sup, note:r.note || '' })), report:x.report || {} });
     return { ym, ext: days.filter(isExt).map(out), wkend: days.filter(isWk).map(out) }; };
   const mNewsList = () => mNews.filter(n => !n.until || n.until >= today).sort((a, b) => (b.pinned - a.pinned) || (a.posted < b.posted ? 1 : -1)).map(n => Object.assign({}, n));
   const mRep = { date: today, sent: {}, dmchk: {}, certDay: /certday/.test(location.search) || (w => { const ds = (w && w.days || []).filter(x => (x.ranges || []).some(r => r.active)).map(x => x.date); return ds.length > 0 && ds[ds.length - 1] === today; })(SNAP.weeks[mondayOf(today)]) };
@@ -3749,7 +3750,7 @@ const MOCK = (() => {
     medicSetSlot: (t, date, slot, v) => MOCK.adminSetSlot(t, date, slot, v),
     adminSetSlot: (t, date, slot, v) => {
       const wk = getWk(mondayOf(date)); const d = wk.days[dowIdx(date)];
-      const warnings = ['rmk','loc'].includes(slot.field) ? [] : clashes(d, v, slot.kind, slot.label, slot.field);
+      const warnings = ['rmk','loc','note'].includes(slot.field) ? [] : clashes(d, v, slot.kind, slot.label, slot.field);
       let old = '';
       const ppl = x => namesIn(x);
       if (slot.kind === 'range') { const r = d.ranges.find(x => x.range === slot.label); old = r[slot.field]; r[slot.field] = v; r.people = ppl(r.emp); r.active = !!(r.sup || r.emp);
