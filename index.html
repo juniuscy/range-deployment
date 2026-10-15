@@ -415,6 +415,16 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .clock.away{background:var(--steel-soft);border-color:var(--steel)}
 .demo{background:var(--wait-soft);color:var(--wait);text-align:center;font-size:13px;padding:5px}
 .news{border:1px solid #D5DAE1;border-radius:var(--r-md);padding:12px 14px;margin:12px 0;background:#ECEFF3}
+.nbtns{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 6px}
+.nb{border:0;border-radius:18px;padding:7px 14px;font:700 13px/1.2 inherit;cursor:pointer;color:#fff}.nb b{background:rgba(255,255,255,.25);border-radius:9px;padding:1px 7px;margin-left:4px}
+.nb.ext{background:var(--ext,#0F766E)}.nb.wk{background:#6D28D9}
+.msum .mstab{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.msnav{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px}.msnav b{font-size:16px}
+.msd{border:1px solid var(--line);border-left:4px solid var(--ext,#0F766E);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:var(--card)}
+.msd.wk{border-left-color:#6D28D9}.msd.past{opacity:.55}.msd.today{box-shadow:0 0 0 2px #F59E0B}
+.msh{display:flex;justify-content:space-between;gap:8px;margin-bottom:4px}.msh span{font-size:12px;color:var(--muted)}
+.msr{display:flex;gap:10px;font-size:14px;padding:3px 0;border-top:1px dashed var(--line)}.msr .code{flex:none;width:52px;font-weight:700}
+.msr small{display:block;color:var(--muted);font-size:12px}.msrep{font-size:13px;margin-top:6px;line-height:1.8}
 .news .nhd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}.news h3{margin:0}
 .nws{border-left:4px solid #3B82F6;background:#FFFFFF;border-radius:8px;padding:8px 10px;margin-top:8px}.nws.pin{border-left-color:#F59E0B;background:#FFFBEB}
 .nws .nh{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.nws .nh b{font-size:15px}
@@ -779,6 +789,7 @@ function drawHome(h, stale){
       else if (arrL) lib = `<div class="note blue">${arrL.trim()}</div>`;
     } else if (arrL) lib = `<div class="note blue">${arrL.trim()}</div>`;
     const dmToday = (h.dmMap || {})[S.today] || (S.dm || {})[S.today] || '';
+    if (h.monthSum) S.monthSum = h.monthSum;
     const dmMine = isMeDm(dmToday);
     V().innerHTML = `<div id="inst-slot">${stale ? '' : installBanner()}</div>
       <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="small muted" style="font:500 14px var(--body)">updating...</span>' : ''}</h2>
@@ -840,9 +851,11 @@ function newsItem(n, seen, mgr){
 function newsCard(list){
   list = list || [];
   const mgr = canManage();
-  if (!list.length && !mgr) return '';
+  const ms = S.monthSum, mon = ms ? MON[+ms.ym.slice(5, 7) - 1].toUpperCase() : '';
+  const sumBtns = ms ? `<div class="nbtns"><button class="nb ext" data-sum="ext">${mon} EXT <b>${ms.ext}</b></button><button class="nb wk" data-sum="wkend">${mon} Weekends <b>${ms.wkend}</b></button></div>` : '';
+  if (!list.length && !mgr && !ms) return '';
   const seen = newsSeen(), more = list.length > NEWS_SHOW && !S.newsAll;
-  return `<div class="news" id="news"><div class="nhd"><h3>News and updates</h3>${mgr ? '<button class="btn ib" id="n-add">Post update</button>' : ''}</div>
+  return `<div class="news" id="news"><div class="nhd"><h3>News and updates</h3>${mgr ? '<button class="btn ib" id="n-add">Post update</button>' : ''}</div>${sumBtns}
     ${list.length ? (more ? list.slice(0, NEWS_SHOW) : list).map(n => newsItem(n, seen, mgr)).join('') : '<p class="small muted" style="margin:4px 0 0">No updates yet. Post one and every account sees it here.</p>'}
     ${list.length > NEWS_SHOW ? `<button class="lnk" id="n-more" style="margin-top:6px">${more ? 'Show all ' + list.length : 'Show less'}</button>` : ''}</div>`;
 }
@@ -851,6 +864,7 @@ function wireNews(list, markSeen){
   const redraw = l => { S.news = l; const slot = $('#news-slot'); if (slot) { slot.innerHTML = newsCard(l); wireNews(l, false); } };
   if ($('#n-more')) $('#n-more').onclick = () => { S.newsAll = !S.newsAll; redraw(list); };
   if ($('#n-add')) $('#n-add').onclick = () => newsEditor(null, redraw);
+  box.querySelectorAll('[data-sum]').forEach(b => b.onclick = () => openMonthSum(b.dataset.sum, (S.monthSum && S.monthSum.ym) || S.today.slice(0, 7)));
   box.querySelectorAll('[data-ned]').forEach(b => b.onclick = () => newsEditor(list.find(n => n.id === b.dataset.ned), redraw));
   box.querySelectorAll('[data-ndel]').forEach(b => b.onclick = async () => {
     const n = list.find(x => x.id === b.dataset.ndel);
@@ -863,6 +877,40 @@ function wireNews(list, markSeen){
     try { if (top > newsSeen()) localStorage.setItem('rdp_news_seen', top); } catch(e) {}
   }
 }
+/* EXT days / weekend range days of a month, from the News box buttons */
+function openMonthSum(kind, ym){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet msum" role="dialog" aria-modal="true"><div id="ms-in"><div class="loading">Loading…</div></div>
+    <div class="acts"><button class="btn ghost" id="ms-x">Close</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#ms-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  let data = null;
+  const draw = () => {
+    const d = data, list = d[kind] || [], mLabel = MONL[+d.ym.slice(5, 7) - 1] + ' ' + d.ym.slice(0, 4);
+    const day = x => {
+      const dt = pd(x.date), past = x.date < S.today, rg = reportGroupsOf(x.report);
+      return `<div class="msd${kind === 'wkend' ? ' wk' : ''}${past ? ' past' : ''}${x.date === S.today ? ' today' : ''}"><div class="msh"><b>${DOW[dowIdx(x.date)]} ${dt.getDate()} ${MON[dt.getMonth()]}</b>
+          <span>${x.ranges.length} range${x.ranges.length === 1 ? '' : 's'}${x.date === S.today ? ' &middot; today' : past ? ' &middot; done' : ''}</span></div>
+        ${x.ranges.map(r => { const sp = splitOf(r.emp);
+          return `<div class="msr"><span class="code">${esc(r.range)}</span><span>${sp ? splitHtml(sp) : r.emp ? esc(r.emp) : '<span class="muted">No APO yet</span>'}${[r.tf, r.unit].filter(Boolean).length ? `<small>${esc([r.tf, r.unit].filter(Boolean).join(' | '))}</small>` : ''}</span></div>`; }).join('')}
+        ${rg.length ? `<div class="msrep">${rg.map(g => `<span class="extag">Report ${esc(hrs(g.t))}</span> ${esc(g.names.join(', '))}`).join('<br>')}</div>` : ''}</div>`;
+    };
+    $('#ms-in', bg).innerHTML = `<div class="mstab" role="group"><button class="chip" data-k="ext" aria-pressed="${kind === 'ext'}">Extension (EXT) ${d.ext.length}</button><button class="chip" data-k="wkend" aria-pressed="${kind === 'wkend'}">Weekends ${d.wkend.length}</button></div>
+      <div class="msnav"><button class="btn ghost ib" data-m="-1" aria-label="Previous month">Prev</button><b>${esc(mLabel)}</b><button class="btn ghost ib" data-m="1" aria-label="Next month">Next</button></div>
+      ${list.length ? list.map(day).join('') : `<div class="sec"><p class="muted" style="margin:0">No ${kind === 'ext' ? 'extension' : 'weekend range'} days in ${esc(mLabel)}${d.ym > S.today.slice(0, 7) ? ' yet (or the weekly tabs are not out)' : ''}.</p></div>`}`;
+    $('#ms-in', bg).querySelectorAll('[data-k]').forEach(b => b.onclick = () => { kind = b.dataset.k; draw(); });
+    $('#ms-in', bg).querySelectorAll('[data-m]').forEach(b => b.onclick = () => load(ymAdd(d.ym, +b.dataset.m)));
+  };
+  const load = async m => {
+    $('#ms-in', bg).querySelectorAll('button').forEach(b => b.disabled = true);
+    try { data = await call('monthSummary', S.token, m); draw(); } catch(e){ fail(e); if (data) draw(); }
+  };
+  load(ym);
+}
+function reportGroupsOf(rp){ const g = {}; Object.keys(rp || {}).forEach(n => { (g[rp[n]] = g[rp[n]] || []).push(n); }); return Object.keys(g).sort().map(t => ({ t, names: g[t] })); }
 function newsEditor(n, redraw){
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
@@ -3475,6 +3523,12 @@ const MOCK = (() => {
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
   const mNews = [{ id:'N1', posted: addD(today, -1) + ' 16:20', by:'CHAN YANG', title:'New PLAD timing from 1 Nov', msg:'PLAD collection moves to 0730hrs from 1 Nov.\nDrivers please report 15 minutes earlier.', until:'', pinned:true },
     { id:'N2', posted: today + ' 08:05', by:'JAMES LAI', title:'Range 50M2 maintenance', msg:'50M2 closed next Tue for target maintenance.', until: addD(today, 7), pinned:false }];
+  const mMonth = ym => { const y = +ym.slice(0, 4), m = +ym.slice(5, 7), last = new Date(y, m, 0).getDate(), days = [];
+    for (let d = 1; d <= last; d++) { const ds = ym + '-' + String(d).padStart(2, '0'), wk = getWk(mondayOf(ds)); const x = (wk.days || [])[dowIdx(ds)]; if (x) days.push(x); }
+    const isExt = x => /(^|[^A-Z])EXT([^A-Z]|$)/i.test(x.title || '') || x.ranges.some(r => r.active && (extOf(r.rmk) || splitOf(r.emp)));
+    const isWk = x => dowIdx(x.date) >= 5 && x.ranges.some(r => r.active);
+    const out = x => ({ date:x.date, title:x.title, ranges:x.ranges.filter(r => r.active).map(r => ({ range:r.range, emp:r.emp, tf:r.tf, unit:r.unit, dur:r.dur, rmk:r.rmk, sup:r.sup })), report:x.report || {} });
+    return { ym, ext: days.filter(isExt).map(out), wkend: days.filter(isWk).map(out) }; };
   const mNewsList = () => mNews.filter(n => !n.until || n.until >= today).sort((a, b) => (b.pinned - a.pinned) || (a.posted < b.posted ? 1 : -1)).map(n => Object.assign({}, n));
   const mRep = { date: today, sent: {}, dmchk: {}, certDay: /certday/.test(location.search) || (w => { const ds = (w && w.days || []).filter(x => (x.ranges || []).some(r => r.active)).map(x => x.date); return ds.length > 0 && ds[ds.length - 1] === today; })(SNAP.weeks[mondayOf(today)]) };
   const mSup = {};
@@ -3552,7 +3606,7 @@ const MOCK = (() => {
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      news: mNewsList(), attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
+      news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
@@ -3561,6 +3615,7 @@ const MOCK = (() => {
     getInspections: () => mockInsp(),
     getReports: () => mRep,
     getNews: () => mNewsList(),
+    monthSummary: (t, ym) => mMonth(ym),
     newsSave: (t, f) => { if (!String(f.title || '').trim()) throw new Error('Give the update a title.');
       const hm = String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0');
       const n = f.id ? mNews.find(x => x.id === f.id) : null;
