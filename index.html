@@ -1623,7 +1623,7 @@ async function repPrepare(r, st, redraw){
   } else if (r.id === 'am-att') {
     const a = await call('adminAttendance', S.token, S.today);
     text = attText(a);
-    const none = a.rows.filter(x => x.status !== 'Off' && !x.status);
+    const none = a.rows.filter(x => x.status !== 'Off' && !x.status && !x.ext);
     if (none.length) warn = `<div class="note red"><b>Not accounted yet:</b> ${esc(none.map(x => x.name).join(', '))}. Mark them in Admin, Attendance first.</div>`;
   } else if (r.id === 'pm-good') {
     text = 'Thank you guys for today, you all can standdown.';
@@ -1869,7 +1869,7 @@ function drawBoard(wk){
       const isExt = (!!extOf(r.rmk) || !!sp) && !gap;
       const isAps = !gap && !isExt && isApsTf(r.tf);
       return `<div class="rg${bad ? ' clash' : gap ? ' noapo' : mine ? ' mine' : ''}${isExt ? ' ext' : ''}${isAps ? ' aps' : ''}" ${slot}><div class="code">${esc(r.range)}</div><div class="body">
-        <div class="ppl">${sp ? `<span class="shf">AM</span>${esc(sp.am || 'NA')}${sp.pm ? `<span class="shf pm">PM</span>${esc(sp.pm)} <span class="extag">EXT ${esc(hrs(sp.pmAt))}</span>` : ''}` : r.emp ? esc(r.emp) : '<span class="none">No APO assigned</span>'}${!sp && extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
+        <div class="ppl">${sp ? splitHtml(sp) : r.emp ? esc(r.emp) : '<span class="none">No APO assigned</span>'}${!sp && extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
         ${whyLine(r.people)}<div class="meta">${meta}</div></div></div>`;
     }).join('');
     const duties = d.duties.filter(x => edAll || x.main || x.spare);
@@ -1882,8 +1882,8 @@ function drawBoard(wk){
         <div><b>Backup medics</b> - ${freeBk.length ? esc(freeBk.join(', ')) : '<span class="muted">none</span>'}</div></td></tr>`;
     const dutyT = `<h3>Duties</h3><div class="scroll"><table class="t"><tr><th>Duty</th><th>Main</th><th>Spare</th></tr>
       ${duties.map(x => { const ppl = x.mainPeople.concat(x.sparePeople), bad = ppl.some(n => away[n]);
-        const dx = ppl.map(n => (d.report || {})[n]).filter(Boolean)[0];
-        return `<tr data-slot="duty|${esc(x.duty)}" class="${bad ? 'clash' : ppl.indexOf(me)>=0 ? 'mine' : ''}"><td>${esc(x.duty)}${dx ? ` <span class="extag">EXT ${esc(hrs(dx))}</span>` : ''}</td><td>${esc(x.main)}${whyLine(x.mainPeople)}</td><td>${esc(x.spare)}${whyLine(x.sparePeople)}</td></tr>`; }).join('')}
+        const dx = splitOf(x.main) ? '' : ppl.map(n => (d.report || {})[n]).filter(Boolean)[0];
+        return `<tr data-slot="duty|${esc(x.duty)}" class="${bad ? 'clash' : ppl.indexOf(me)>=0 ? 'mine' : ''}"><td>${esc(x.duty)}${dx ? ` <span class="extag">EXT ${esc(hrs(dx))}</span>` : ''}</td><td>${splitOf(x.main) ? splitHtml(splitOf(x.main)) : esc(x.main)}${whyLine(x.mainPeople)}</td><td>${esc(x.spare)}${whyLine(x.sparePeople)}</td></tr>`; }).join('')}
       ${undepRow}</table></div>`;
     const medicT = medics.length ? `<h3>Medics</h3><div class="scroll"><table class="t"><tr><th>Role</th><th>Name</th><th>At</th></tr>
       ${medics.map(x => { const bad = x.people.some(n => away[n]);
@@ -2029,6 +2029,7 @@ function openSlotEditor(wk, day, kind, label){
     pool = 'APO';
   } else if (kind === 'duty') {
     const x = day.duties.find(y => y.duty === label);
+    if (SHIFT_DUTIES.includes(label)) sp0 = splitOf(x.main);
     fields = [['main', 'Main', x.main], ['spare', 'Spare', x.spare]];
     pool = 'APO';
   } else {
@@ -2040,12 +2041,13 @@ function openSlotEditor(wk, day, kind, label){
   const free = freeOn(day, pool);
   const freeMg = freeOn(day, pool === 'Medic' ? 'Backup Medic' : 'Manager');   // the reserve for this kind of slot
   const names = namesFor(pool);
-  const spHtml = kind === 'range' ? `<label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="sp-on" style="width:20px;height:20px" ${sp0 ? 'checked' : ''}><span><b>Extension: AM and PM shifts</b></span></label>
+  const spOk = kind === 'range' || (kind === 'duty' && SHIFT_DUTIES.includes(label));
+  const spHtml = spOk ? `<label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="sp-on" style="width:20px;height:20px" ${sp0 ? 'checked' : ''}><span><b>Extension: AM and PM shifts</b></span></label>
       <div class="spbox" id="sp-box" ${sp0 ? '' : 'hidden'}>
         <label class="f"><span>AM</span><select id="sp-am"><option value="">Choose</option><option value="NA">NA (no AM shift)</option>${pickerOptions(day, pool)}</select></label>
         <div class="row2"><label class="f" style="margin-bottom:0"><span>PM</span><select id="sp-pm"><option value="">Choose</option>${pickerOptions(day, pool)}</select></label>
-        <label class="f" style="margin-bottom:0"><span>PM reports at (24hrs)</span><input type="text" id="sp-t" inputmode="numeric" maxlength="4" value="${esc(sp0 && sp0.pmAt ? sp0.pmAt.replace(':', '') : '1200')}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
-        <p class="small muted" style="margin:8px 0 0">Saved in the sheet as <b>TOH (AM) / ARIF (PM 1200HRS)</b>. Only the PM APO reports late; the AM APO keeps the normal time.</p></div>` : '';
+        <label class="f" style="margin-bottom:0"><span>PM reports at (24hrs)</span><input type="text" id="sp-t" inputmode="numeric" maxlength="4" value="${esc(sp0 && sp0.pmAt ? sp0.pmAt.replace(':', '') : dayPmAt(day))}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
+        <p class="small muted" style="margin:8px 0 0">Saved in the sheet as <b>${kind === 'duty' ? 'FAIZAL (AM) / ONG (PM 1200HRS)' : 'TOH (AM) / ARIF (PM 1200HRS)'}</b>${kind === 'duty' ? ' in the Main cell' : ''}. The PM time starts as the one already used that day. Only the PM APO reports late; the AM APO keeps the normal time.</p></div>` : '';
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-t">
@@ -2135,6 +2137,16 @@ function splitOf(emp){
   });
   return out.am || out.pm ? out : null;
 }
+const SHIFT_DUTIES = ['DAO', 'Ammo admin'];         // duties that also run AM / PM shifts on extension days
+/* PM report time already used that day (a PM shift or EXT range), else 1200 */
+function dayPmAt(day){
+  const sp = day.ranges.map(r => splitOf(r.emp)).concat(day.duties.map(x => splitOf(x.main))).find(x => x && x.pm);
+  if (sp) return sp.pmAt.replace(':', '');
+  const ex = day.ranges.map(r => r.active && extOf(r.rmk)).find(Boolean);
+  return ex ? ex.replace(':', '') : '1200';
+}
+/* AM / PM display for a split cell */
+const splitHtml = sp => `<span class="shf">AM</span>${esc(sp.am || 'NA')}${sp.pm ? `<span class="shf pm">PM</span>${esc(sp.pm)} <span class="extag">EXT ${esc(hrs(sp.pmAt))}</span>` : ''}`;
 const splitTxt = (am, pm, t) => [am && am + ' (AM)', pm && pm + ' (PM ' + (t || '1200') + 'HRS)'].filter(Boolean).join(' / ');
 function extOf(rmk){
   const t = String(rmk || '').toUpperCase();
@@ -2720,13 +2732,20 @@ function attText(a){
   const by = st => rows.filter(r => r.status === st);
   /* a leave line: everyone whose status is that leave, plus anyone with a second half-day leave of that kind; (AM)/(PM) shown for half days */
   const half = h => h ? ' (' + h + ')' : '';
+  /* not in yet but reporting later today (OTHERS "... 1200HRS", PM shift, EXT range): listed under Others with the time */
+  const later = rows.filter(r => !r.status && r.ext);
+  const laterTxt = () => { const g = {};
+    later.forEach(r => { (g[r.ext] = g[r.ext] || []).push(titleCase(r.name)); });
+    return Object.keys(g).sort().map(t => g[t].join(', ') + ' (Report ' + hrs(t) + ')'); };
   const leaveList = c => {
     const out = [];
     rows.forEach(r => {
       if (r.status === c) out.push(titleCase(r.name) + half(r.leave && r.leave.cat === c ? r.leave.half : ''));
       (r.leave && r.leave.also || []).forEach(x => { if (x.cat === c && r.status !== c) out.push(titleCase(r.name) + half(x.half)); });
     });
-    return out.length ? out.length + ' - ' + out.join(', ') : 'NIL';
+    const n = out.length + (c === 'Others' ? later.length : 0);
+    if (c === 'Others') out.push.apply(out, laterTxt());
+    return n ? n + ' - ' + out.join(', ') : 'NIL';
   };
   const present = rows.filter(r => r.status === 'Present' || r.status === 'Present (Late)');
   const head2 = ['*OPS SUPPORT*',
@@ -2748,7 +2767,7 @@ function attText(a){
     ''
   ];
   ATT_AWAY.forEach(c => L.push(c + ': ' + leaveList(c)));
-  const none = rows.filter(r => !r.status);
+  const none = rows.filter(r => !r.status && !r.ext);
   if (none.length) L.push('Not accounted: ' + list(none));
   return L.join('\n');
 }
@@ -3451,10 +3470,12 @@ const MOCK = (() => {
       attStore.__seeded = 1;
       staffList.filter(p => p.role !== 'Admin').forEach((p, i) => { if (!lv[p.name] && i % 7 !== 3) attRec(d, p.name).clockIn = i % 9 === 5 ? '08:14' : '07:4' + (i % 10); });
     }
+    const wkd = (getWk(mondayOf(d)).days || [])[dowIdx(d)] || {}, rep = Object.assign({}, wkd.report || {});
+    if (/extdemo/.test(location.search)) staffList.filter(p => !attRec(d, p.name).clockIn && !lv[p.name] && p.role === 'APO').slice(0, 2).forEach(p => { rep[p.name] = '12:00'; });
     const rows = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic' && p.active && p.att !== false).map(p => {
       const r = attRec(d, p.name); let status = '';
       if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
-      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status };
+      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, ext: !status ? (rep[p.name] || '') : '' };
     });
     return { date:d, lateAfter, statuses:['Present','Present (Late)','UL','AL','NPL','MC','MA','HL','CCL','OIL','Course','ICT','Others','Off'], rows };
   }
@@ -3557,7 +3578,8 @@ const MOCK = (() => {
       const ppl = x => namesIn(x);
       if (slot.kind === 'range') { const r = d.ranges.find(x => x.range === slot.label); old = r[slot.field]; r[slot.field] = v; r.people = ppl(r.emp); r.active = !!(r.sup || r.emp);
         const sp = splitOf(r.emp); if (sp) { d.report = d.report || {}; sp.pmNames.forEach(n => { d.report[n] = sp.pmAt; }); } }
-      if (slot.kind === 'duty') { const x = d.duties.find(y => y.duty === slot.label); old = x[slot.field]; x[slot.field] = v; x.mainPeople = ppl(x.main); x.sparePeople = ppl(x.spare); }
+      if (slot.kind === 'duty') { const x = d.duties.find(y => y.duty === slot.label); old = x[slot.field]; x[slot.field] = v; x.mainPeople = ppl(x.main); x.sparePeople = ppl(x.spare);
+        const sp = splitOf(x.main); if (sp) { d.report = d.report || {}; sp.pmNames.forEach(n => { d.report[n] = sp.pmAt; }); } }
       if (slot.kind === 'medic') { const m = d.medics.find(y => y.role === slot.label); const f = slot.field === 'name' ? 'who' : 'loc'; old = m[f]; m[f] = v; m.people = ppl(m.who); }
       changes.unshift({ id:'C'+Date.now()+Math.random(), when:today, by:S.me.name, date, slot:slot.label+' '+({emp:'employee',rmk:'remark',name:'',loc:'location'}[slot.field] ?? slot.field), oldValue:old, hadFormula:slot.field==='emp', newValue:v, status:'Done' });
       return { week: JSON.parse(JSON.stringify(wk)), warnings };
