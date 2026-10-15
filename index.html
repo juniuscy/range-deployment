@@ -881,7 +881,7 @@ function wireNews(list, markSeen){
 function openMonthSum(kind, ym){
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
-  bg.innerHTML = `<div class="sheet msum" role="dialog" aria-modal="true"><div id="ms-in"><div class="loading">Loading…</div></div>
+  bg.innerHTML = `<div class="sheet msum" role="dialog" aria-modal="true"><div id="ms-in"><div class="loading">Loading\u2026</div></div>
     <div class="acts"><button class="btn ghost" id="ms-x">Close</button></div></div>`;
   document.body.appendChild(bg);
   const close = () => bg.remove();
