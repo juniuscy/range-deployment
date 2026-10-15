@@ -2049,9 +2049,11 @@ function openSlotEditor(wk, day, kind, label){
   const spOk = kind === 'range' || (kind === 'duty' && SHIFT_DUTIES.includes(label));
   const spHtml = spOk ? `<label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="sp-on" style="width:20px;height:20px" ${sp0 ? 'checked' : ''}><span><b>Extension: AM and PM shifts</b></span></label>
       <div class="spbox" id="sp-box" ${sp0 ? '' : 'hidden'}>
-        <label class="f"><span>AM</span><select id="sp-am"><option value="">Choose</option><option value="NA">NA (no AM shift)</option>${pickerOptions(day, pool)}</select></label>
-        <div class="row2"><label class="f" style="margin-bottom:0"><span>PM</span><select id="sp-pm"><option value="">Choose</option>${pickerOptions(day, pool)}</select></label>
-        <label class="f" style="margin-bottom:0"><span>PM reports at (24hrs)</span><input type="text" id="sp-t" inputmode="numeric" maxlength="4" value="${esc(sp0 && sp0.pmAt ? sp0.pmAt.replace(':', '') : dayPmAt(day))}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
+        <label class="f" style="margin-bottom:4px"><span>AM (add one or more)</span><select id="sp-am"><option value="">Add a name</option><option value="NA">NA (no AM shift)</option>${pickerOptions(day, pool)}</select></label>
+        <div class="tags" id="sp-amt"></div>
+        <label class="f" style="margin-bottom:4px"><span>PM (add one or more)</span><select id="sp-pm"><option value="">Add a name</option>${pickerOptions(day, pool)}</select></label>
+        <div class="tags" id="sp-pmt"></div>
+        <label class="f" style="margin-bottom:0;max-width:200px"><span>PM reports at (24hrs)</span><input type="text" id="sp-t" inputmode="numeric" maxlength="4" value="${esc(sp0 && sp0.pmAt ? sp0.pmAt.replace(':', '') : dayPmAt(day))}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label>
         <p class="small muted" style="margin:8px 0 0">Saved in the sheet as <b>${kind === 'duty' ? 'FAIZAL (AM) / ONG (PM 1200HRS)' : 'TOH (AM) / ARIF (PM 1200HRS)'}</b>${kind === 'duty' ? ' in the Main cell' : ''}. The PM time starts as the one already used that day. Only the PM APO reports late; the AM APO keeps the normal time.</p></div>` : '';
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
@@ -2078,17 +2080,28 @@ function openSlotEditor(wk, day, kind, label){
   inp.oninput = warn; warn();
   if ($('#sp-on', bg)) {
     const on = $('#sp-on', bg), box = $('#sp-box', bg), am = $('#sp-am', bg), pm = $('#sp-pm', bg), tm = $('#sp-t', bg);
-    const setSel = (sel, v) => { if (!v) return; if (![...sel.options].some(o => o.value === v)) sel.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">${esc(v)}</option>`); sel.value = v; };
-    if (sp0) { setSel(am, sp0.am); setSel(pm, sp0.pm); }
+    /* each shift holds one or more names ("TOH & LIM (AM)"); NA = no AM shift */
+    const lst = { am: [], pm: [] };
+    const split = t => String(t || '').split(/\s*(?:&|,| AND )\s*/i).map(x => x.trim().toUpperCase()).filter(Boolean);
+    if (sp0) { lst.am = split(sp0.am); lst.pm = split(sp0.pm); }
     const okT = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
-    const compose = () => { if (!on.checked) return; tm.classList.toggle('bad', tm.value.length === 4 && !okT(tm.value)); inp.value = splitTxt(am.value, pm.value, okT(tm.value) ? tm.value : '1200'); warn(); };
+    const drawShift = k => { const box = $('#sp-' + k + 't', bg);
+      box.innerHTML = lst[k].map((x, i) => `<span class="tag">${esc(x)}<button type="button" data-srm="${k}|${i}" aria-label="Remove ${esc(x)}">&times;</button></span>`).join('');
+      box.querySelectorAll('[data-srm]').forEach(b => b.onclick = () => { lst[k].splice(+b.dataset.srm.split('|')[1], 1); drawShift(k); compose(); }); };
+    const compose = () => { if (!on.checked) return; tm.classList.toggle('bad', tm.value.length === 4 && !okT(tm.value)); inp.value = splitTxt(lst.am.join(' & '), lst.pm.join(' & '), okT(tm.value) ? tm.value : '1200'); warn(); };
+    const addShift = (k, v) => { if (!v) return;
+      if (lst.am.concat(lst.pm).includes(v) && v !== 'NA') { toast(v + ' is already in.'); return; }
+      if (k === 'am') lst.am = v === 'NA' ? ['NA'] : lst.am.filter(x => x !== 'NA').concat(v); else lst.pm.push(v);
+      drawShift(k); compose(); };
+    drawShift('am'); drawShift('pm');
     on.addEventListener('change', () => setTimeout(() => { const tb = bg.querySelector('[data-tags="' + who + '"]'); if (tb) { tb.hidden = on.checked || !inp.value.trim(); if (!on.checked) inp.dispatchEvent(new Event('input')); } }, 0));
     let beforeSplit = inp.value;
     on.onchange = () => { box.hidden = !on.checked; inp.readOnly = on.checked;
       if (on.checked) beforeSplit = inp.value; else { inp.value = beforeSplit; warn(); }
-      if (on.checked && !sp0 && !am.value && namesIn(inp.value).length === 1) setSel(am, namesIn(inp.value)[0]);
+      if (on.checked && !lst.am.length && !lst.pm.length && namesIn(inp.value).length) { lst.am = namesIn(inp.value); drawShift('am'); }
       if (on.checked) compose(); };
-    am.onchange = pm.onchange = compose;
+    am.onchange = e => { addShift('am', e.target.value); e.target.value = ''; };
+    pm.onchange = e => { addShift('pm', e.target.value); e.target.value = ''; };
     tm.oninput = () => { tm.value = tm.value.replace(/[^0-9]/g, '').slice(0, 4); compose(); };
     inp.readOnly = on.checked;
   }
@@ -2130,7 +2143,7 @@ function openSlotEditor(wk, day, kind, label){
   };
   $('#ed-ok', bg).onclick = async e => {
     if ($('#sp-on', bg) && $('#sp-on', bg).checked) {
-      if (!$('#sp-am', bg).value && !$('#sp-pm', bg).value) { toast('Choose the AM and PM APO (AM can be NA).', true); return; }
+      if (!$('#ed-' + who, bg).value.trim()) { toast('Add the AM and PM names (AM can be NA).', true); return; }
       if (!/^([01][0-9]|2[0-3])[0-5][0-9]$/.test($('#sp-t', bg).value)) { toast('Key in the PM report time as 24hrs, e.g. 1200.', true); $('#sp-t', bg).focus(); return; }
     }
     busy(e.target, true);
