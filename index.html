@@ -422,6 +422,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .nws .nm{white-space:pre-wrap;font-size:14px;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}
 .nws .nf{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
 .lnk{background:none;border:0;padding:0 0 0 10px;color:var(--accent,#1D4ED8);font:600 13px inherit;text-decoration:underline;cursor:pointer}
+.pcnt{display:inline-block;background:var(--flag,#DC2626);color:#fff;font:700 13px/22px inherit;min-width:22px;padding:0 7px;border-radius:11px;text-align:center;vertical-align:3px}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.tags[hidden]{display:none}
 .tag{display:inline-flex;align-items:center;gap:2px;background:#E8EEF7;border:1px solid #C9D5E6;border-radius:16px;padding:2px 4px 2px 10px;font:600 13px/1.6 inherit}
 .tag button{border:0;background:none;font:700 17px/1 inherit;color:#64748B;cursor:pointer;padding:2px 6px;min-height:0}
@@ -717,6 +718,8 @@ function signedIn(r){
 /* ============================================================
    Shell + navigation
    ============================================================ */
+/* the red "waiting for approval" dot: on Requests for managers (they approve there), on Admin for the Admin account */
+const dotTab = () => S.me && S.me.role === 'Admin' ? 'admin' : 'requests';
 function renderShell(){
   // The Admin account only plans and manages: no personal tabs
   const tabs = S.me.role === 'Admin' ? [['board','Deployment Plan']]
@@ -729,7 +732,7 @@ function renderShell(){
     <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
   </div></header>
   <nav class="tabs" aria-label="Sections"><div class="in${tabs.length >= 7 ? ' many' : ''}">
-    ${tabs.map(([k,l]) => `<button data-v="${k}">${tabs.length >= 7 && k === 'board' ? 'Deploy Plan' : l}${k==='admin' ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
+    ${tabs.map(([k,l]) => `<button data-v="${k}">${tabs.length >= 7 && k === 'board' ? 'Deploy Plan' : l}${k === dotTab() && canManage() ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
   </div></nav>
   <main id="view"></main>`;
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => go(b.dataset.v));
@@ -2525,10 +2528,14 @@ function showWarnings(w){
 async function viewRequests(){
   loading();
   try {
-    const [list, alg] = await Promise.all([call('getMyRequests', S.token), call('getAllergo', S.token).catch(() => null)]);
-    const algItems = alg ? alg.items.filter(x => !x.ticked || x.end >= addD(S.today, -60)) : [];
-    V().innerHTML = `<h2>My requests</h2>` + algCard(algItems, 'Allergo') + (list.length ? list.map(reqCard).join('') :
+    const mgr = canManage();
+    const [list, alg, pend] = await Promise.all([call('getMyRequests', S.token), call('getAllergo', S.token).catch(() => null),
+      mgr ? call('adminPending', S.token).catch(() => null) : Promise.resolve(null)]);
+    const algItems = alg ? alg.items.filter(x => x.name === S.me.name && (!x.ticked || x.end >= addD(S.today, -60))) : [];   // own only (managers get everyone's for Admin, Allergo)
+    V().innerHTML = (pend ? `<h2>Waiting for your approval${pend.length ? ' <span class="pcnt">' + pend.length + '</span>' : ''}</h2><div id="pendbox"></div>` : '')
+      + `<h2>My requests</h2>` + algCard(algItems, 'Allergo') + (list.length ? list.map(reqCard).join('') :
       `<div class="sec"><p>You haven't applied for anything yet.</p><button class="btn" onclick="go('apply')">Apply for leave</button></div>`);
+    if (pend) drawPending($('#pendbox'), pend, () => viewRequests(), '<div class="sec"><p class="small muted" style="margin:0">Nothing waiting. Staff requests show here for approval.</p></div>');
     wireAlg(algItems, () => viewRequests());
     document.querySelectorAll('[data-cancel]').forEach(b => b.onclick = async () => {
       if (!confirm('Cancel this request?')) return;
@@ -2573,11 +2580,14 @@ const A = () => $('#adm');
 
 async function admPending(){
   A().innerHTML = '<div class="loading">Loading\u2026</div>';
-  try {
-    const list = await call('adminPending', S.token);
+  try { drawPending(A(), await call('adminPending', S.token), admPending); } catch(e){ fail(e); }
+}
+/* Requests waiting for approval, drawn into any box (Admin, Pending or the top of Requests) */
+function drawPending(box, list, reload, emptyHtml){
+  {
     const dot = $('#pcount'); if (dot) { dot.hidden = !list.length; dot.textContent = list.length; }
-    if (!list.length) { A().innerHTML = `<div class="sec"><p>Nothing waiting. New requests land here.</p></div>`; return; }
-    A().innerHTML = list.map(r => `<div class="req" id="q-${esc(r.id)}">
+    if (!list.length) { box.innerHTML = emptyHtml != null ? emptyHtml : `<div class="sec"><p>Nothing waiting. New requests land here.</p></div>`; return; }
+    box.innerHTML = list.map(r => `<div class="req" id="q-${esc(r.id)}">
       <div class="h"><b>${esc(r.name)}: ${esc(r.typeLabel)}</b><span class="pill Pending">Pending</span></div>
       <div class="when">${span(r.start, r.end)}${r.session && r.session !== 'Full' ? ' ('+r.session+')' : ''}, ${fmtN(r.days)} day${r.days===1?'':'s'}${r.time ? ', '+esc(r.time) : ''}</div>
       ${r.reason ? `<div class="small">${esc(r.reason)}</div>` : ''}
@@ -2592,15 +2602,15 @@ async function admPending(){
     const decide = async (id, ok, btn) => {
       busy(btn, true);
       try {
-        const res = await call('adminDecide', S.token, id, ok, $(`[data-rm="${id}"]`).value);
+        const res = await call('adminDecide', S.token, id, ok, box.querySelector(`[data-rm="${id}"]`).value);
         const miss = (res.notWritten || []).map(w => w.error).join('; ');
         toast(res.status + (miss ? '. Not written to sheet: ' + miss : ''), !!miss);
-        S.cache = {}; admPending();
+        S.cache = {}; reload();
       } catch(e){ fail(e); busy(btn, false); }
     };
-    document.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => decide(b.dataset.ok, true, b));
-    document.querySelectorAll('[data-no]').forEach(b => b.onclick = () => decide(b.dataset.no, false, b));
-    document.querySelectorAll('[data-rep]').forEach(b => b.onclick = async () => {
+    box.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => decide(b.dataset.ok, true, b));
+    box.querySelectorAll('[data-no]').forEach(b => b.onclick = () => decide(b.dataset.no, false, b));
+    box.querySelectorAll('[data-rep]').forEach(b => b.onclick = async () => {
       const r = list.find(x => x.id === b.dataset.rep);
       const first = (r.warnings[0] || '').slice(0, 10) || r.start;
       busy(b, true);
@@ -2610,11 +2620,11 @@ async function admPending(){
         S.cache[m] = wk;
         busy(b, false);
         if (!wk.days.length) return toast('No weekly tab for that week yet.', true);
-        openAbsent({ day: wk.days[dowIdx(first)], name: r.name, requestId: r.id, reqType: r.type, onDone: () => admPending() });
+        openAbsent({ day: wk.days[dowIdx(first)], name: r.name, requestId: r.id, reqType: r.type, onDone: () => reload() });
         if (r.end > first) toast('This covers ' + nice(first) + '. Hand over later days from the Deployment Plan.');
       } catch(e){ fail(e); busy(b, false); }
     });
-  } catch(e){ fail(e); }
+  }
 }
 
 async function admTeam(){
