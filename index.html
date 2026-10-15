@@ -414,6 +414,9 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .clock.late{background:var(--wait-soft);border-color:#E0A021}
 .clock.away{background:var(--steel-soft);border-color:var(--steel)}
 .demo{background:var(--wait-soft);color:var(--wait);text-align:center;font-size:13px;padding:5px}
+.shf{display:inline-block;font:700 11px/1.6 inherit;padding:0 6px;border-radius:6px;background:#E0E7FF;color:#3730A3;margin-right:4px;vertical-align:1px}.shf.pm{background:#FDE68A;color:#92400E;margin-left:8px}
+.spbox{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 12px;background:var(--card)}
+.spbox .row2 select{min-width:0}
 .extag{display:inline-block;background:var(--ext);color:#fff;font:600 11px/1.6 inherit;font-style:normal;padding:0 7px;border-radius:9px;letter-spacing:.3px;vertical-align:1px}
 </style>
 </head>
@@ -1777,7 +1780,7 @@ function drawBoard(wk){
       const medep = x.ranges.some(r => r.people.includes(me)) || x.duties.some(y => y.mainPeople.concat(y.sparePeople).includes(me)) || x.medics.some(y => y.people.includes(me));
       const nc = clashesOn(x).length, ng = noApoOn(x).length;
       const live = x.ranges.filter(r => r.active);
-      const hx = live.some(r => extOf(r.rmk)), ha = live.some(r => isApsTf(r.tf));
+      const hx = live.some(r => extOf(r.rmk) || splitOf(r.emp)), ha = live.some(r => isApsTf(r.tf));
       return `<button data-i="${i}" aria-pressed="${i===S.dayIdx}" class="${n >= 6 ? 'full ' : n === 5 ? 'busy ' : ''}${medep ? 'medep' : ''}${nc ? ' hasclash' : ng ? ' hasgap' : ''}" ${nc || ng ? `title="${[nc && nc + ' to cover', ng && ng + ' without APO'].filter(Boolean).join(', ')}"` : ''}>${hx || ha ? `<span class="mk">${hx ? '<u class="e" title="Extended hours"></u>' : ''}${ha ? '<u class="a" title="APS range"></u>' : ''}</span>` : ''}<span>${DOW[i]}</span><b>${pd(x.date).getDate()}</b><i>${n} rng</i></button>`;
     }).join('');
     const away = awayOn(d);
@@ -1791,10 +1794,11 @@ function drawBoard(wk){
         .map(m => `<span>${m[0] ? m[0]+' ' : ''}<b>${esc(m[1])}</b></span>`).join('');
       const bad = r.people.some(n => away[n]);
       const gap = !String(r.emp || '').trim();
-      const isExt = !!extOf(r.rmk) && !gap;
+      const sp = splitOf(r.emp);
+      const isExt = (!!extOf(r.rmk) || !!sp) && !gap;
       const isAps = !gap && !isExt && isApsTf(r.tf);
       return `<div class="rg${bad ? ' clash' : gap ? ' noapo' : mine ? ' mine' : ''}${isExt ? ' ext' : ''}${isAps ? ' aps' : ''}" ${slot}><div class="code">${esc(r.range)}</div><div class="body">
-        <div class="ppl">${r.emp ? esc(r.emp) : '<span class="none">No APO assigned</span>'}${extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
+        <div class="ppl">${sp ? `<span class="shf">AM</span>${esc(sp.am || 'NA')}${sp.pm ? `<span class="shf pm">PM</span>${esc(sp.pm)} <span class="extag">EXT ${esc(hrs(sp.pmAt))}</span>` : ''}` : r.emp ? esc(r.emp) : '<span class="none">No APO assigned</span>'}${!sp && extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : ''}${r.sup ? ` <em>with ${esc(r.sup)}</em>` : ''}</div>
         ${whyLine(r.people)}<div class="meta">${meta}</div></div></div>`;
     }).join('');
     const duties = d.duties.filter(x => edAll || x.main || x.spare);
@@ -1944,8 +1948,10 @@ function clashes(day, text, kind, label, field){
 /* Bottom-sheet editor for one slot */
 function openSlotEditor(wk, day, kind, label){
   let fields, src = '', pool;
+  let sp0 = null;
   if (kind === 'range') {
     const r = day.ranges.find(x => x.range === label);
+    sp0 = splitOf(r.emp);
     fields = [['emp', 'APO', r.emp], ['rmk', 'Remark (WD, AM, PM, M, CXL, EXT = extended hours 1200hrs, EXT 1300 = other time)', r.rmk]];
     src = [r.sup && 'Officer ' + r.sup, r.tf && 'TF ' + r.tf, r.unit && 'Unit ' + r.unit].filter(Boolean).join('  |  ');
     src = src ? src + '<br>Officer, TF and unit come from Initial Recce and stay as they are.' : 'No officer booked from Initial Recce for this range yet.';
@@ -1963,13 +1969,19 @@ function openSlotEditor(wk, day, kind, label){
   const free = freeOn(day, pool);
   const freeMg = freeOn(day, pool === 'Medic' ? 'Backup Medic' : 'Manager');   // the reserve for this kind of slot
   const names = namesFor(pool);
+  const spHtml = kind === 'range' ? `<label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="sp-on" style="width:20px;height:20px" ${sp0 ? 'checked' : ''}><span><b>Extension: AM and PM shifts</b></span></label>
+      <div class="spbox" id="sp-box" ${sp0 ? '' : 'hidden'}>
+        <label class="f"><span>AM</span><select id="sp-am"><option value="">Choose</option><option value="NA">NA (no AM shift)</option>${pickerOptions(day, pool)}</select></label>
+        <div class="row2"><label class="f" style="margin-bottom:0"><span>PM</span><select id="sp-pm"><option value="">Choose</option>${pickerOptions(day, pool)}</select></label>
+        <label class="f" style="margin-bottom:0"><span>PM reports at (24hrs)</span><input type="text" id="sp-t" inputmode="numeric" maxlength="4" value="${esc(sp0 && sp0.pmAt ? sp0.pmAt.replace(':', '') : '1200')}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
+        <p class="small muted" style="margin:8px 0 0">Saved in the sheet as <b>TOH (AM) / ARIF (PM 1200HRS)</b>. Only the PM APO reports late; the AM APO keeps the normal time.</p></div>` : '';
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-t">
     <h3 id="ed-t">${esc(label)}, ${nice(day.date)}</h3>
     <div class="src">${src}</div>
     ${fields.map(([k, l, v]) => `<label class="f"><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${k === who ? 'list="ed-names"' : ''} autocomplete="off"></label>` +
-      (k === who ? `<label class="f" style="margin-top:-6px"><span class="small muted" style="font-weight:600">Or choose from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '')).join('')}
+      (k === who ? `<label class="f" style="margin-top:-6px"><span class="small muted" style="font-weight:600">Or choose from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '') + (k === who ? spHtml : '')).join('')}
     <datalist id="ed-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     <div id="ed-warn"></div>
     ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to fill in:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
@@ -1984,8 +1996,22 @@ function openSlotEditor(wk, day, kind, label){
     $('#ed-warn', bg).innerHTML = w.length ? `<div class="note red"><b>Check this:</b><ul style="margin:4px 0 0;padding-left:18px">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
   };
   inp.oninput = warn; warn();
-  $('#ed-pick', bg).onchange = e => { if (e.target.value) { inp.value = e.target.value; e.target.value = ''; warn(); } };
-  bg.querySelectorAll('[data-n]').forEach(c => c.onclick = () => { inp.value = c.dataset.n; warn(); });
+  if ($('#sp-on', bg)) {
+    const on = $('#sp-on', bg), box = $('#sp-box', bg), am = $('#sp-am', bg), pm = $('#sp-pm', bg), tm = $('#sp-t', bg);
+    const setSel = (sel, v) => { if (!v) return; if (![...sel.options].some(o => o.value === v)) sel.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">${esc(v)}</option>`); sel.value = v; };
+    if (sp0) { setSel(am, sp0.am); setSel(pm, sp0.pm); }
+    const okT = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
+    const compose = () => { if (!on.checked) return; tm.classList.toggle('bad', tm.value.length === 4 && !okT(tm.value)); inp.value = splitTxt(am.value, pm.value, okT(tm.value) ? tm.value : '1200'); warn(); };
+    on.onchange = () => { box.hidden = !on.checked; inp.readOnly = on.checked;
+      if (on.checked && !sp0 && !am.value && namesIn(inp.value).length === 1) setSel(am, namesIn(inp.value)[0]);
+      if (on.checked) compose(); };
+    am.onchange = pm.onchange = compose;
+    tm.oninput = () => { tm.value = tm.value.replace(/[^0-9]/g, '').slice(0, 4); compose(); };
+    inp.readOnly = on.checked;
+  }
+  const splitOn = () => $('#sp-on', bg) && $('#sp-on', bg).checked;
+  $('#ed-pick', bg).onchange = e => { if (e.target.value && !splitOn()) { inp.value = e.target.value; warn(); } e.target.value = ''; };
+  bg.querySelectorAll('[data-n]').forEach(c => c.onclick = () => { if (splitOn()) { toast('Pick AM / PM in the boxes below.'); return; } inp.value = c.dataset.n; warn(); });
   const close = () => bg.remove();
   $('#ed-x', bg).onclick = close;
   bg.onclick = e => { if (e.target === bg) close(); };
@@ -1999,6 +2025,10 @@ function openSlotEditor(wk, day, kind, label){
     $('#ed-ok', bg).click();
   };
   $('#ed-ok', bg).onclick = async e => {
+    if ($('#sp-on', bg) && $('#sp-on', bg).checked) {
+      if (!$('#sp-am', bg).value && !$('#sp-pm', bg).value) { toast('Choose the AM and PM APO (AM can be NA).', true); return; }
+      if (!/^([01][0-9]|2[0-3])[0-5][0-9]$/.test($('#sp-t', bg).value)) { toast('Key in the PM report time as 24hrs, e.g. 1200.', true); $('#sp-t', bg).focus(); return; }
+    }
     busy(e.target, true);
     let week = wk, warnings = [];
     try {
@@ -2019,6 +2049,22 @@ function openSlotEditor(wk, day, kind, label){
 
 /* ---------- WhatsApp daily message ---------- */
 /* Extended hours: "EXT" in a range's RMK. "EXT 1300" = report at 1300hrs, plain "EXT" = 1200hrs. */
+/* Extension in two shifts, in the APO cell: "TOH (AM) / ARIF (PM 1200HRS)". AM may be "NA". */
+function splitOf(emp){
+  const t = String(emp || '');
+  if (!/\(\s*(AM|PM)\b/i.test(t)) return null;
+  const out = { am:'', pm:'', pmAt:'', pmNames:[] };
+  t.split(/\s*\/\s*/).forEach(part => {
+    const m = /\(\s*(AM|PM)\b([^)]*)\)/i.exec(part);
+    if (!m) return;
+    const who = part.replace(m[0], ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+    if (m[1].toUpperCase() === 'AM') out.am = who;
+    else { const tm = /(\d{1,2})[:.]?(\d{2})/.exec(m[2]); out.pm = who; out.pmNames = namesIn(who);
+      out.pmAt = tm && +tm[1] < 24 && +tm[2] < 60 ? tm[1].padStart(2, '0') + ':' + tm[2] : '12:00'; }
+  });
+  return out.am || out.pm ? out : null;
+}
+const splitTxt = (am, pm, t) => [am && am + ' (AM)', pm && pm + ' (PM ' + (t || '1200') + 'HRS)'].filter(Boolean).join(' / ');
 function extOf(rmk){
   const t = String(rmk || '').toUpperCase();
   if (!/(^|[^A-Z])EXT([^A-Z]|$)/.test(t)) return '';
@@ -3427,7 +3473,8 @@ const MOCK = (() => {
       const warnings = ['rmk','loc'].includes(slot.field) ? [] : clashes(d, v, slot.kind, slot.label, slot.field);
       let old = '';
       const ppl = x => namesIn(x);
-      if (slot.kind === 'range') { const r = d.ranges.find(x => x.range === slot.label); old = r[slot.field]; r[slot.field] = v; r.people = ppl(r.emp); r.active = !!(r.sup || r.emp); }
+      if (slot.kind === 'range') { const r = d.ranges.find(x => x.range === slot.label); old = r[slot.field]; r[slot.field] = v; r.people = ppl(r.emp); r.active = !!(r.sup || r.emp);
+        const sp = splitOf(r.emp); if (sp) { d.report = d.report || {}; sp.pmNames.forEach(n => { d.report[n] = sp.pmAt; }); } }
       if (slot.kind === 'duty') { const x = d.duties.find(y => y.duty === slot.label); old = x[slot.field]; x[slot.field] = v; x.mainPeople = ppl(x.main); x.sparePeople = ppl(x.spare); }
       if (slot.kind === 'medic') { const m = d.medics.find(y => y.role === slot.label); const f = slot.field === 'name' ? 'who' : 'loc'; old = m[f]; m[f] = v; m.people = ppl(m.who); }
       changes.unshift({ id:'C'+Date.now()+Math.random(), when:today, by:S.me.name, date, slot:slot.label+' '+({emp:'employee',rmk:'remark',name:'',loc:'location'}[slot.field] ?? slot.field), oldValue:old, hadFormula:slot.field==='emp', newValue:v, status:'Done' });
