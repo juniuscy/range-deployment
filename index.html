@@ -2276,7 +2276,9 @@ function waText(day, rangesOnly){
   rs.forEach((r, i) => {
     if (i) L.push('');                                    // blank line between ranges
     const ext = extOf(r.rmk);
-    L.push(b(r.range) + ' - ' + (r.emp ? b(r.emp) : 'No APO') + (ext ? ' ' + b('(EXT ' + hrs(ext) + ')') : '') + (r.sup ? ' (with ' + r.sup + ')' : ''));
+    const xt = ext || splitOf(r.emp);                   // EXT goes with the range name; report times are under EXT HOURS
+    const emp = String(r.emp || '').replace(/\(\s*PM\b[^)]*\)/i, '(PM)');
+    L.push(b(r.range + (xt ? ' (EXT)' : '')) + ' - ' + (emp ? b(emp) : 'No APO') + (r.sup ? ' (with ' + r.sup + ')' : ''));
     const dur = r.dur && r.dur !== r.tf ? r.dur : '';   // the sheet sometimes repeats the TF here
     const d = [r.tf, r.unit, [dur, ext ? rmkNoExt(r.rmk) : r.rmk].filter(Boolean).join(' ')].filter(Boolean).join(' | ');
     if (d) L.push('    ' + d);
@@ -2363,6 +2365,8 @@ function swapName(text, name, repl){
 const ABS_TYPES = [['MC','MC'],['UL','Urgent leave'],['CL','Compassionate'],['OTHERS','Other']];
 
 /* o = { day, name?, candidates?, requestId?, reqType?, onDone(week) } */
+/* "Taken off: 15/10/26 50M2 employee, ..." after someone is put on MC / leave */
+const pulledTxt = p => p && p.length ? '. Taken off: ' + p.join(', ') : '';
 function openAbsent(o){
   const day = o.day;
   const posted = [...new Set(day.ranges.flatMap(r => r.people).concat(day.duties.flatMap(x => x.mainPeople.concat(x.sparePeople)), day.medics.flatMap(m => m.people)))];
@@ -2390,7 +2394,7 @@ function openAbsent(o){
         <div class="row2"><label class="f"><span>Last day away</span><input type="date" id="ab-e" value="${st.end || day.date}" min="${day.date}"></label>
         ${(st.end || day.date) === day.date ? `<label class="f"><span>Part of day</span><select id="ab-s">${['Full','AM','PM'].map(x => `<option value="${x}" ${x===st.session?'selected':''}>${x==='Full'?'Full day':x+' only'}</option>`).join('')}</select></label>` : '<span></span>'}</div>
         <label class="f"><span>Remark (optional)</span><input type="text" id="ab-r" placeholder="e.g. MC 2 days, called in 0630"></label>
-        ${st.end && st.end > day.date ? `<div class="note blue">The ${({ MC:'MC', UL:'UL', CL:'Compassionate Leave', OTHERS:'OTHERS' })[st.type] || 'MC'} row is filled for every day up to ${nice(st.end)}. The hand-over below is for ${nice(day.date)}; do later days from the Deployment Plan.</div>` : ''}`}
+        ${st.end && st.end > day.date ? `<div class="note blue">The ${({ MC:'MC', UL:'UL', CL:'Compassionate Leave', OTHERS:'OTHERS' })[st.type] || 'MC'} row is filled for every day up to ${nice(st.end)}. The hand-over below is for ${nice(day.date)}. On the later days they are taken off their postings automatically; fill those from the Deployment Plan.</div>` : ''}`}
       ${st.name ? (posts.length ? `<label class="f"><span>Hand over their postings</span></label>
         ${posts.map((p, i) => {
           const rep = st.reps[i] || '';
@@ -2437,7 +2441,7 @@ function openAbsent(o){
         if (res.week) S.cache[res.week.monday] = res.week;
         close();
         const miss = (res.notWritten || []).map(w => w.error).join('; ');
-        toast(st.name + ' marked absent' + (changes.length ? ', postings handed over' : '') + (res.warnings && res.warnings.length ? '. Check: ' + res.warnings.join('. ') : '') + (miss ? '. Not written: ' + miss : ''), !!(miss || (res.warnings || []).length));
+        toast(st.name + ' marked absent' + (changes.length ? ', postings handed over' : '') + pulledTxt(res.pulled) + (res.warnings && res.warnings.length ? '. Check: ' + res.warnings.join('. ') : '') + (miss ? '. Not written: ' + miss : ''), !!(miss || (res.warnings || []).length));
         if (o.onDone) o.onDone(res.week);
       } catch(x){ fail(x); busy(e.target, false); }
     };
@@ -2652,7 +2656,7 @@ function drawPending(box, list, reload, emptyHtml){
       try {
         const res = await call('adminDecide', S.token, id, ok, box.querySelector(`[data-rm="${id}"]`).value);
         const miss = (res.notWritten || []).map(w => w.error).join('; ');
-        toast(res.status + (miss ? '. Not written to sheet: ' + miss : ''), !!miss);
+        toast(res.status + pulledTxt(res.pulled) + (miss ? '. Not written to sheet: ' + miss : ''), !!miss);
         S.cache = {}; reload();
       } catch(e){ fail(e); busy(btn, false); }
     };
@@ -2913,6 +2917,10 @@ function drawAtt(a){
             <option value="">${r.override ? 'Back to automatic' : 'Automatic'}</option>
             ${a.statuses.map(st => `<option ${st === r.override ? 'selected' : ''}>${esc(st)}</option>`).join('')}
           </select></td></tr>`).join('')}</table></div>
+    ${(a.records || []).length ? `<h3>MC and leave marked in the app</h3>
+      ${a.records.map(x => `<div class="req"><div class="h"><b>${esc(x.name)}: ${esc(x.typeLabel)}</b><span class="pill Approved">Approved</span></div>
+        <div class="when">${span(x.start, x.end)}${x.session && x.session !== 'Full' ? ' (' + esc(x.session) + ')' : ''}, ${fmtN(x.days)} day${x.days === 1 ? '' : 's'}${x.end < a.date ? ' &middot; <span class="muted">ended the day before</span>' : ''}</div>
+        <div class="acts">${x.canChange ? `<button class="btn ghost" data-chd="${esc(x.id)}">Change dates</button>` : '<span class="small muted">Off days (OIL): cancel and apply again to change.</span>'}</div></div>`).join('')}` : ''}
     <p class="small muted" style="margin-top:10px">Someone forgot to clock in? Type the time in their Clock in box. Automatic: clocked in means Present (Late after ${esc(a.lateAfter)}; EXT staff late 15 min after their report time); otherwise the leave row in the weekly tab (AL, MC, OIL...). Pick a status to override it; leave statuses (UL, AL, MC...) are also written into that day's weekly tab. "Off" leaves the person out of the total strength (e.g. rest day).</p>`;
   $('#at-d').onchange = e => { S.attDate = e.target.value; admAtt(); };
   $('#at-rf').onclick = () => admAtt();
@@ -2933,12 +2941,52 @@ function drawAtt(a){
       drawAtt(res);
       const inSheet = sel.value && !['Present','Present (Late)','Off'].includes(sel.value);
       toast(res.warn ? 'Saved in the app, but not in the weekly tab: ' + res.warn
-        : sel.dataset.ats + ': ' + (sel.value || 'automatic') + (inSheet ? ', written to the weekly tab' : ''), !!res.warn);
+        : sel.dataset.ats + ': ' + (sel.value || 'automatic') + (inSheet ? ', written to the weekly tab' : '') + pulledTxt(res.pulled), !!res.warn);
+      if (res.pulled && res.pulled.length) S.cache = {};
     }
     catch(x){ fail(x); sel.disabled = false; }
   });
+  A().querySelectorAll('[data-chd]').forEach(b => b.onclick = () => changeDates(a.records.find(x => x.id === b.dataset.chd), () => admAtt()));
   $('#at-wa').onclick = () => openWaSheet('Attendance message', nice(a.date) + '. You can edit it before sending.',
     none.length ? `<div class="note red"><b>Not accounted yet:</b> ${esc(none.map(r => r.name).join(', '))}</div>` : '', attText(a));
+}
+
+/* Change the dates of approved MC / leave (e.g. the doctor gave 2 days instead of 1) */
+function changeDates(x, after){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  const draw = () => {
+    const one = $('#cd-s', bg) ? $('#cd-s', bg).value === $('#cd-e', bg).value : x.start === x.end;
+    $('#cd-ses', bg).hidden = !one;
+  };
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(x.name)}: ${esc(x.typeLabel)}</h3>
+    <div class="src">Now ${esc(span(x.start, x.end))}${x.session !== 'Full' ? ' (' + esc(x.session) + ')' : ''}. The weekly tab is updated to the new dates, and on any new days ${esc(x.name)} is taken off their postings.</div>
+    <div class="row2"><label class="f"><span>First day</span><input type="date" id="cd-s" value="${x.start}"></label>
+    <label class="f"><span>Last day</span><input type="date" id="cd-e" value="${x.end}"></label></div>
+    <label class="f" id="cd-ses"><span>Part of day (one day only)</span><select id="cd-p">${['Full','AM','PM'].map(v => `<option value="${v}" ${v === x.session ? 'selected' : ''}>${v === 'Full' ? 'Full day' : v + ' only'}</option>`).join('')}</select></label>
+    <div class="chips" style="margin:-4px 0 12px"><button class="chip" data-add="1">+1 day</button><button class="chip" data-add="2">+2 days</button><button class="chip" data-add="3">+3 days</button></div>
+    <div class="acts"><button class="btn ghost" id="cd-x">Cancel</button><button class="btn" id="cd-ok">Save dates</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#cd-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  ['#cd-s', '#cd-e'].forEach(id => $(id, bg).onchange = draw);
+  bg.querySelectorAll('[data-add]').forEach(c => c.onclick = () => { $('#cd-e', bg).value = addD(x.end, +c.dataset.add); draw(); });
+  draw();
+  $('#cd-ok', bg).onclick = async e => {
+    const st = $('#cd-s', bg).value, en = $('#cd-e', bg).value;
+    if (!st || !en) return toast('Pick both dates.', true);
+    if (en < st) return toast('The last day is before the first day.', true);
+    busy(e.target, true);
+    try {
+      const res = await call('adminChangeDates', S.token, x.id, st, en, $('#cd-p', bg).value);
+      S.cache = {}; S.mcache = {};
+      close();
+      const miss = (res.notWritten || []).map(w => w.error).join('; ');
+      toast(x.name + ': ' + span(st, en) + pulledTxt(res.pulled) + (miss ? '. Not written: ' + miss : ''), !!miss);
+      if (after) after();
+    } catch(z){ fail(z); busy(e.target, false); }
+  };
 }
 
 /* ---------- LIB expiry ---------- */
@@ -3572,6 +3620,21 @@ const MOCK = (() => {
     return out;
   }
   function mockMyAtt(n){ const r = attRec(today, n); return { date:today, clockIn:r.clockIn, status:r.status, late: !!r.clockIn && r.clockIn > lateAfter, leave: mockLeave(today)[n] || null, lateAfter }; }
+  /* preview: take someone off every slot on these days (same rules as the server) */
+  function mDrop(text, n){ const out = [];
+    String(text || '').split(/\s*\/\s*/).filter(Boolean).forEach(part => {
+      if (!namesIn(part).includes(n)) { out.push(part); return; }
+      const m = /\(\s*(AM|PM)\b[^)]*\)/i.exec(part), who = (m ? part.replace(m[0], ' ') : part).replace(/\s+/g, ' ').trim();
+      const keep = who.split(/\s*(?:&|,|\bAND\b)\s*/i).filter(x => x && !namesIn(x).includes(n));
+      if (keep.length) out.push(keep.join(' & ') + (m ? ' ' + m[0] : '')); else if (m && m[1].toUpperCase() === 'AM') out.push('NA ' + m[0]); });
+    const left = out.join(' / '); return /^NA \(AM\)$/i.test(left) ? '' : left; }
+  function mPull(n, dates){ const done = [];
+    dates.filter(d => d >= today).forEach(ds => { const d = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)]; if (!d) return;
+      d.ranges.forEach(r => { if (r.people.includes(n)) { MOCK.adminSetSlot('', ds, { kind:'range', label:r.range, field:'emp' }, mDrop(r.emp, n)); done.push(ds.slice(8, 10) + '/' + ds.slice(5, 7) + ' ' + r.range); } });
+      d.duties.forEach(x => { if (x.mainPeople.includes(n)) { MOCK.adminSetSlot('', ds, { kind:'duty', label:x.duty, field:'main' }, mDrop(x.main, n)); done.push(ds.slice(8, 10) + '/' + ds.slice(5, 7) + ' ' + x.duty + ' main'); }
+        if (x.sparePeople.includes(n)) { MOCK.adminSetSlot('', ds, { kind:'duty', label:x.duty, field:'spare' }, mDrop(x.spare, n)); done.push(ds.slice(8, 10) + '/' + ds.slice(5, 7) + ' ' + x.duty + ' spare'); } });
+      d.medics.forEach(m => { if (m.people.includes(n)) { MOCK.adminSetSlot('', ds, { kind:'medic', label:m.role, field:'name' }, mDrop(m.who, n)); done.push(ds.slice(8, 10) + '/' + ds.slice(5, 7) + ' ' + m.role); } }); });
+    return done; }
   function mockAtt(d){
     d = d || today; const lv = mockLeave(d);
     if (d === today && !attStore.__seeded) {           // pretend most people clocked in this morning
@@ -3585,7 +3648,9 @@ const MOCK = (() => {
       if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
       return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, ext: !status ? (rep[p.name] || '') : '' };
     });
-    return { date:d, lateAfter, statuses:['Present','Present (Late)','UL','AL','NPL','MC','MA','HL','CCL','OIL','Course','ICT','Others','Off'], rows };
+    const prev = addD(d, -1);
+    const records = reqs.filter(r => r.status === 'Approved' && r.start <= d && r.end >= prev).map(r => ({ id:r.id, name:r.name, type:r.type, typeLabel:r.typeLabel, start:r.start, end:r.end, session:r.session || 'Full', days:r.days, canChange: r.type !== 'OIL' }));
+    return { date:d, lateAfter, statuses:['Present','Present (Late)','UL','AL','NPL','MC','MA','HL','CCL','OIL','Course','ICT','Others','Off'], rows, records };
   }
   const libList = Object.keys(SNAP.lib).map((n, i) => ({ row: i + 2, label: n, name: n, date: SNAP.lib[n] }));
   const reqs = [{ id:'R1', submitted:today+' 09:10', name:'LEONARD', type:'AL', typeLabel:'Annual leave', start:addD(today, 9), end:addD(today, 10), session:'Full', days:2, reason:'Family trip', status:'Pending', warnings:[addD(today, 9)+': rostered 100M1 (with Teo BL)'], othersAway:['FAIRUZ AL '+addD(today,10)] }];
@@ -3665,7 +3730,9 @@ const MOCK = (() => {
       return mTrn(!canManage()); },
     inspectionDone: (t, id, d) => { const x = inspM.find(i => i.id === id); x.last = d || today; return mockInsp(); },
     inspectionEdit: (t, id, f) => { const x = inspM.find(i => i.id === id); if (f.name) x.name = f.name; if (f.last != null) x.last = f.last; return mockInsp(); },
-    adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; return Object.assign(mockAtt(d), { warn:'' }); },
+    adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; const pulled = ['UL','AL','NPL','MC','HL','CCL','OIL','Course','ICT'].includes(st) ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
+    adminChangeDates: (t, id, st, en, ses) => { const r = reqs.find(x => x.id === id); const was = [r.start, r.end]; Object.assign(r, { start:st, end:en, session: st === en ? ses : 'Full', days: st === en && ses !== 'Full' ? .5 : nDays(st, en) });
+      const ds = []; for (let d = st; d <= en; d = addD(d, 1)) if (d < was[0] || d > was[1]) ds.push(d); return { pulled: mPull(r.name, ds), notWritten:[] }; },
     adminSetLateAfter: (t, hm, d) => { lateAfter = hm; return mockAtt(d); },
     adminClockIn: (t, d, n, hm) => { const r = attRec(d, n); r.clockIn = hm; r.by = hm ? S.me.name : ''; return mockAtt(d); },
     getWeek: (t, d) => { const m = mondayOf(d); const dm = {}; for (let i = 0; i < 7; i++) { const x = addD(m, i); if (mDm[x]) dm[x] = mDm[x]; } return Object.assign({}, getWk(m), { dmMap: dm }); },
@@ -3700,7 +3767,10 @@ const MOCK = (() => {
       d.absences.push({ label:lab, text: f.name + ' ' + (f.type === 'MC' || f.type === 'UL' ? f.type : f.remark || ''), people:[f.name] });
       let warnings = [];
       f.changes.forEach(c => { warnings = warnings.concat(MOCK.adminSetSlot(t, f.date, c.slot, c.value).warnings); });
-      return { week: JSON.parse(JSON.stringify(wk)), warnings, notWritten:[] };
+      if (!f.requestId) reqs.push({ id:'RA' + Date.now(), submitted:today, name:f.name, type:f.type, typeLabel:(types.find(x => x.code === f.type) || {}).label || f.type, start:f.date, end:f.end || f.date, session:f.session, days: nDays(f.date, f.end || f.date), reason:f.remark, status:'Approved', warnings:[], othersAway:[] });
+      const ds = []; for (let d = f.date; d <= (f.end || f.date); d = addD(d, 1)) ds.push(d);
+      const pulled = f.session === 'Full' || (f.end && f.end > f.date) ? mPull(f.name, ds) : [];
+      return { week: JSON.parse(JSON.stringify(getWk(mondayOf(f.date)))), warnings, notWritten:[], pulled };
     },
     adminChanges: () => changes,
     adminUndo: (t, id) => { changes.find(c => c.id === id).status = 'Undone'; return true; },
@@ -3725,7 +3795,9 @@ const MOCK = (() => {
     getMyRequests: () => reqs.filter(r => r.name === S.me.name).concat([{ id:'R0', name:S.me.name, typeLabel:'Medical appointment', start:addD(today,-6), end:addD(today,-6), session:'PM', days:.5, reason:'Polyclinic', status:'Approved', remark:'OK' }]),
     cancelRequest: (t, id) => { const r = reqs.find(x => x.id === id); if (r) r.status = 'Cancelled'; return true; },
     adminPending: () => reqs.filter(r => r.status === 'Pending'),
-    adminDecide: (t, id, ok) => { const r = reqs.find(x => x.id === id); r.status = ok ? 'Approved' : 'Rejected'; return { status:r.status, notWritten:[] }; },
+    adminDecide: (t, id, ok) => { const r = reqs.find(x => x.id === id); r.status = ok ? 'Approved' : 'Rejected';
+      const ds = []; if (ok && ['AL','OIL','MC','HL','UL','CL','COURSE'].includes(r.type) && !(r.start === r.end && r.session && r.session !== 'Full')) for (let d = r.start; d <= r.end; d = addD(d, 1)) ds.push(d);
+      return { status:r.status, notWritten:[], pulled: mPull(r.name, ds) }; },
     adminTeam: () => staffList.filter(p => p.role !== 'Admin').map(p => ({ name:p.name, role:p.role, oilAvailable: oil.filter(o => o.name === p.name).reduce((a, o) => a + o.available, 0), oilReserved:0, pending: reqs.filter(r => r.name === p.name && r.status === 'Pending').length, lib: SNAP.lib[p.name] || null })),
     adminOil: (t, n) => oil.filter(o => !n || o.name === n),
     adminTtsDone: (t, id) => { const o = oil.find(x => x.id === id); o.tts = 'TTS adjusted on ' + pd(today).getDate() + '/' + (pd(today).getMonth()+1) + '/26'; o.needsTts = false; return true; },
