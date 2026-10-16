@@ -3047,7 +3047,8 @@ function speedCheck(){
 const AUTO_RULES = {
   pladDays: [0, 2, 4],                  // PLAD and PLAD-Driver: Mon, Wed, Fri only
   pladDriver: ['WONG', 'ONG'],          // driver Wong; Ong if Wong is not free
-  ammoAdmin: ['DANIAL', 'IVAN', 'WONG'], ammoBackup: 'ONG',
+  ammoAdmin: ['WONG', 'DANIAL', 'IVAN'],  // Ammo admin (main and spare): Wong, Danial, Ivan, fewest this month
+  rangeReserve: ['FAIZAL', 'DANIAL', 'WONG'],   // kept off ranges unless no one else is free, used in this order
   daoMain: 'FAIZAL',                    // DAO main by default; the balance go to DAO spare
   medDriver: 'AZAHAR', medic2: 'FAHMI', medic1Fap: ['RASUL', 'SAFUDIN']   // Medic 1 / FAP rotate between the two
 };
@@ -3097,86 +3098,126 @@ function autoDraft(wk, idxs, st){
     const pick = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k) || hist(b, k) - hist(a, k) || a.localeCompare(b))[0];
     const duty = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && !String(x[field] || '').trim() ? { kind: 'duty', label: x.duty, field } : null; };
     const med = role => { const m = d.medics.find(y => lettersKey(y.role) === lettersKey(role)); return m && !String(m.who || '').trim() ? { kind: 'medic', label: m.role, field: 'name' } : null; };
-    // 1. Ranges: the APO tagged to (or usually with) the supervising officer.
-    //    Tagged ranges go first, so a "usual" pairing never takes an APO who is tagged to another officer that day.
+    const wkend = dowIdx(d.date) >= 5;
+    if (wkend) out.notes.push('Weekend: only range APOs, DAO main and Ammo admin (a Manager); no PLAD, RAI or spares. Medics are filled as usual.');
+    const rangeApos = of(r => r === 'APO' || r === 'APO Supervisor');           // ranges: certified APOs
+    const keepOff = R.rangeReserve.map(N).filter(Boolean);                     // Faizal, Danial, Wong: off ranges unless no one else (in this order)
+    const plad = !wkend && R.pladDays.includes(dowIdx(d.date));
+    const notAway = n => !!n && !away[n] && !goneOn(d)[n];
+    const ovr = {};                                                             // slots emptied by taking the PLAD driver off them
+    const sk = sl => sl.kind + '|' + sl.label + '|' + sl.field;
+    const addX = (slot, value, reason, warn, k) => {                            // like add(), but rewrites a slot that had someone in it
+      const o = ovr[sk(slot)];
+      if (o == null) return add(slot, value, reason, warn, k);
+      out.items.push({ slot, value, reason, warn: !!warn, replace: true, old: o });
+      value.split(' / ').forEach(n => { busy.add(n); if (k) inc(n, k); });
+    };
+    const slotOpen = (x, field) => !String(x[field] || '').trim() || ovr[sk({ kind: 'duty', label: x.duty, field })] != null;
+    const dutyX = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && slotOpen(x, field) ? { kind: 'duty', label: x.duty, field } : null; };
+    // 0. PLAD-Driver first (Mon, Wed, Fri): Wong, else Ong. If Ong is already posted somewhere, he is taken off and that slot is refilled.
+    let driver = '';
+    const driverSlot = plad && dutyX('PLAD-Driver', 'main');
+    let driverNote = '';
+    if (driverSlot) {
+      const [w, o] = R.pladDriver.map(N);
+      if (free(w)) driver = w;
+      else if (notAway(o)) {
+        driver = o; driverNote = T(w) + ' is ' + why(w);
+        const posts = [];
+        d.ranges.forEach(r => { if (r.people.includes(o)) posts.push([{ kind: 'range', label: r.range, field: 'emp' }, r.emp]); });
+        d.duties.forEach(x => { if (lettersKey(x.duty) === 'PLADDRIVER') return;
+          if (x.mainPeople.includes(o)) posts.push([{ kind: 'duty', label: x.duty, field: 'main' }, x.main]);
+          if (x.sparePeople.includes(o) && x !== daoX) posts.push([{ kind: 'duty', label: x.duty, field: 'spare' }, x.spare]); });
+        posts.forEach(([sl, cur]) => {
+          const left = dropNameTxt(cur, o);
+          if (left) out.items.push({ slot: sl, value: left, old: cur, replace: true, reason: 'Taken off: ' + T(o) + ' is PLAD driver today', warn: true });
+          else ovr[sk(sl)] = cur;                                               // emptied: filled again below by its own rule
+          driverNote += '; taken off ' + sl.label + (sl.kind === 'duty' ? ' ' + sl.field : '');
+        });
+      }
+      if (driver) busy.add(driver);                                             // keep the driver free for the other steps
+    }
+    const whyX = n => n === driver ? 'the PLAD driver today' : why(n);
+    // 1. Ranges: the APO tagged to the supervising officer (tags first; "usual" pairing only when there is no tag)
     const tagOf = r => (st.tags || {})[offKey(r.sup)] || '';
     const taggedToday = {};
     d.ranges.filter(r => r.active && tagOf(r)).forEach(r => { taggedToday[tagOf(r)] = supName(r.sup); });
-    const todo = d.ranges.filter(r => r.active && !String(r.emp || '').trim());
-    todo.sort((a, b) => (tagOf(a) ? 0 : 1) - (tagOf(b) ? 0 : 1));
-    todo.forEach(r => {
-      const slot = { kind: 'range', label: r.range, field: 'emp' }, k = offKey(r.sup);
-      const tag = tagOf(r), lr0 = (st.learned || {})[k];
-      const lr = lr0 && !(taggedToday[lr0.apo] && offKey(taggedToday[lr0.apo]) !== k) ? lr0 : null;   // usual APO is tagged to another officer today
-      const want = tag || (lr && lr.apo) || '';
-      const src = tag ? 'tagged to ' + supName(r.sup) : lr ? 'usually with ' + supName(r.sup) + ' (' + lr.n + ' of ' + lr.total + ' days)' : '';
-      if (want && free(want)) return add(slot, want, src.charAt(0).toUpperCase() + src.slice(1), false, 'range');
-      const alt = pick(apos, 'range');
+    const todoR = d.ranges.filter(r => r.active && (!String(r.emp || '').trim() || ovr[sk({ kind: 'range', label: r.range, field: 'emp' })] != null));
+    todoR.sort((a, b) => (tagOf(a) ? 0 : 1) - (tagOf(b) ? 0 : 1));
+    // 2. A range whose APO is away (MC, OIL, AL...): an undeployed APO, but not Faizal, Danial or Wong unless there is really no one else
+    const pickRange = () => {
+      const n = pick(rangeApos.filter(x => !keepOff.includes(x)), 'range');
+      if (n) return { n, last: false };
+      const k = keepOff.find(free);
+      return k ? { n: k, last: true } : null;
+    };
+    // pass 1: every range whose tagged (or usual) APO is free gets them; pass 2: the rest get undeployed APOs,
+    // so a range whose APO is away never takes an APO who is tagged to another range that day
+    const wantOf = r => { const k = offKey(r.sup), tag = tagOf(r), lr0 = !tag && (st.learned || {})[k];
+      const lr = lr0 && !(taggedToday[lr0.apo] && offKey(taggedToday[lr0.apo]) !== k) && !keepOff.includes(lr0.apo) ? lr0 : null;
+      return { want: tag || (lr && lr.apo) || '', src: tag ? 'tagged to ' + supName(r.sup) : lr ? 'usually with ' + supName(r.sup) + ' (' + lr.n + ' of ' + lr.total + ' days)' : '' }; };
+    const later = [];
+    todoR.forEach(r => { const w = wantOf(r);
+      if (w.want && free(w.want)) addX({ kind: 'range', label: r.range, field: 'emp' }, w.want, w.src.charAt(0).toUpperCase() + w.src.slice(1), false, 'range');
+      else later.push(r); });
+    later.forEach(r => {
+      const slot = { kind: 'range', label: r.range, field: 'emp' }, { want, src } = wantOf(r);
+      const alt = pickRange();
       if (!alt) return out.notes.push(r.range + ': no free APO left.');
-      add(slot, alt, want ? T(want) + ' (' + src + ') is ' + why(want) + '. Free APO instead.'
-        : lr0 && !lr ? 'Usual APO ' + T(lr0.apo) + ' is tagged to ' + taggedToday[lr0.apo] + ' today. Free APO.'
-        : 'No APO tagged to ' + (supName(r.sup) || 'this range') + '. Free APO.', true, 'range');
+      const lead = want ? T(want) + ' (' + src + ') is ' + whyX(want) + '. ' : 'No APO tagged to ' + (supName(r.sup) || 'this range') + '. ';
+      addX(slot, alt.n, lead + (alt.last ? 'No one else free, so ' + T(alt.n) + ' (Faizal, Danial, Wong order).' : 'Undeployed APO.'), true, 'range');
     });
-    // Weekends: only the range APOs, DAO main, and a Manager as Ammo admin
-    const wkend = dowIdx(d.date) >= 5;
-    if (wkend) out.notes.push('Weekend: only range APOs, DAO main and Ammo admin (a Manager); no PLAD, RAI or spares. Medics are filled as usual.');
-    // 2. PLAD-Driver (Mon, Wed, Fri)
-    const plad = !wkend && R.pladDays.includes(dowIdx(d.date));
-    let sl = plad && duty('PLAD-Driver', 'main'), k;
-    if (sl) { k = 'duty:PLAD-Driver:main'; const [w, o] = R.pladDriver.map(N);
-      if (free(w)) add(sl, w, 'PLAD driver', false, k);
-      else if (free(o)) add(sl, o, 'Backup driver: ' + T(w) + ' is ' + why(w), true, k);
-      else out.notes.push('PLAD-Driver: ' + T(w) + ' and ' + T(o) + ' are both unavailable.'); }
-    // 3. Ammo admin: Danial, Ivan or Wong (fewest this month); Ong as backup. Weekends: a Manager (the Duty Manager first)
-    sl = duty('Ammo admin', 'main');
+    // 3. DAO main: Faizal by default, otherwise any free APO
+    let sl = dutyX('DAO', 'main'), k;
+    if (sl) { k = 'duty:DAO:main'; const f = N(R.daoMain);
+      if (free(f)) addX(sl, f, 'DAO main by default', false, k);
+      else { const n = pick(apos, k); if (n) addX(sl, n, T(f) + ' is ' + whyX(f) + '. Free APO; ' + fair(n, k), true, k); else out.notes.push('DAO main: no free APO.'); } }
+    // 4. Ammo admin: Wong, Danial or Ivan (fewest this month). Weekends: a Manager (the Duty Manager first)
+    sl = dutyX('Ammo admin', 'main');
     if (sl && wkend) { k = 'duty:Ammo admin:main';
       const mgrs = of(r => MGR_ROLES.includes(r)), dmN = lettersKey((S.dm || {})[d.date] || '');
       const isDm = n => { const p = (S.staff || []).find(x => x.name === n) || {}; return !!dmN && [n].concat(p.aliases || []).some(a => lettersKey(a) === dmN); };
       const dm = mgrs.find(isDm), n = dm && free(dm) ? dm : pick(mgrs, k);
-      if (n) add(sl, n, n === dm ? 'Weekend: Duty Manager as Ammo admin' : 'Weekend: Manager as Ammo admin; ' + fair(n, k), false, k);
+      if (n) addX(sl, n, n === dm ? 'Weekend: Duty Manager as Ammo admin' : 'Weekend: Manager as Ammo admin; ' + fair(n, k), false, k);
       else out.notes.push('Ammo admin: no Manager free this weekend day.');
       sl = null; }
-    if (sl) { k = 'duty:Ammo admin:main'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k), b = N(R.ammoBackup);
-      if (n) add(sl, n, 'Admin team; ' + fair(n, k), false, k);
-      else if (free(b)) add(sl, b, 'Backup: Danial, Ivan and Wong are not free', true, k);
-      else out.notes.push('Ammo admin: no one from the admin team is free.'); }
-    // 4. DAO main: Faizal by default
-    sl = duty('DAO', 'main');
-    if (sl) { k = 'duty:DAO:main'; const f = N(R.daoMain);
-      if (free(f)) add(sl, f, 'DAO main by default', false, k);
-      else { const n = pick(apos, k); if (n) add(sl, n, T(f) + ' is ' + why(f) + '. Free APO; ' + fair(n, k), true, k); else out.notes.push('DAO main: no free APO.'); } }
-    // 5. PLAD (Mon, Wed, Fri): people who usually do it, fewest this month
-    sl = plad && duty('PLAD', 'main');
-    if (sl) { k = 'duty:PLAD:main'; const no = (st.noPlad || []).concat((S.staff || []).filter(p => p.noPlad).map(p => p.name)), ok = apos.filter(n => !no.includes(n));   // 'Not able to go PLAD' ticked on the account
-      const usual = ok.filter(n => hist(n, k) > 0), n = pick(usual, k) || pick(ok, k);
-      if (n) add(sl, n, usual.includes(n) ? 'Usually does PLAD (' + hist(n, k) + 'x in 8 weeks); ' + fair(n, k) : 'Free; ' + fair(n, k), false, k);
-      else out.notes.push('PLAD: no free APO.'); }
-    // 6. RAI Party: anyone, fewest this month (not on weekends)
-    sl = !wkend && duty('RAI Party', 'main');
+    if (sl) { k = 'duty:Ammo admin:main'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k);
+      if (n) addX(sl, n, 'Ammo admin team (Wong, Danial, Ivan); ' + fair(n, k), false, k);
+      else { const b = pick(apos, k); if (b) addX(sl, b, 'Wong, Danial and Ivan are not free. Free APO.', true, k); else out.notes.push('Ammo admin: no one free.'); } }
+    // 5. PLAD-Driver (decided in step 0)
+    if (driverSlot) {
+      if (driver) addX(driverSlot, driver, driverNote ? 'Backup driver: ' + driverNote : 'PLAD driver', !!driverNote, 'duty:PLAD-Driver:main');
+      else out.notes.push('PLAD-Driver: Wong and Ong are both unavailable.');
+    }
+    // 6. PLAD (Mon, Wed, Fri): any APO except those ticked "Not able to go PLAD" (Chew), fewest this month
+    sl = plad && dutyX('PLAD', 'main');
+    if (sl) { k = 'duty:PLAD:main'; const no = (st.noPlad || []).concat((S.staff || []).filter(p => p.noPlad).map(p => p.name));
+      const n = pick(apos.filter(x => !no.includes(x)), k);
+      if (n) addX(sl, n, 'Free; ' + fair(n, k), false, k); else out.notes.push('PLAD: no free APO.'); }
+    // 7. RAI Party last: anyone left; if no one, the Ammo admin doubles up
+    sl = !wkend && dutyX('RAI Party', 'main');
     if (sl) { k = 'duty:RAI Party:main'; const n = pick(apos, k);
-      if (n) add(sl, n, 'Free; ' + fair(n, k), false, k);
-      else {                                       // short of manpower: Ammo admin main doubles up as RAI
+      if (n) addX(sl, n, 'Free; ' + fair(n, k), false, k);
+      else {
         const drafted = out.items.find(x => x.slot.kind === 'duty' && lettersKey(x.slot.label) === 'AMMOADMIN' && x.slot.field === 'main');
         const ex = d.duties.find(y => lettersKey(y.duty) === 'AMMOADMIN');
         const am = drafted ? drafted.value : ex && ex.mainPeople[0];
-        if (am) add(sl, am, 'Dual role with Ammo admin (short of manpower)', true, k); else out.notes.push('RAI Party: no free APO.'); } }
-    // 6b. Ammo admin spare (after the main slots, so it never leaves RAI or PLAD empty): another of Danial, Ivan or Wong; otherwise left empty
-    sl = !wkend && duty('Ammo admin', 'spare');
+        if (am) addX(sl, am, 'Dual role with Ammo admin (no one else free)', true, k); else out.notes.push('RAI Party: no free APO.'); } }
+    // 7b. Ammo admin spare: another of Wong, Danial or Ivan if free, otherwise left empty
+    sl = !wkend && dutyX('Ammo admin', 'spare');
     if (sl) { k = 'duty:Ammo admin:spare'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k);
-      if (n) add(sl, n, 'Admin team spare; ' + fair(n, k), false, k);
-      else out.notes.push('Ammo admin spare: Danial, Ivan and Wong not free, left empty.'); }
-    // 7. DAO spare: the balance personnel. If some parked there were posted above, take them out of DAO spare.
-    const moved = parked.filter(n => busy.has(n));
-    if (moved.length && daoX) {
-      let left = daoX.spare;
-      moved.forEach(n => { left = dropNameTxt(left, n); });
-      const rest = wkend ? [] : apos.filter(free).filter(n => !parked.includes(n));
-      left = [left].concat(rest).filter(Boolean).join(' / ');
-      out.items.push({ slot: { kind: 'duty', label: daoX.duty, field: 'spare' }, value: left, old: daoX.spare, replace: true,
-        reason: 'Updated: ' + moved.map(T).join(', ') + (moved.length === 1 ? ' was' : ' were') + ' moved from DAO spare to the postings above', warn: false });
+      if (n) addX(sl, n, 'Ammo admin team spare; ' + fair(n, k), false, k);
+      else out.notes.push('Ammo admin spare: Wong, Danial and Ivan not free, left empty.'); }
+    // 8. DAO spare: everyone still not posted (the balance)
+    if (!wkend && daoX) {
+      const rest = apos.filter(free);
+      const val = rest.join(' / ');
+      if (!String(daoX.spare || '').trim()) { if (rest.length) add({ kind: 'duty', label: daoX.duty, field: 'spare' }, val, 'Balance personnel (not posted)', false, 'duty:DAO:spare'); }
+      else if (lettersKey(val) !== lettersKey(daoX.spare) && parked.length) {
+        out.items.push({ slot: { kind: 'duty', label: daoX.duty, field: 'spare' }, value: val, old: daoX.spare, replace: true, reason: 'Balance personnel updated (some were posted above)', warn: false });
+        rest.forEach(n => busy.add(n));
+      }
     }
-    sl = !wkend && duty('DAO', 'spare');
-    if (sl) { const rest = apos.filter(free); if (rest.length) add(sl, rest.join(' / '), 'Balance personnel (not posted)', false, 'duty:DAO:spare'); }
     // 8. Medics
     sl = med('Driver');
     if (sl) { k = 'medic:Driver'; const a = N(R.medDriver);
