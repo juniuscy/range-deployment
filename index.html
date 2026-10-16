@@ -3228,7 +3228,7 @@ async function openAutoFill(wk){
     const i = +b.dataset.afd; sel = sel.includes(i) ? sel.filter(x => x !== i) : sel.concat(i);
     b.setAttribute('aria-pressed', sel.includes(i)); if (st) render();
   });
-  try { st = S.autoSt && S.autoSt.monday === wk.monday ? S.autoSt : await call('autoStats', S.token, wk.monday); S.autoSt = st; S.lastDays = st.lastDay || {}; render(); }
+  try { st = await call('autoStats', S.token, wk.monday); S.autoSt = st; S.lastDays = st.lastDay || {}; render(); }   // always fresh: tags may have changed on another phone or in the sheet
   catch(e){ $('#af-b', bg).innerHTML = '<div class="note red">' + esc(e.message || e) + '</div>'; return; }
   $('#af-go', bg).onclick = async e => {
     const changes = [];
@@ -3260,6 +3260,7 @@ function drawSup(d){
   const offs = Object.keys(Object.assign({}, d.learned, d.tags)).sort();
   const opt = (sel, lr) => `<option value="">${lr ? 'Usual: ' + esc(titleCase(lr.apo)) + ' (' + lr.n + ' of ' + lr.total + ')' : 'No tag'}</option>` + apos.map(n => `<option value="${esc(n)}"${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
   A().innerHTML = `<p class="small muted">Auto-fill puts this APO on any range with that supervising officer. "Usual" is learned from the last 8 weeks of the plan; pick a name to fix the tag yourself.</p>
+    <div class="note blue small" style="margin:0 0 10px">Saving also updates the <b>Database</b> tab (column A officer, column C default APO), which the weekly tabs use to fill the APO cell by themselves, so the sheet and the app always match.</div>
     <div class="scroll"><table class="t"><tr><th>Supervising officer</th><th>APO</th></tr>
       ${offs.map(o => `<tr><td><b>${esc(titleCase(o))}</b></td><td><select data-sup="${esc(o)}" style="min-height:38px;max-width:220px">${opt(d.tags[o] || '', d.learned[o])}</select></td></tr>`).join('')}
       <tr><td><input type="text" id="sup-n" placeholder="New officer, e.g. Tay CK" style="min-height:38px;max-width:170px"></td><td><select id="sup-a" style="min-height:38px;max-width:220px">${opt('', null)}</select></td></tr></table></div>
@@ -3268,7 +3269,8 @@ function drawSup(d){
     const rows = [...A().querySelectorAll('[data-sup]')].map(x => ({ sup: x.dataset.sup, apo: x.value })).filter(r => r.apo);
     if ($('#sup-n').value.trim() && $('#sup-a').value) rows.push({ sup: $('#sup-n').value.trim(), apo: $('#sup-a').value });
     busy(e.target, true);
-    try { S.autoSt = null; drawSup(await call('saveSupTags', S.token, rows)); toast('Tags saved'); } catch(x){ fail(x); busy(e.target, false); }
+    try { S.autoSt = null; S.cache = {}; const r = await call('saveSupTags', S.token, rows); drawSup(r);
+      toast((r.warn || []).length ? 'Tags saved. ' + r.warn.join('; ') : 'Tags saved, and the Database tab updated', !!(r.warn || []).length); } catch(x){ fail(x); busy(e.target, false); }
   };
 }
 
