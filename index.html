@@ -2855,11 +2855,14 @@ function attText(a){
   const by = st => rows.filter(r => r.status === st);
   /* a leave line: everyone whose status is that leave, plus anyone with a second half-day leave of that kind; (AM)/(PM) shown for half days */
   const half = h => h ? ' (' + h + ')' : '';
-  /* not in yet but reporting later today (OTHERS "... 1200HRS", PM shift, EXT range): listed under Others with the time */
-  const later = rows.filter(r => !r.status && r.ext);
-  const laterTxt = () => { const g = {};
-    later.forEach(r => { (g[r.ext] = g[r.ext] || []).push(titleCase(r.name)); });
-    return Object.keys(g).sort().map(t => g[t].join(', ') + ' (Report ' + hrs(t) + ')'); };
+  /* reporting later today (PM shift, OTHERS "... 1200HRS", EXT range):
+     marked Present -> their own line with the report time; not marked yet -> under Others with the time */
+  const grp = list0 => { const g = {}; list0.forEach(r => { (g[r.ext] = g[r.ext] || []).push(titleCase(r.name)); }); return g; };
+  const laterIn = rows.filter(r => r.ext && r.status === 'Present');
+  const later = rows.filter(r => r.ext && !r.status);
+  const laterLines = () => { const g = grp(laterIn);
+    return Object.keys(g).sort().map(t => 'Present (Report ' + hrs(t) + '): ' + g[t].length + ' - ' + g[t].join(', ')); };
+  const laterTxt = () => { const g = grp(later); return Object.keys(g).sort().map(t => g[t].join(', ') + ' (Report ' + hrs(t) + ')'); };
   const leaveList = c => {
     const out = [];
     rows.forEach(r => {
@@ -2886,9 +2889,9 @@ function attText(a){
     '*Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')*',
     'Total strength: ' + rows.length,
     'Present: ' + present.length,
-    'Present (Late): ' + list(by('Present (Late)')),
+    'Present (Late): ' + (by('Present (Late)').length ? by('Present (Late)').length + ' - ' + by('Present (Late)').map(r => titleCase(r.name) + (r.ext ? ' (Report ' + hrs(r.ext) + ')' : '')).join(', ') : 'NIL')].concat(laterLines(), [
     ''
-  ];
+  ]);
   ATT_AWAY.forEach(c => L.push(c + ': ' + leaveList(c)));
   const none = rows.filter(r => !r.status && !r.ext);
   if (none.length) L.push('Not accounted: ' + list(none));
@@ -3710,7 +3713,7 @@ const MOCK = (() => {
     const rows = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic' && p.active && p.att !== false).map(p => {
       const r = attRec(d, p.name); let status = '';
       if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
-      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, ext: !status ? (rep[p.name] || '') : '' };
+      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, ext: rep[p.name] || '' };
     });
     const prev = addD(d, -1);
     const records = reqs.filter(r => r.status === 'Approved' && r.start <= d && r.end >= prev).map(r => ({ id:r.id, name:r.name, type:r.type, typeLabel:r.typeLabel, start:r.start, end:r.end, session:r.session || 'Full', days:r.days, canChange: r.type !== 'OIL' }));
