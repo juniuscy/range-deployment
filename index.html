@@ -3212,7 +3212,7 @@ function speedCheck(){
 const AUTO_RULES = {
   pladDays: [0, 2, 4],                  // PLAD and PLAD-Driver: Mon, Wed, Fri only
   pladDriver: ['WONG', 'ONG'],          // driver Wong; Ong if Wong is not free
-  ammoAdmin: ['WONG', 'DANIAL', 'IVAN'],  // Ammo admin (main and spare): Wong, Danial, Ivan, fewest this month
+  ammoAdmin: ['WONG', 'DANIAL', 'IVAN'],  // Ammo admin (main and spare): Wong, Danial, Ivan, fewest this year
   rangeReserve: ['FAIZAL', 'DANIAL', 'WONG'],   // kept off ranges unless no one else is free, used in this order
   rangeAlso: ['IVAN'], rangeNever: ['JAMES TOH'],   // Ivan may go on ranges; James Toh not (resigning)
   wkendDao: ['FAIZAL', 'LIM', 'WONG', 'DANIAL', 'IVAN LIM'],   // weekends: DAO main and the reserved (DAO spare) rotate among these
@@ -3240,7 +3240,8 @@ function dropNameTxt(text, n){
 }
 function autoDraft(wk, idxs, st){
   const R = AUTO_RULES, N = staffName;
-  const mc = JSON.parse(JSON.stringify(st.month || {}));
+  const mc = JSON.parse(JSON.stringify(st.year || st.month || {}));          // counts for the whole year so far
+  const lw = JSON.parse(JSON.stringify(st.lastWk || {}));                     // last weekend DAO / reserved date per person
   const cnt = (n, k) => (mc[n] && mc[n][k]) || 0;
   const inc = (n, k) => { (mc[n] = mc[n] || {})[k] = cnt(n, k) + 1; };
   const hist = (n, k) => ((st.hist || {})[k] || {})[n] || 0;
@@ -3260,11 +3261,17 @@ function autoDraft(wk, idxs, st){
     parked.forEach(n => busy.delete(n));
     const free = n => !!n && !busy.has(n);
     const why = n => away[n] ? away[n].join(', ') : 'already posted';
-    const fair = (n, k) => cnt(n, k) + 'x this month';
+    const fair = (n, k) => cnt(n, k) + 'x this year';
     const add = (slot, value, reason, warn, k) => { out.items.push({ slot, value, reason, warn: !!warn }); value.split(' / ').forEach(n => { busy.add(n); if (k) inc(n, k); }); };
     const pick = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k) || hist(b, k) - hist(a, k) || a.localeCompare(b))[0];
-    // strict rotation: fewest this month, then fewest in the last 8 weeks
-    const pickRot = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k) || hist(a, k) - hist(b, k) || a.localeCompare(b))[0];
+    // strict rotation: fewest this year; weekend DAO / reserved: then fewest weekend duties in all, then the one who did it longest ago
+    const wkAll = n => cnt(n, 'wkend:DAO:main') + cnt(n, 'wkend:DAO:reserve');
+    const lastOf = (n, k) => (lw[n] && lw[n][k]) || '';
+    const pickRot = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k)
+      || (/^wkend:/.test(k) ? wkAll(a) - wkAll(b) || (lastOf(a, k) < lastOf(b, k) ? -1 : lastOf(a, k) > lastOf(b, k) ? 1 : 0) : 0)
+      || hist(a, k) - hist(b, k) || a.localeCompare(b))[0];
+    const didWk = (n, k) => { (lw[n] = lw[n] || {})[k] = d.date; };
+    const lastTxt = (n, k) => lastOf(n, k) ? ', last ' + nice(lastOf(n, k)) : ', first time';
     const duty = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && !String(x[field] || '').trim() ? { kind: 'duty', label: x.duty, field } : null; };
     const med = role => { const m = d.medics.find(y => lettersKey(y.role) === lettersKey(role)); return m && !String(m.who || '').trim() ? { kind: 'medic', label: m.role, field: 'name' } : null; };
     const wkend = dowIdx(d.date) >= 5;
@@ -3277,6 +3284,16 @@ function autoDraft(wk, idxs, st){
     const notAway = n => !!n && !away[n] && !goneOn(d)[n];
     const ovr = {};                                                             // slots emptied by taking the PLAD driver off them
     const sk = sl => sl.kind + '|' + sl.label + '|' + sl.field;
+    // Weekends: a DAO / Ammo admin cell that only holds the sheet's default (a formula, e.g. FAIZAL from Database) is open for the rotation
+    if (wkend) ((st.fx || {})[d.date] || []).forEach(f => {
+      const [lk, field] = f.split('|'), x = d.duties.find(y => lettersKey(y.duty) === lettersKey(lk));
+      if (!x || !String(x[field] || '').trim()) return;
+      ovr[sk({ kind: 'duty', label: x.duty, field })] = x[field];
+      const elseWhere = n => d.ranges.some(r => r.people.includes(n)) || d.medics.some(m => m.people.includes(n)) || d.absences.some(a => a.people.includes(n)) || !!goneOn(d)[n]
+        || d.duties.some(y => (y !== x || field !== 'main') && y.mainPeople.includes(n) || (y !== x || field !== 'spare') && y.sparePeople.includes(n));
+      (field === 'main' ? x.mainPeople : x.sparePeople).forEach(n => { if (!elseWhere(n)) busy.delete(n); });
+      out.notes.push(x.duty + ' ' + field + ' showed ' + x[field] + ' from the sheet formula (default), so it is filled by the weekend rotation.');
+    });
     const addX = (slot, value, reason, warn, k) => {                            // like add(), but rewrites a slot that had someone in it
       const o = ovr[sk(slot)];
       if (o == null) return add(slot, value, reason, warn, k);
@@ -3342,13 +3359,13 @@ function autoDraft(wk, idxs, st){
     let sl = dutyX('DAO', 'main'), k;
     const wkPool = R.wkendDao.map(N).filter(Boolean);
     if (sl && wkend) { k = 'wkend:DAO:main'; const n = pickRot(wkPool, k);
-      if (n) addX(sl, n, 'Weekend DAO rotation; ' + cnt(n, k) + 'x weekend DAO this month', false, k);
+      if (n) { addX(sl, n, 'Weekend DAO rotation; ' + cnt(n, k) + 'x weekend DAO this year' + lastTxt(n, k), false, k); didWk(n, k); }
       else out.notes.push('Weekend DAO: Faizal, Lim, Wong, Danial and Ivan Lim are all posted or away.');
       sl = null; }
     if (sl) { k = 'duty:DAO:main'; const f = N(R.daoMain);
       if (free(f)) addX(sl, f, 'DAO main by default', false, k);
       else { const n = pick(apos, k); if (n) addX(sl, n, T(f) + ' is ' + whyX(f) + '. Free APO; ' + fair(n, k), true, k); else out.notes.push('DAO main: no free APO.'); } }
-    // 4. Ammo admin: Wong, Danial or Ivan (fewest this month). Weekends: a Manager (the Duty Manager first)
+    // 4. Ammo admin: Wong, Danial or Ivan (fewest this year). Weekends: a Manager (the Duty Manager first)
     sl = dutyX('Ammo admin', 'main');
     if (sl && wkend) { k = 'duty:Ammo admin:main';
       const mgrs = of(r => MGR_ROLES.includes(r)), dmN = lettersKey((S.dm || {})[d.date] || '');
@@ -3364,7 +3381,7 @@ function autoDraft(wk, idxs, st){
     if (wkend && daoX) {
       const rslot = dutyX('DAO', 'spare');
       if (rslot) { k = 'wkend:DAO:reserve'; const n = pickRot(wkPool, k);
-        if (n) addX(rslot, n, 'Weekend reserved (DAO spare); ' + cnt(n, k) + 'x reserved this month', false, k);
+        if (n) { addX(rslot, n, 'Weekend reserved (DAO spare); ' + cnt(n, k) + 'x reserved this year' + lastTxt(n, k), false, k); didWk(n, k); }
         else out.notes.push('Weekend reserved: Faizal, Lim, Wong, Danial and Ivan Lim are all posted or away.'); }
     }
     // 5. PLAD-Driver (decided in step 0)
@@ -3372,7 +3389,7 @@ function autoDraft(wk, idxs, st){
       if (driver) addX(driverSlot, driver, driverNote ? 'Backup driver: ' + driverNote : 'PLAD driver', !!driverNote, 'duty:PLAD-Driver:main');
       else out.notes.push('PLAD-Driver: Wong and Ong are both unavailable.');
     }
-    // 6. PLAD (Mon, Wed, Fri): any APO except those ticked "Not able to go PLAD" (Chew), fewest this month
+    // 6. PLAD (Mon, Wed, Fri): any APO except those ticked "Not able to go PLAD" (Chew), fewest this year
     sl = plad && dutyX('PLAD', 'main');
     if (sl) { k = 'duty:PLAD:main'; const no = (st.noPlad || []).concat((S.staff || []).filter(p => p.noPlad).map(p => p.name));
       const n = pick(apos.filter(x => !no.includes(x)), k);
@@ -3828,7 +3845,11 @@ const MOCK = (() => {
   const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO', noPlad: p.name === 'CHEW' }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
-  const getWk = m => weeks[m] || (weeks[m] = SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] });
+  const mFx = {};                                                  // ?fxdemo: weekend DAO main shows FAIZAL from a sheet formula
+  const fxDemo = w => { if (/wkdemo/.test(location.search) && w.days) w.days.forEach((d, i) => { if (i >= 5 && d.date >= today && !d.ranges.some(r => r.active) && d.ranges[0]) { d.ranges[0].sup = 'AG'; d.ranges[0].active = true; } });
+    if (/fxdemo/.test(location.search) && w.days) w.days.forEach((d, i) => { if (i < 5 || !d.ranges.some(r => r.active)) return;
+    const x = d.duties.find(y => lettersKey(y.duty) === 'DAO'); if (x && !x.main && d.date >= today) { x.main = 'FAIZAL'; x.mainPeople = ['FAIZAL']; mFx[d.date] = ['DAO|main']; } }); return w; };
+  const getWk = m => weeks[m] || (weeks[m] = fxDemo(SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] }));
   function mockSched(from, n){
     const name = S.me.name, up = [];
     for (let i = 0; i < n; i++) {
@@ -4032,16 +4053,20 @@ const MOCK = (() => {
           if (dowIdx(d.date) >= 5 && lettersKey(x.duty) === 'DAO') { x.mainPeople.forEach(n => add('wkend:DAO:main', n)); x.sparePeople.forEach(n => add('wkend:DAO:reserve', n)); } });
         d.medics.forEach(m => m.people.forEach(n => add('medic:' + m.role, n))); }); }
       const learned = {}; Object.keys(pairs).forEach(k => { const ns = Object.keys(pairs[k]).sort((a, b) => pairs[k][b] - pairs[k][a]); learned[k] = { apo: ns[0], n: pairs[k][ns[0]], total: ns.reduce((x, n) => x + pairs[k][n], 0) }; });
-      const first = monday.slice(0, 8) + '01'; for (let m = mondayOf(first); m < monday; m = addD(m, 7)) (getWk(m).days || []).forEach(d => { if (d.date < first || d.date >= monday) return;
-        const inc = (n, k) => { (month[n] = month[n] || {})[k] = ((month[n] || {})[k] || 0) + 1; };
-        d.ranges.forEach(r => r.people.forEach(n => inc(n, 'range'))); d.duties.forEach(x => { x.mainPeople.forEach(n => inc(n, 'duty:' + x.duty + ':main')); x.sparePeople.forEach(n => inc(n, 'duty:' + x.duty + ':spare')); }); d.medics.forEach(mm => mm.people.forEach(n => inc(n, 'medic:' + mm.role))); });
-      return { monday, tags: Object.assign({}, mSup), learned, hist, month, noPlad: staffList.filter(p => p.noPlad).map(p => p.name), lastDay: staffList.filter(p => p.lastDay).reduce((o, p) => { o[p.name] = p.lastDay; return o; }, {}) }; },
+      const first = monday.slice(0, 4) + '-01-01', lastWk = {}; for (let m = mondayOf(first); m < monday; m = addD(m, 7)) (getWk(m).days || []).forEach(d => { if (d.date < first || d.date >= monday) return;
+        const inc = (n, k) => { (month[n] = month[n] || {})[k] = ((month[n] || {})[k] || 0) + 1; if (/^wkend/.test(k)) (lastWk[n] = lastWk[n] || {})[k] = d.date; };
+        d.ranges.forEach(r => r.people.forEach(n => inc(n, 'range'))); d.duties.forEach(x => { x.mainPeople.forEach(n => inc(n, 'duty:' + x.duty + ':main')); x.sparePeople.forEach(n => inc(n, 'duty:' + x.duty + ':spare'));
+          if (dowIdx(d.date) >= 5 && lettersKey(x.duty) === 'DAO') { x.mainPeople.forEach(n => inc(n, 'wkend:DAO:main')); x.sparePeople.forEach(n => inc(n, 'wkend:DAO:reserve')); } });
+        d.medics.forEach(mm => mm.people.forEach(n => inc(n, 'medic:' + mm.role))); });
+      const fx = {}; (getWk(monday).days || []).forEach(d => { if (mFx[d.date] && (d.duties.find(y => lettersKey(y.duty) === 'DAO') || {}).main === 'FAIZAL') fx[d.date] = mFx[d.date]; });
+      return { monday, tags: Object.assign({}, mSup), learned, hist, year: month, month, lastWk, fx, noPlad: staffList.filter(p => p.noPlad).map(p => p.name), lastDay: staffList.filter(p => p.lastDay).reduce((o, p) => { o[p.name] = p.lastDay; return o; }, {}) }; },
     getSupTags: () => MOCK.autoStats('', addD(mondayOf(today), 7)),
     saveSupTags: (t, rows) => { Object.keys(mSup).forEach(k => delete mSup[k]); rows.forEach(r => mSup[offKey(r.sup)] = r.apo); return MOCK.getSupTags(); },
     adminApplySlots: (t, changes) => { let applied = 0; const skipped = [];
       changes.forEach(c => { const d = getWk(mondayOf(c.date)).days[dowIdx(c.date)]; const cur = c.slot.kind === 'range' ? d.ranges.find(x => x.range === c.slot.label).emp : c.slot.kind === 'duty' ? d.duties.find(x => x.duty === c.slot.label)[c.slot.field] : d.medics.find(x => x.role === c.slot.label).who;
         if (c.replace) { if (String(cur || '').toUpperCase() !== String(c.old || '').toUpperCase()) { skipped.push('DAO spare changed meanwhile'); return; } }
         else if (String(cur || '').trim()) { skipped.push(c.slot.label + ': already ' + cur); return; }
+        if (c.slot.kind === 'duty') delete mFx[c.date];
         MOCK.adminSetSlot(t, c.date, c.slot, c.value.toUpperCase()); applied++; });
       const m = mondayOf(changes[0].date); return { applied, skipped, weeks: { [m]: JSON.parse(JSON.stringify(getWk(m))) } }; },
     getIncidents: () => mIncOut(),
