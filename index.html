@@ -3734,14 +3734,14 @@ const MOCK = (() => {
     { keys:['ATT:ARIF:MC:' + addD(today, -3)], name:'ARIF', sid:'171590', type:'MC', start:addD(today, -3), end:addD(today, -3), days:1, applied:addD(today, -3), due:addD(today, 4), ticked:null },
     { keys:['ATT:CHEW:UL:' + addD(today, -8)], name:'CHEW', sid:'42347', type:'UL', start:addD(today, -8), end:addD(today, -8), days:1, applied:addD(today, -8), due:addD(today, -1), ticked:null },
     { keys:['REQ:R0'], name:'ARIF', sid:'171590', type:'AL', start:addD(today, -12), end:addD(today, -12), days:1, applied:addD(today, -15), due:addD(today, -8), ticked:{ at: addD(today, -14) + ' 09:12', by:'ARIF' } }];
-  const inspM = [{ id:'biweekly', name:'Bi-Weekly CAS', every:'2w', last:'' }, { id:'monthly', name:'Monthly OHS & Office Security', every:'month', last:'' }];
+  const inspM = [{ id:'biweekly', name:'Bi-Weekly CAS', every:'2w', last:'' }, { id:'monthly', name:'Monthly OHS & Office Security', every:'month', last:'' }, { id:'grabcode', name:'Grab Code New Month', every:'monthwd', last:'' }];
   function mockInsp(){
     const dd = (a, b) => Math.round((pd(b) - pd(a)) / 86400000);
     return inspM.map(x => {
       let due = '', w = 0;
       if (x.every === '2w') { w = 3; if (!x.last) return Object.assign({}, x, { state:'unset', due:'', days:null }); due = addD(x.last, 14); }
       else { w = 7; const t = pd(x.last || today); let y = t.getFullYear(), m = t.getMonth() + (x.last ? 1 : 0); if (m > 11) { m = 0; y++; }
-        const e = new Date(y, m + 1, 0); due = ymd(e); }
+        const e = new Date(y, m + 1, 0); if (x.every === 'monthwd') while (e.getDay() === 0 || e.getDay() === 6) e.setDate(e.getDate() - 1); due = ymd(e); }
       const days = dd(today, due);
       return Object.assign({}, x, { due, days, state: days < 0 ? 'overdue' : days === 0 ? 'due' : days <= w ? 'soon' : 'ok' });
     });
