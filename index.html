@@ -347,6 +347,23 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .iedit{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0 2px;padding:8px 10px;background:#F4F6F3;border-radius:var(--r-sm)}
 .iedit input{min-height:38px;padding:6px 8px}
 .iedit[hidden]{display:none}
+.str .sth{display:flex;justify-content:space-between;align-items:center;gap:8px}.str .sth h3{margin:0}
+.stg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0 6px}
+.stt{border:0;border-radius:var(--r-sm);padding:8px 4px;text-align:center;cursor:pointer;font:inherit;color:var(--ink)}
+.stt b{display:block;font:700 24px/1.1 var(--body)}.stt span{font-size:12px;font-weight:600}
+.stt.in{background:#DCFCE7}.stt.in b{color:#15803D}
+.stt.later{background:#DBEAFE}.stt.later b{color:#1D4ED8}
+.stt.notin{background:#FEF9C3}.stt.notin b{color:#A16207}
+.stt.notin.red{background:var(--flag-soft)}.stt.notin.red b{color:var(--flag)}
+.stt.away{background:#EEF0F2}.stt.away b{color:#4B5563}
+.stmiss{font-size:14px;color:var(--flag);font-weight:600;margin-top:4px}
+.sgrp{margin-top:12px}.sgrp h4{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:8px}
+.sgrp h4 i{font-style:normal;font-size:12px;font-weight:700;border-radius:999px;padding:1px 9px;color:#fff}
+.sgrp.missing h4 i{background:var(--flag)}.sgrp.pending h4 i{background:#CA8A04}.sgrp.later h4 i{background:#1D4ED8}
+.sgrp.in h4 i{background:#15803D}.sgrp.away h4 i,.sgrp.off h4 i{background:#6B7280}
+.srow{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px solid var(--line);font-size:14px}
+.srow b{font-weight:600}.srow small{color:var(--muted);text-align:right}
+.sgrp.missing .srow{background:var(--flag-soft)}
 .gce{padding:9px 10px;border-radius:var(--r-sm);border:1px solid #FACC15;border-left:5px solid #EAB308;margin-top:6px;background:#FEF9C3}
 .gce.due{background:var(--flag-soft);border-color:#F2A9A2;border-left-color:var(--flag)}
 .gce.done{background:#fff;border-color:var(--line);border-left-color:#22C55E}
@@ -821,6 +838,7 @@ function drawHome(h, stale){
       ${h.attendance ? clockNotes(h.attendance) : ''}
       ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
+      ${canManage() || dmMine ? strCard() : ''}
       <div id="news-slot">${newsCard(h.news)}</div>
       ${h.allergo && h.allergo.length ? algCard(h.allergo, 'Submit in Allergo') : ''}
       ${h.inspections ? inspCard(h.inspections) : ''}
@@ -841,6 +859,7 @@ function drawHome(h, stale){
     wireInstall();
     wireClock();
     wireNews(h.news, !stale);
+    if (canManage() || dmMine) loadStrCard();
     if (h.inspections) wireInsp(h.inspections);
     if (h.grab) { S.gc = h.grab; wireGc(h.grab); }
     if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
@@ -1787,6 +1806,89 @@ function wireInsp(list){
   });
 }
 
+/* ---------- Strength today (Admin, Managers, today's DM): who is in, coming later, not in, away ---------- */
+const STR_GROUPS = [['missing', 'Not reported'], ['pending', 'Not in yet'], ['later', 'Reporting later'], ['in', 'In'], ['away', 'Away'], ['off', 'Off']];
+function strBy(d){ const g = {}; STR_GROUPS.forEach(x => { g[x[0]] = []; }); (d.rows || []).forEach(r => (g[r.group] || (g[r.group] = [])).push(r)); return g; }
+function strTotal(d){ return (d.rows || []).filter(r => r.group !== 'off').length; }
+function strCardInner(d){
+  if (!d) return `<div class="sth"><h3>Strength today</h3></div><div class="loading" style="padding:10px 0">Loading\u2026</div>`;
+  const g = strBy(d), notin = g.missing.length + g.pending.length;
+  return `<div class="sth"><h3>Strength today</h3><button class="btn ghost ib" data-stro="">View all</button></div>
+    <div class="stg">
+      <button class="stt in" data-stro="in"><b>${g.in.length}</b><span>In</span></button>
+      <button class="stt later" data-stro="later"><b>${g.later.length}</b><span>Later</span></button>
+      <button class="stt notin${g.missing.length ? ' red' : ''}" data-stro="${g.missing.length ? 'missing' : 'pending'}"><b>${notin}</b><span>Not in</span></button>
+      <button class="stt away" data-stro="away"><b>${g.away.length}</b><span>Away</span></button></div>
+    <div class="small muted">Strength ${strTotal(d)} &middot; as at ${esc(hrs(d.now))}${g.off.length ? ' &middot; ' + g.off.length + ' off' : ''}</div>
+    ${g.missing.length ? `<div class="stmiss">Not reported: ${esc(g.missing.map(r => r.name).join(', '))}</div>` : ''}`;
+}
+function strCard(){ return `<div class="insp str" id="strc">${strCardInner(S.str)}</div>`; }
+function wireStrCard(){
+  const box = $('#strc'); if (!box) return;
+  box.querySelectorAll('[data-stro]').forEach(b => b.onclick = () => openStrength(b.dataset.stro));
+}
+async function loadStrCard(force){
+  if (!$('#strc')) return;
+  if (!force && S.str && S.strAt && Date.now() - S.strAt < 20000) { wireStrCard(); return; }
+  try {
+    const d = await call('getStrength', S.token);
+    S.str = d; S.strAt = Date.now();
+    const box = $('#strc'); if (box) { box.innerHTML = strCardInner(d); wireStrCard(); }
+  } catch(e){ const box = $('#strc'); if (box && !S.str) box.innerHTML = `<div class="sth"><h3>Strength today</h3></div><div class="small muted">Could not load. ${esc(e.message || '')}</div>`; }
+}
+function strText(d){
+  const g = strBy(d), dt = pd(d.date);
+  const dd = String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getFullYear()).slice(2);
+  const L = ['*Strength Accounting*', DOW[dowIdx(d.date)] + ' ' + dd + ', ' + hrs(d.now), '',
+    'Total strength: ' + strTotal(d),
+    'In: ' + g.in.length + ' | Later: ' + g.later.length + ' | Not in: ' + (g.missing.length + g.pending.length) + ' | Away: ' + g.away.length];
+  STR_GROUPS.forEach(([k, label]) => {
+    const list = g[k]; if (!list.length) return;
+    L.push('', '*' + label + ' (' + list.length + ')*');
+    list.forEach((r, i) => L.push((i + 1) + '. ' + strLine(r, k)));
+  });
+  return L.join('\n');
+}
+function strLine(r, k){
+  const bits = [];
+  if (k === 'in') bits.push(r.clockIn ? hrs(r.clockIn) + (r.status === 'Present (Late)' ? ' late' : '') : 'marked present');
+  if (k === 'later') bits.push('report ' + hrs(r.ext));
+  if (k === 'missing' || k === 'pending') bits.push('due ' + hrs(r.due));
+  if (k === 'away' || k === 'off') bits.push(r.status ? r.status + (r.half ? ' (' + r.half + ')' : '') : 'no posting');
+  if (r.where && k !== 'away' && k !== 'off') bits.push(r.where);
+  return r.name + ' - ' + bits.join(' - ');
+}
+function openStrength(focus){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div id="st-in"></div>
+    <div class="acts"><button class="btn ghost" id="st-x">Close</button><button class="btn ghost" id="st-r">Refresh</button><button class="btn go" id="st-w">WhatsApp</button></div></div>`;
+  document.body.appendChild(bg);
+  let timer = null;
+  const close = () => { clearInterval(timer); bg.remove(); };
+  $('#st-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  const draw = d => {
+    const g = strBy(d);
+    $('#st-in', bg).innerHTML = `<h3>Strength today</h3>
+      <div class="src">${esc(nice(d.date))}, as at ${esc(hrs(d.now))} &middot; total strength ${strTotal(d)}. Refreshes every minute while open.</div>
+      ${STR_GROUPS.map(([k, label]) => g[k].length ? `<div class="sgrp ${k}" id="sg-${k}"><h4>${esc(label)} <i>${g[k].length}</i></h4>
+        ${g[k].map(r => { const parts = strLine(r, k).split(' - '); return `<div class="srow"><b>${esc(parts[0])}</b><small>${esc(parts.slice(1).join(' \u2022 '))}</small></div>`; }).join('')}</div>` : '').join('')}`;
+  };
+  const load = async btn => {
+    if (btn) busy(btn, true);
+    try { const d = await call('getStrength', S.token); S.str = d; S.strAt = Date.now(); draw(d);
+      const box = $('#strc'); if (box) { box.innerHTML = strCardInner(d); wireStrCard(); } }
+    catch(e){ if (btn) fail(e); }
+    if (btn) busy(btn, false);
+  };
+  if (S.str) draw(S.str); else $('#st-in', bg).innerHTML = '<div class="loading">Loading\u2026</div>';
+  load().then(() => { const el = focus && $('#sg-' + focus, bg); if (el) el.scrollIntoView({ block:'start' }); });
+  timer = setInterval(() => { if (!document.body.contains(bg)) return clearInterval(timer); load(); }, 60000);
+  $('#st-r', bg).onclick = e => load(e.target);
+  $('#st-w', bg).onclick = () => { if (S.str) openWaSheet('Strength accounting', 'Copy or send to your WhatsApp group.', '', strText(S.str)); };
+}
+
 /* ---------- Grab Code for Transport (Admin and Managers): 2 days before trainings and weekend ranges ---------- */
 function gcWhen(e){
   if (e.state === 'done') return 'All issued';
@@ -1956,7 +2058,7 @@ function drawBoard(wk){
   const end = addD(wk.monday, 6);
   const admin = canManage();
   const isAdmAcct = S.me && S.me.role === 'Admin';
-  const inspTop = (isAdmAcct ? bdayBanner(S.bdays) : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '') + (isAdmAcct && S.gc ? gcCard(S.gc) : '') + (isAdmAcct && S.rep ? repCard(S.rep) : '');
+  const inspTop = (isAdmAcct ? bdayBanner(S.bdays) + strCard() : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '') + (isAdmAcct && S.gc ? gcCard(S.gc) : '') + (isAdmAcct && S.rep ? repCard(S.rep) : '');
   const head = inspTop + `<div class="wkbar">
       <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
       <h2>${pd(wk.monday).getDate()} ${MON[pd(wk.monday).getMonth()]} to ${pd(end).getDate()} ${MON[pd(end).getMonth()]}</h2>
@@ -2056,6 +2158,7 @@ function drawBoard(wk){
       openSlotEditor(wk, d, kind, label);
     });
   }
+  if (isAdmAcct) loadStrCard();
   if (isAdmAcct && S.insp) wireInsp(S.insp);
   if (isAdmAcct && S.gc) wireGc(S.gc);
   if (isAdmAcct && S.rep) wireRep(S.rep);
@@ -3901,6 +4004,13 @@ const MOCK = (() => {
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
+    getStrength: () => { const a = mockAtt(today), now = /strnow=(\d{4})/.test(location.search) ? RegExp.$1.slice(0, 2) + ':' + RegExp.$1.slice(2) : '09:30';
+      const day = (getWk(mondayOf(today)).days || [])[dowIdx(today)], wkend = dowIdx(today) >= 5;
+      return { date:today, now, wkend, lateAfter:a.lateAfter, rows: a.rows.map(r => {
+        const ps = day ? postingsOf(day, r.name).map(x => x.title.replace(' main', '')) : [], ext = r.ext, lateAt = ext ? addMin(ext, 15) : a.lateAfter;
+        let group; if (/^Present/.test(r.status)) group = 'in'; else if (r.status === 'Off' || (!r.status && wkend && !ps.length)) group = 'off';
+        else if (r.status) group = 'away'; else if (ext && now < ext) group = 'later'; else if (now <= lateAt) group = 'pending'; else group = 'missing';
+        return { name:r.name, role:r.role, group, status:r.status, clockIn:r.clockIn, by:r.by, where:ps.join(', '), due: ext || a.lateAfter, ext, half: r.leave && r.leave.half && !r.clockIn ? r.leave.half : '' }; }) }; },
     getInspections: () => mockInsp(),
     getGrabCodes: () => mockGrab(),
     grabIssue: (t, d, f, n, undo) => { const k = d + '|' + f + '|' + n; if (undo) delete mGcDone[k]; else mGcDone[k] = { by:S.me.name, at:today + ' 17:58' }; return mockGrab(); },
