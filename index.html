@@ -779,7 +779,8 @@ async function viewHome(){
     h.today = S.today;
     try { localStorage.setItem(key, JSON.stringify(h)); } catch(e) {}
     if (S.view !== 'home') return;                      // user moved on while it loaded
-    drawHome(h, false);
+    const y = window.scrollY;                           // the quick (stored) copy may already be on screen: keep the place
+    drawHome(h, false); S.sigHome = sigOf(h); if (y) window.scrollTo(0, y);
   } catch(e){ fail(e); }
 }
 function drawHome(h, stale){
@@ -975,7 +976,7 @@ function periodText(per){
 }
 
 async function admTraining(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try { drawTraining(await call('getTraining', S.token)); } catch(e){ fail(e); }
 }
 function drawTraining(d){
@@ -1225,7 +1226,7 @@ function wireAlg(items, after){
   });
 }
 async function admAllergo(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try { drawAdmAllergo(await call('getAllergo', S.token)); } catch(e){ fail(e); }
 }
 function drawAdmAllergo(d){
@@ -1251,7 +1252,7 @@ function drawAdmAllergo(d){
 const ymLabel = ym => MONL[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4);
 const ymAdd = (ym, n) => { const d = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
 async function admDm(month){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try { drawDm(await call('getDm', S.token, month || S.dmMonth || '')); } catch(e){ fail(e); }
 }
 function drawDm(d){
@@ -1312,7 +1313,7 @@ const incFields = text => { const out = []; String(text).replace(/\{([^{}\n]{1,4
 const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0'); };
 const okHM = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
 async function viewInc(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try {
     const [d, day] = await Promise.all([call('getIncidents', S.token), repDay(S.today).catch(() => null)]);
     S.inc = d; S.incDay = day; drawInc();
@@ -1885,7 +1886,9 @@ async function viewBoard(force){
     lsWeekSave(wk);
     if (S.view !== 'board' || S.monday !== key) return;   // moved on while it loaded
     if (document.querySelector('.sheet-bg')) { const u = $('#wk-upd'); if (u) u.remove(); return; }   // an editor is open: don't redraw under it
-    drawBoard(wk);
+    const sig = sigOf(wk); S.sigWk = S.sigWk || {};
+    if (old && old.days && sigOf(old) === sig) { S.sigWk[key] = sig; const u = $('#wk-upd'); if (u) u.remove(); return; }   // nothing changed
+    const y = window.scrollY; drawBoard(wk); S.sigWk[key] = sig; if (old) window.scrollTo(0, y);
   } catch(e){ if (old) { const u = $('#wk-upd'); if (u) u.textContent = 'could not update'; } else fail(e); }
 }
 function moveWeek(n){ S.monday = addD(S.monday, 7*n); viewBoard(); }
@@ -2594,8 +2597,8 @@ function showWarnings(w){
 /* ============================================================
    My requests
    ============================================================ */
-async function viewRequests(){
-  loading();
+async function viewRequests(quiet){
+  if (!quiet) loading();
   try {
     const mgr = canManage();
     const [list, alg, pend] = await Promise.all([call('getMyRequests', S.token), call('getAllergo', S.token).catch(() => null),
@@ -2643,12 +2646,16 @@ function viewAdmin(){
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
   $('#spd').onclick = speedCheck;
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; viewAdmin(); });
-  ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab]();
+  return admLoad();
 }
 const A = () => $('#adm');
+/* "Loading" placeholder for an Admin sub-tab; skipped on a background refresh so the page does not collapse and jump */
+const loadingA = () => { if (!S.quiet) A().innerHTML = '<div class="loading">Loading\u2026</div>'; };
+/* (re)load the open Admin sub-tab only */
+function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab](); }
 
 async function admPending(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try { drawPending(A(), await call('adminPending', S.token), admPending); } catch(e){ fail(e); }
 }
 /* Requests waiting for approval, drawn into any box (Admin, Pending or the top of Requests) */
@@ -2697,7 +2704,7 @@ function drawPending(box, list, reload, emptyHtml){
 }
 
 async function admTeam(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try {
     const t = byRole(await call('adminTeam', S.token));
     A().innerHTML = `<div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th class="num">Off days</th><th class="num">On hold</th><th class="num">Pending</th><th>LIB expiry</th></tr>
@@ -2713,7 +2720,7 @@ async function admTeam(){
 }
 
 async function admOil(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try {
     const names = (S.staff || []).filter(p => p.role !== 'Admin').map(p => p.name).sort();
     const list = await call('adminOil', S.token, S.oilFilter || '');
@@ -2898,7 +2905,7 @@ function attText(a){
   return L.join('\n');
 }
 async function admAtt(){
-  A().innerHTML = '<div class="loading">Loading...</div>';
+  loadingA();
   try { drawAtt(await call('adminAttendance', S.token, S.attDate || S.today)); } catch(e){ fail(e); }
 }
 function drawAtt(a){
@@ -3011,7 +3018,7 @@ function changeDates(x, after){
 
 /* ---------- LIB expiry ---------- */
 async function admLib(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try { drawLib(await call('adminLib', S.token)); } catch(e){ fail(e); }
 }
 const LIB_MONTHS = 6;   // LIB is valid for 6 months from the test date
@@ -3252,7 +3259,7 @@ async function openAutoFill(wk){
 }
 /* Admin > Supervising: which APO goes with each supervising officer */
 async function admSup(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try { drawSup(await call('getSupTags', S.token)); } catch(e){ fail(e); }
 }
 function drawSup(d){
@@ -3424,7 +3431,7 @@ function drawLib(list){
 }
 
 async function admStaff(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try { drawStaff(await call('adminStaff', S.token)); } catch(e){ fail(e); }
 }
 const ROLES = ['APO','APO Supervisor','Non-APO','Manager','DY Manager','Medic','Medic Certis','Backup Medic','Admin'];
@@ -3542,7 +3549,7 @@ function editStaff(p){
 }
 
 async function admChanges(){
-  A().innerHTML = '<div class="loading">Loading\u2026</div>';
+  loadingA();
   try {
     const list = await call('adminChanges', S.token);
     A().innerHTML = list.length ? `<p class="small muted">Deployment edits made through the app, newest first. Undo puts back exactly what was there, including the auto-tag formula.</p>
@@ -3924,23 +3931,41 @@ function uiBusy(){
   const a = document.activeElement;
   return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest('#view'));
 }
+/* Background refresh without jumping:
+   - nothing is redrawn if the data on screen did not change
+   - it waits until the finger is off the screen (no scroll / touch for 1s)
+   - the page keeps its height while it redraws, and the scroll position is taken right before redrawing */
+let lastMove = 0;
+['scroll', 'touchstart', 'touchmove', 'wheel'].forEach(ev => window.addEventListener(ev, () => { lastMove = Date.now(); }, { passive: true }));
+const settle = async (max) => { const t0 = Date.now(); while (Date.now() - lastMove < 1000 && Date.now() - t0 < (max || 10000)) await new Promise(r => setTimeout(r, 250)); };
+const sigOf = o => { try { return JSON.stringify(o, (k, v) => k === 'ms' ? undefined : v); } catch(e) { return String(Math.random()); } };
+async function calmRender(view, fn){
+  await settle();
+  if (S.view !== view || uiBusy()) { liveWant = true; return; }
+  const v = V(), y = window.scrollY;
+  v.style.minHeight = v.offsetHeight + 'px';
+  try { await fn(); }
+  finally { window.scrollTo(0, y); setTimeout(() => { v.style.minHeight = ''; }, 900); }
+}
 async function liveRefresh(){
   if (uiBusy()) { liveWant = true; return; }
   liveWant = false;
-  const y = window.scrollY;
-  const keep = () => window.scrollTo(0, y);
   try {
     if (S.view === 'home') {
       const h = await call('getHome', S.token);
       h.today = S.today;
       try { localStorage.setItem('rdp_home_' + S.me.name, JSON.stringify(h)); } catch(e) {}
-      if (S.view === 'home' && !uiBusy()) { drawHome(h, false); keep(); }
+      const sig = sigOf(h);
+      if (sig !== S.sigHome) await calmRender('home', () => { drawHome(h, false); S.sigHome = sig; });
     } else if (S.view === 'board') {
       const key = S.monday, wk = await call('getWeek', S.token, key);
       S.cache[key] = wk; lsWeekSave(wk);
-      if (S.view === 'board' && S.monday === key && !uiBusy()) { drawBoard(wk); keep(); }
-    } else if (S.view === 'requests') { await viewRequests(); keep(); }
-    else if (S.view === 'admin' && ['pending','att','team','alg','changes','dm','trn'].includes(S.adminTab)) { await viewAdmin(); keep(); }
+      const sig = sigOf(wk); S.sigWk = S.sigWk || {};
+      if (S.monday === key && sig !== S.sigWk[key]) await calmRender('board', () => { if (S.monday === key) { drawBoard(wk); S.sigWk[key] = sig; } });
+    } else if (S.view === 'requests') { await calmRender('requests', () => viewRequests(true)); }
+    else if (S.view === 'admin' && ['pending','att','team','alg','changes','dm','trn'].includes(S.adminTab)) {
+      await calmRender('admin', async () => { S.quiet = true; try { await admLoad(); } finally { S.quiet = false; } });
+    }
     else { Object.keys(S.cache).forEach(k => delete S.cache[k]); }       // other screens: next open reads fresh
     if (canManage()) refreshPendingDot();
   } catch(e) { /* quiet: try again next time */ }
