@@ -3212,13 +3212,20 @@ function autoDraft(wk, idxs, st){
     sl = !wkend && dutyX('Ammo admin', 'spare');
     if (sl) { k = 'duty:Ammo admin:spare'; const left = R.ammoAdmin.map(N).filter(Boolean).filter(free);
       if (left.length) addX(sl, left.join(' / '), 'Still not posted after all slots: Ammo admin spare', false, k); }
-    // 8. DAO spare: everyone still not posted (the balance)
+    // 8. DAO spare: everyone (APO or Non-APO) still not posted goes here, added to whoever is already in it.
+    //    Anyone parked here who was posted above is taken out.
     if (!wkend && daoX) {
-      const rest = apos.filter(free);
-      const val = rest.join(' / ');
-      if (!String(daoX.spare || '').trim()) { if (rest.length) add({ kind: 'duty', label: daoX.duty, field: 'spare' }, val, 'Balance personnel (not posted)', false, 'duty:DAO:spare'); }
-      else if (lettersKey(val) !== lettersKey(daoX.spare) && parked.length) {
-        out.items.push({ slot: { kind: 'duty', label: daoX.duty, field: 'spare' }, value: val, old: daoX.spare, replace: true, reason: 'Balance personnel updated (some were posted above)', warn: false });
+      const cur = String(daoX.spare || '').trim();
+      let kept = cur;
+      parked.filter(n => busy.has(n)).forEach(n => { kept = dropNameTxt(kept, n); });
+      const inKept = namesIn(kept);
+      const rest = apos.filter(free).filter(n => !inKept.includes(n));
+      const val = [kept].concat(rest).filter(Boolean).join(' / ');
+      const slot = { kind: 'duty', label: daoX.duty, field: 'spare' };
+      if (!cur) { if (rest.length) add(slot, val, 'Balance personnel (not posted)', false, 'duty:DAO:spare'); }
+      else if (lettersKey(val) !== lettersKey(cur)) {
+        out.items.push({ slot, value: val, old: cur, replace: true, warn: false,
+          reason: [rest.length && 'Added (not posted): ' + rest.map(T).join(', '), kept !== cur && 'taken out (posted above)'].filter(Boolean).join('; ') });
         rest.forEach(n => busy.add(n));
       }
     }
