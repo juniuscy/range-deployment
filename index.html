@@ -265,6 +265,13 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .t tr.mine td:first-child,.t tr.mine th:first-child{box-shadow:inset 5px 0 var(--dep)}
 .t td.num{font-variant-numeric:tabular-nums;text-align:right}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.dct{border-collapse:separate;border-spacing:0;font-size:13px;background:var(--card)}
+.dct th,.dct td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.dct th{font-weight:600;color:var(--muted);background:#F6F8F5;white-space:normal;min-width:54px;vertical-align:bottom;line-height:1.2}
+.dct th:first-child,.dct td:first-child{position:sticky;left:0;text-align:left;background:var(--card);z-index:1;border-right:1px solid var(--line);min-width:96px}
+.dct th:first-child{background:#F6F8F5}
+.dct td.z{color:#B8C0C6}.dct td.hi{background:#FDE2DF;font-weight:700}.dct td.lo{background:#DCFCE7}
+.dct th.wk{background:#EEF2FF}.dct th.mo{background:#F3F4F6}
 
 /* ---------- requests ---------- */
 .req{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px}
@@ -2805,7 +2812,8 @@ async function refreshPendingDot(){
 function viewAdmin(){
   const rows = [[['pending','Pending'],['att','Attendance'],['trn','Training'],['lib','LIB']],
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
-    [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']]];
+    [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']],
+    [['duty','Duty Count']]];
   V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
@@ -2817,7 +2825,7 @@ const A = () => $('#adm');
 /* "Loading" placeholder for an Admin sub-tab; skipped on a background refresh so the page does not collapse and jump */
 const loadingA = () => { if (!S.quiet) A().innerHTML = '<div class="loading">Loading\u2026</div>'; };
 /* (re)load the open Admin sub-tab only */
-function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab](); }
+function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, duty:admDuty, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab](); }
 
 async function admPending(){
   loadingA();
@@ -3505,6 +3513,27 @@ async function openAutoFill(wk){
   };
 }
 /* Admin > Supervising: which APO goes with each supervising officer */
+/* Duty count for this year (also in the sheet: App Duty Count + App Duty Log, rebuilt every night) */
+async function admDuty(refresh, btn){
+  if (!btn) loadingA(); else busy(btn, true);
+  try { drawDuty(await call('getDutyCount', S.token, !!refresh)); if (btn) toast('Duty count updated'); }
+  catch(e){ fail(e); if (btn) busy(btn, false); }
+}
+function drawDuty(d){
+  const head = d.head || [], rows = d.rows || [];
+  const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const cls = h => /^Wkend/.test(h) ? 'wk' : MONS.includes(h) ? 'mo' : '';
+  // per role column: highest count red, lowest green, among APOs who did that role at least once (helps balancing)
+  const ext = head.map((h, i) => { if (!i || MONS.includes(h)) return null; const v = rows.map(r => r[i]).filter(x => x > 0);
+    return v.length > 1 ? { hi: Math.max.apply(null, v), lo: Math.min.apply(null, v) } : null; });
+  A().innerHTML = `<p class="small muted">This year, 1 Jan to ${esc(nice(d.to))}: days and roles per person, from the weekly tabs. Red = most in that column, green = fewest. Updated ${esc(d.updated || '')}.</p>
+    <div class="note blue small" style="margin:0 0 10px">Also in the sheet: <b>App Duty Count</b> (this table) and <b>App Duty Log</b> (every posting, one row per person per day, easy to filter). Both are rebuilt every night.</div>
+    <div class="scroll" style="max-height:70vh;border:1px solid var(--line);border-radius:var(--r-md)"><table class="dct"><thead><tr>${head.map(h => `<th class="${cls(h)}">${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map((v, i) => !i ? `<td><b>${esc(titleCase(v))}</b></td>` : `<td class="${!v ? 'z' : ext[i] && v === ext[i].hi && ext[i].hi !== ext[i].lo ? 'hi' : ext[i] && v === ext[i].lo && ext[i].hi !== ext[i].lo ? 'lo' : ''}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <button class="btn ghost" id="dc-r" style="margin-top:12px">Update now</button>`;
+  $('#dc-r').onclick = e => admDuty(true, e.target);
+}
+
 async function admSup(){
   loadingA();
   try { drawSup(await call('getSupTags', S.token)); } catch(e){ fail(e); }
@@ -4025,6 +4054,21 @@ const MOCK = (() => {
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
+    getDutyCount: () => { const yr = today.slice(0, 4), per = {}, MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], roles = ['Range'];
+      const P = n => per[n] || (per[n] = { days:{}, wk:{}, r:{} }), hit = (n, k, d) => { (P(n).r[k] = P(n).r[k] || {})[d] = 1; if (!roles.includes(k) && !/^Wkend/.test(k)) roles.push(k); };
+      Object.keys(SNAP.weeks).sort().forEach(m => (getWk(m).days || []).forEach(d => { if (d.date > today || d.date.slice(0, 4) !== yr) return; const we = dowIdx(d.date) >= 5;
+        const on = n => { P(n).days[d.date] = 1; if (we) P(n).wk[d.date] = 1; P(n).r['m' + d.date.slice(5, 7)] = Object.assign(P(n).r['m' + d.date.slice(5, 7)] || {}, { [d.date]: 1 }); };
+        d.ranges.forEach(r => r.active && r.people.forEach(n => { on(n); hit(n, 'Range', d.date); if (we) hit(n, 'Wkend Range', d.date); }));
+        d.duties.forEach(x => { x.mainPeople.forEach(n => { on(n); hit(n, x.duty + ' Main', d.date); if (we && lettersKey(x.duty) === 'DAO') hit(n, 'Wkend DAO Main', d.date); if (we && lettersKey(x.duty) === 'AMMOADMIN') hit(n, 'Wkend Manager', d.date); });
+          x.sparePeople.forEach(n => { on(n); hit(n, x.duty + ' Spare', d.date); if (we && lettersKey(x.duty) === 'DAO') hit(n, 'Wkend Reserved', d.date); }); });
+        d.medics.forEach(md => md.people.forEach(n => { on(n); hit(n, md.role, d.date); })); }));
+      const mons = Object.keys(per).reduce((a, n) => a.concat(Object.keys(per[n].r).filter(k => /^m\d\d$/.test(k)).map(k => +k.slice(1))), []);
+      const m0 = mons.length ? Math.min.apply(null, mons) : +today.slice(5, 7), ms = MONS.slice(m0 - 1, +today.slice(5, 7));
+      const wkCols = ['Wkend Range', 'Wkend DAO Main', 'Wkend Reserved', 'Wkend Manager'], c = (n, k) => Object.keys((per[n] && per[n].r[k]) || {}).length;
+      const head = ['Name', 'Days deployed', 'Weekend days', 'EXT / late report days'].concat(roles, wkCols, ms);
+      const names = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic').map(p => p.name);
+      return { year: yr, from: yr + '-01-01', to: today, updated: today + ' 21:40', head,
+        rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(roles.map(k => c(n, k)), wkCols.map(k => c(n, k)), ms.map(m => c(n, 'm' + String(MONS.indexOf(m) + 1).padStart(2, '0'))))) }; },
     getStrength: () => { const a = mockAtt(today), now = /strnow=(\d{4})/.test(location.search) ? RegExp.$1.slice(0, 2) + ':' + RegExp.$1.slice(2) : '09:30';
       const day = (getWk(mondayOf(today)).days || [])[dowIdx(today)], wkend = dowIdx(today) >= 5;
       return { date:today, now, wkend, lateAfter:a.lateAfter, rows: a.rows.map(r => {
