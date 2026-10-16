@@ -2305,7 +2305,12 @@ function waText(day, rangesOnly){
   const du = day.duties.filter(x => x.main || x.spare);
   if (du.length) {
     L.push('', b('DUTIES'));
-    du.forEach(x => L.push(x.duty + ' - ' + (x.main || '-') + (x.spare ? ' (Spare: ' + x.spare + ')' : '')));
+    const wkendD = dowIdx(day.date) >= 5;                 // weekends: DAO spare is the reserved person
+    du.forEach(x => {
+      if (wkendD && lettersKey(x.duty) === 'DAO') { L.push(x.duty + ' - ' + (x.main || '-')); if (x.spare) L.push('Reserved - ' + x.spare); return; }
+      if (wkendD && lettersKey(x.duty) === 'AMMOADMIN') { if (x.main) L.push('Manager - ' + x.main); return; }   // weekends: the Manager sits in the Ammo admin row
+      L.push(x.duty + ' - ' + (x.main || '-') + (x.spare ? ' (Spare: ' + x.spare + ')' : ''));
+    });
   }
   const rp = day.report || {};
   const freeA = freeOn(day, 'APO').map(n => n + (rp[n] ? ' (' + hrs(rp[n]) + ')' : ''));
@@ -3050,6 +3055,7 @@ const AUTO_RULES = {
   ammoAdmin: ['WONG', 'DANIAL', 'IVAN'],  // Ammo admin (main and spare): Wong, Danial, Ivan, fewest this month
   rangeReserve: ['FAIZAL', 'DANIAL', 'WONG'],   // kept off ranges unless no one else is free, used in this order
   rangeAlso: ['IVAN'], rangeNever: ['JAMES TOH'],   // Ivan may go on ranges; James Toh not (resigning)
+  wkendDao: ['FAIZAL', 'LIM', 'WONG', 'DANIAL', 'IVAN LIM'],   // weekends: DAO main and the reserved (DAO spare) rotate among these
   daoMain: 'FAIZAL',                    // DAO main by default; the balance go to DAO spare
   medDriver: 'AZAHAR', medic2: 'FAHMI', medic1Fap: ['RASUL', 'SAFUDIN']   // Medic 1 / FAP rotate between the two
 };
@@ -3102,7 +3108,7 @@ function autoDraft(wk, idxs, st){
     const duty = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && !String(x[field] || '').trim() ? { kind: 'duty', label: x.duty, field } : null; };
     const med = role => { const m = d.medics.find(y => lettersKey(y.role) === lettersKey(role)); return m && !String(m.who || '').trim() ? { kind: 'medic', label: m.role, field: 'name' } : null; };
     const wkend = dowIdx(d.date) >= 5;
-    if (wkend) out.notes.push('Weekend: only range APOs, DAO main and Ammo admin (a Manager); no PLAD, RAI or spares. Medics are filled as usual.');
+    if (wkend) out.notes.push('Weekend: range APOs, DAO main, Ammo admin (a Manager) and 1 reserved (DAO spare); no PLAD or RAI. Medics as usual.');
     const never = R.rangeNever.map(N).filter(Boolean);
     const rangeApos = of(r => r === 'APO' || r === 'APO Supervisor').concat(R.rangeAlso.map(N).filter(Boolean))
       .filter((n, i, a) => n && a.indexOf(n) === i && !never.includes(n));        // ranges: APOs, plus Ivan; not James Toh
@@ -3172,8 +3178,13 @@ function autoDraft(wk, idxs, st){
       const lead = want ? T(want) + ' (' + src + ') is ' + whyX(want) + '. ' : 'No APO tagged to ' + (supName(r.sup) || 'this range') + '. ';
       addX(slot, alt.n, lead + (alt.last ? 'No one else free, so ' + T(alt.n) + ' (Faizal, Danial, Wong order).' : 'Undeployed APO.'), true, 'range');
     });
-    // 3. DAO main: Faizal by default, otherwise any free APO
+    // 3. DAO main: Faizal by default, otherwise any free APO. Weekends: rotated among Faizal, Lim, Wong, Danial, Ivan Lim
     let sl = dutyX('DAO', 'main'), k;
+    const wkPool = R.wkendDao.map(N).filter(Boolean);
+    if (sl && wkend) { k = 'wkend:DAO:main'; const n = pickRot(wkPool, k);
+      if (n) addX(sl, n, 'Weekend DAO rotation; ' + cnt(n, k) + 'x weekend DAO this month', false, k);
+      else out.notes.push('Weekend DAO: Faizal, Lim, Wong, Danial and Ivan Lim are all posted or away.');
+      sl = null; }
     if (sl) { k = 'duty:DAO:main'; const f = N(R.daoMain);
       if (free(f)) addX(sl, f, 'DAO main by default', false, k);
       else { const n = pick(apos, k); if (n) addX(sl, n, T(f) + ' is ' + whyX(f) + '. Free APO; ' + fair(n, k), true, k); else out.notes.push('DAO main: no free APO.'); } }
@@ -3182,13 +3193,20 @@ function autoDraft(wk, idxs, st){
     if (sl && wkend) { k = 'duty:Ammo admin:main';
       const mgrs = of(r => MGR_ROLES.includes(r)), dmN = lettersKey((S.dm || {})[d.date] || '');
       const isDm = n => { const p = (S.staff || []).find(x => x.name === n) || {}; return !!dmN && [n].concat(p.aliases || []).some(a => lettersKey(a) === dmN); };
-      const dm = mgrs.find(isDm), n = dm && free(dm) ? dm : pick(mgrs, k);
-      if (n) addX(sl, n, n === dm ? 'Weekend: Duty Manager as Ammo admin' : 'Weekend: Manager as Ammo admin; ' + fair(n, k), false, k);
+      const dm = mgrs.find(isDm), n = dm && free(dm) ? dm : pickRot(mgrs, k);
+      if (n) addX(sl, n, n === dm ? 'Weekend Manager (the Duty Manager), in the Ammo admin row' : 'Weekend Manager (rotation), in the Ammo admin row; ' + fair(n, k), false, k);
       else out.notes.push('Ammo admin: no Manager free this weekend day.');
       sl = null; }
     if (sl) { k = 'duty:Ammo admin:main'; const n = pickRot(R.ammoAdmin.map(N).filter(Boolean), k);
       if (n) addX(sl, n, 'Ammo admin rotation (Wong, Danial, Ivan); ' + fair(n, k), false, k);
       else { const b = pick(apos, k); if (b) addX(sl, b, 'Wong, Danial and Ivan are not free. Free APO.', true, k); else out.notes.push('Ammo admin: no one free.'); } }
+    // Weekends: one person reserved, kept in DAO spare (shown as "Reserved" in the message), rotated among the same five
+    if (wkend && daoX) {
+      const rslot = dutyX('DAO', 'spare');
+      if (rslot) { k = 'wkend:DAO:reserve'; const n = pickRot(wkPool, k);
+        if (n) addX(rslot, n, 'Weekend reserved (DAO spare); ' + cnt(n, k) + 'x reserved this month', false, k);
+        else out.notes.push('Weekend reserved: Faizal, Lim, Wong, Danial and Ivan Lim are all posted or away.'); }
+    }
     // 5. PLAD-Driver (decided in step 0)
     if (driverSlot) {
       if (driver) addX(driverSlot, driver, driverNote ? 'Backup driver: ' + driverNote : 'PLAD driver', !!driverNote, 'duty:PLAD-Driver:main');
@@ -3820,7 +3838,8 @@ const MOCK = (() => {
       const add = (k, n) => { (hist[k] = hist[k] || {})[n] = (hist[k][n] || 0) + 1; };
       for (let w = 8; w >= 1; w--) { const wk = getWk(addD(monday, -7 * w)); (wk.days || []).forEach(d => {
         d.ranges.forEach(r => { if (r.sup && r.people.length) { const k = offKey(r.sup); (pairs[k] = pairs[k] || {})[r.people[0]] = (pairs[k][r.people[0]] || 0) + 1; } r.people.forEach(n => add('range', n)); });
-        d.duties.forEach(x => { x.mainPeople.forEach(n => add('duty:' + x.duty + ':main', n)); x.sparePeople.forEach(n => add('duty:' + x.duty + ':spare', n)); });
+        d.duties.forEach(x => { x.mainPeople.forEach(n => add('duty:' + x.duty + ':main', n)); x.sparePeople.forEach(n => add('duty:' + x.duty + ':spare', n));
+          if (dowIdx(d.date) >= 5 && lettersKey(x.duty) === 'DAO') { x.mainPeople.forEach(n => add('wkend:DAO:main', n)); x.sparePeople.forEach(n => add('wkend:DAO:reserve', n)); } });
         d.medics.forEach(m => m.people.forEach(n => add('medic:' + m.role, n))); }); }
       const learned = {}; Object.keys(pairs).forEach(k => { const ns = Object.keys(pairs[k]).sort((a, b) => pairs[k][b] - pairs[k][a]); learned[k] = { apo: ns[0], n: pairs[k][ns[0]], total: ns.reduce((x, n) => x + pairs[k][n], 0) }; });
       const first = monday.slice(0, 8) + '01'; for (let m = mondayOf(first); m < monday; m = addD(m, 7)) (getWk(m).days || []).forEach(d => { if (d.date < first || d.date >= monday) return;
