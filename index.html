@@ -3049,6 +3049,7 @@ const AUTO_RULES = {
   pladDriver: ['WONG', 'ONG'],          // driver Wong; Ong if Wong is not free
   ammoAdmin: ['WONG', 'DANIAL', 'IVAN'],  // Ammo admin (main and spare): Wong, Danial, Ivan, fewest this month
   rangeReserve: ['FAIZAL', 'DANIAL', 'WONG'],   // kept off ranges unless no one else is free, used in this order
+  rangeAlso: ['IVAN'], rangeNever: ['JAMES TOH'],   // Ivan may go on ranges; James Toh not (resigning)
   daoMain: 'FAIZAL',                    // DAO main by default; the balance go to DAO spare
   medDriver: 'AZAHAR', medic2: 'FAHMI', medic1Fap: ['RASUL', 'SAFUDIN']   // Medic 1 / FAP rotate between the two
 };
@@ -3096,11 +3097,15 @@ function autoDraft(wk, idxs, st){
     const fair = (n, k) => cnt(n, k) + 'x this month';
     const add = (slot, value, reason, warn, k) => { out.items.push({ slot, value, reason, warn: !!warn }); value.split(' / ').forEach(n => { busy.add(n); if (k) inc(n, k); }); };
     const pick = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k) || hist(b, k) - hist(a, k) || a.localeCompare(b))[0];
+    // strict rotation: fewest this month, then fewest in the last 8 weeks
+    const pickRot = (cands, k) => cands.filter(free).sort((a, b) => cnt(a, k) - cnt(b, k) || hist(a, k) - hist(b, k) || a.localeCompare(b))[0];
     const duty = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && !String(x[field] || '').trim() ? { kind: 'duty', label: x.duty, field } : null; };
     const med = role => { const m = d.medics.find(y => lettersKey(y.role) === lettersKey(role)); return m && !String(m.who || '').trim() ? { kind: 'medic', label: m.role, field: 'name' } : null; };
     const wkend = dowIdx(d.date) >= 5;
     if (wkend) out.notes.push('Weekend: only range APOs, DAO main and Ammo admin (a Manager); no PLAD, RAI or spares. Medics are filled as usual.');
-    const rangeApos = of(r => r === 'APO' || r === 'APO Supervisor');           // ranges: certified APOs
+    const never = R.rangeNever.map(N).filter(Boolean);
+    const rangeApos = of(r => r === 'APO' || r === 'APO Supervisor').concat(R.rangeAlso.map(N).filter(Boolean))
+      .filter((n, i, a) => n && a.indexOf(n) === i && !never.includes(n));        // ranges: APOs, plus Ivan; not James Toh
     const keepOff = R.rangeReserve.map(N).filter(Boolean);                     // Faizal, Danial, Wong: off ranges unless no one else (in this order)
     const plad = !wkend && R.pladDays.includes(dowIdx(d.date));
     const notAway = n => !!n && !away[n] && !goneOn(d)[n];
@@ -3181,8 +3186,8 @@ function autoDraft(wk, idxs, st){
       if (n) addX(sl, n, n === dm ? 'Weekend: Duty Manager as Ammo admin' : 'Weekend: Manager as Ammo admin; ' + fair(n, k), false, k);
       else out.notes.push('Ammo admin: no Manager free this weekend day.');
       sl = null; }
-    if (sl) { k = 'duty:Ammo admin:main'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k);
-      if (n) addX(sl, n, 'Ammo admin team (Wong, Danial, Ivan); ' + fair(n, k), false, k);
+    if (sl) { k = 'duty:Ammo admin:main'; const n = pickRot(R.ammoAdmin.map(N).filter(Boolean), k);
+      if (n) addX(sl, n, 'Ammo admin rotation (Wong, Danial, Ivan); ' + fair(n, k), false, k);
       else { const b = pick(apos, k); if (b) addX(sl, b, 'Wong, Danial and Ivan are not free. Free APO.', true, k); else out.notes.push('Ammo admin: no one free.'); } }
     // 5. PLAD-Driver (decided in step 0)
     if (driverSlot) {
@@ -3203,11 +3208,10 @@ function autoDraft(wk, idxs, st){
         const ex = d.duties.find(y => lettersKey(y.duty) === 'AMMOADMIN');
         const am = drafted ? drafted.value : ex && ex.mainPeople[0];
         if (am) addX(sl, am, 'Dual role with Ammo admin (no one else free)', true, k); else out.notes.push('RAI Party: no free APO.'); } }
-    // 7b. Ammo admin spare: another of Wong, Danial or Ivan if free, otherwise left empty
+    // 7b. Ammo admin spare: empty, unless Wong, Danial or Ivan are still not posted after everything above: they go here
     sl = !wkend && dutyX('Ammo admin', 'spare');
-    if (sl) { k = 'duty:Ammo admin:spare'; const n = pick(R.ammoAdmin.map(N).filter(Boolean), k);
-      if (n) addX(sl, n, 'Ammo admin team spare; ' + fair(n, k), false, k);
-      else out.notes.push('Ammo admin spare: Wong, Danial and Ivan not free, left empty.'); }
+    if (sl) { k = 'duty:Ammo admin:spare'; const left = R.ammoAdmin.map(N).filter(Boolean).filter(free);
+      if (left.length) addX(sl, left.join(' / '), 'Still not posted after all slots: Ammo admin spare', false, k); }
     // 8. DAO spare: everyone still not posted (the balance)
     if (!wkend && daoX) {
       const rest = apos.filter(free);
