@@ -338,6 +338,15 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .iedit{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0 2px;padding:8px 10px;background:#F4F6F3;border-radius:var(--r-sm)}
 .iedit input{min-height:38px;padding:6px 8px}
 .iedit[hidden]{display:none}
+.gce{padding:9px 10px;border-radius:var(--r-sm);border:1px solid #FACC15;border-left:5px solid #EAB308;margin-top:6px;background:#FEF9C3}
+.gce.due{background:var(--flag-soft);border-color:#F2A9A2;border-left-color:var(--flag)}
+.gce.done{background:#fff;border-color:var(--line);border-left-color:#22C55E}
+.gce .gh{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.gce .gh span{font-size:13px;font-weight:600}
+.gce.due .gh span{color:var(--flag)}.gce.done .gh span{color:#15803D}
+.gce .gr{font-size:14px;margin:2px 0 6px}
+.gcp{display:flex;align-items:center;gap:10px;padding:6px 8px;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer}
+.gcp input{width:22px;height:22px;flex:none;margin:0}.gcp .gn{flex:1;min-width:0}.gcp .gn small{display:block;color:var(--muted);font-size:12px}
+.gcp.ok .gn b{text-decoration:line-through;text-decoration-color:#22C55E}
 .algc{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 14px}
 .algc h3{margin:0 0 4px;font-size:17px}
 .algr{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;margin-top:6px;border:1px solid}
@@ -806,6 +815,7 @@ function drawHome(h, stale){
       <div id="news-slot">${newsCard(h.news)}</div>
       ${h.allergo && h.allergo.length ? algCard(h.allergo, 'Submit in Allergo') : ''}
       ${h.inspections ? inspCard(h.inspections) : ''}
+      ${h.grab ? gcCard(h.grab) : ''}
       ${h.reports ? repCard(h.reports) : ''}
       ${h.training ? myTrnCard(h.training) : ''}
       <div class="strip" style="${hasOil() ? '' : 'grid-template-columns:1fr'}">
@@ -823,6 +833,7 @@ function drawHome(h, stale){
     wireClock();
     wireNews(h.news, !stale);
     if (h.inspections) wireInsp(h.inspections);
+    if (h.grab) { S.gc = h.grab; wireGc(h.grab); }
     if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
     if (h.training) wireMyTrn();
     if (h.allergo && h.allergo.length) {
@@ -1767,6 +1778,40 @@ function wireInsp(list){
   });
 }
 
+/* ---------- Grab Code for Transport (Admin and Managers): 2 days before trainings and weekend ranges ---------- */
+function gcWhen(e){
+  if (e.state === 'done') return 'All issued';
+  return e.days <= 0 ? 'Today' : e.days === 1 ? 'Tomorrow' : 'In ' + e.days + ' days';
+}
+function gcAt(t){ const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):?(\d{2})/.exec(String(t)); return m ? nice(m[1]) + ' ' + m[2] + m[3] + 'hrs' : String(t); }
+function gcCard(list){
+  if (!list || !list.length) return '';
+  return `<div class="insp" id="gcb"><h3>Grab Code for Transport</h3>${list.map((e, i) => {
+    const left = e.people.filter(p => !p.done).length;
+    return `<div class="gce ${e.state}"><div class="gh"><b>${esc(nice(e.date))}</b><span>${esc(gcWhen(e))}${left && e.state !== 'done' ? ' \u2022 ' + left + ' to issue' : ''}</span></div>
+      <div class="gr">Reason: ${esc(e.reason)}</div>
+      <div class="small muted">Personnel required (${e.people.length})</div>
+      ${e.people.map(p => `<label class="gcp${p.done ? ' ok' : ''}"><input type="checkbox" data-gc="${i}|${esc(p.name)}"${p.done ? ' checked' : ''}>
+        <span class="gn"><b>${esc(p.name)}</b>${p.what ? `<small>${esc(p.what)}</small>` : ''}${p.done ? `<small>Issued by ${esc(p.done.by)}${p.done.at ? ', ' + esc(gcAt(p.done.at)) : ''}</small>` : ''}</span></label>`).join('')}
+    </div>`; }).join('')}</div>`;
+}
+function wireGc(list){
+  const box = $('#gcb'); if (!box) return;
+  box.querySelectorAll('[data-gc]').forEach(cb => cb.onchange = async () => {
+    const [i, name] = cb.dataset.gc.split('|'), e = list[+i], on = cb.checked;
+    const q = on ? 'Confirmed issued grab code to ' + name + ' for ' + e.reason + ' on ' + nice(e.date) + '?'
+                 : 'Undo: grab code NOT issued to ' + name + ' yet?';
+    if (!confirm(q)) { cb.checked = !on; return; }
+    cb.disabled = true;
+    try {
+      const r = await call('grabIssue', S.token, e.date, e.for, name, !on);
+      S.gc = r;
+      const old = $('#gcb'); if (old) { old.outerHTML = gcCard(r); wireGc(r); }
+      toast(on ? 'Issued' : 'Undone');
+    } catch(err){ cb.checked = !on; cb.disabled = false; fail(err); }
+  });
+}
+
 /* ---------- clock-in card on My Deploy ---------- */
 /* Compact clock-in, shown beside the name */
 /* Duty Manager of the day, beside Clock in (all accounts) */
@@ -1874,12 +1919,14 @@ async function viewBoard(force){
   } else loading();
   try {
     const isAdm = S.me && S.me.role === 'Admin';
-    const [wk, insp, bd, rp] = await Promise.all([
+    const [wk, insp, bd, rp, gc] = await Promise.all([
       call('getWeek', S.token, key, !!force),          // fresh from the sheet (cached on the server until the sheet changes)
       isAdm ? call('getInspections', S.token).catch(() => S.insp || null) : Promise.resolve(null),
       isAdm ? call('getBirthdays', S.token).catch(() => S.bdays || []) : Promise.resolve(null),
-      isAdm ? call('getReports', S.token).catch(() => S.rep || null) : Promise.resolve(null)]);
+      isAdm ? call('getReports', S.token).catch(() => S.rep || null) : Promise.resolve(null),
+      isAdm ? call('getGrabCodes', S.token).catch(() => S.gc || null) : Promise.resolve(null)]);
     if (rp) S.rep = rp;
+    if (gc) S.gc = gc;
     if (insp) S.insp = insp;
     if (bd) S.bdays = bd;
     S.cache[key] = wk;
@@ -1900,7 +1947,7 @@ function drawBoard(wk){
   const end = addD(wk.monday, 6);
   const admin = canManage();
   const isAdmAcct = S.me && S.me.role === 'Admin';
-  const inspTop = (isAdmAcct ? bdayBanner(S.bdays) : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '') + (isAdmAcct && S.rep ? repCard(S.rep) : '');
+  const inspTop = (isAdmAcct ? bdayBanner(S.bdays) : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '') + (isAdmAcct && S.gc ? gcCard(S.gc) : '') + (isAdmAcct && S.rep ? repCard(S.rep) : '');
   const head = inspTop + `<div class="wkbar">
       <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
       <h2>${pd(wk.monday).getDate()} ${MON[pd(wk.monday).getMonth()]} to ${pd(end).getDate()} ${MON[pd(end).getMonth()]}</h2>
@@ -2001,6 +2048,7 @@ function drawBoard(wk){
     });
   }
   if (isAdmAcct && S.insp) wireInsp(S.insp);
+  if (isAdmAcct && S.gc) wireGc(S.gc);
   if (isAdmAcct && S.rep) wireRep(S.rep);
   $('#wr').onclick = () => viewBoard(true);
   $('#wp').onclick = () => moveWeek(-1);
@@ -3746,6 +3794,27 @@ const MOCK = (() => {
       return Object.assign({}, x, { due, days, state: days < 0 ? 'overdue' : days === 0 ? 'due' : days <= w ? 'soon' : 'ok' });
     });
   }
+  const mGcDone = {};
+  function mockGrab(){
+    const ev = [{ date:addD(today, 1), for:'TEST TS', reason:'TEST TS training at 0900hrs', time:'0900', people:[{ name:'LEONARD', what:'' }, { name:'ONG', what:'Bring IC' }] }];
+    for (let i = 0; i <= 2; i++) {
+      const ds = addD(today, i); if (dowIdx(ds) < 5) continue;
+      const day = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)];
+      if (!day || !day.ranges.some(r => r.active)) continue;
+      const rg = day.ranges.filter(r => r.active), e = { date:ds, for:'Weekend range', reason:'Weekend range: ' + rg.map(r => r.range).join(', '), time:'', people:[] };
+      const add = (n, w) => { if (!e.people.some(p => p.name === n)) e.people.push({ name:n, what:w }); };
+      const dk = x => String(x).toUpperCase().replace(/\s+/g, '');
+      rg.forEach(r => (r.people || []).forEach(n => add(n, r.range)));
+      day.duties.forEach(x => { (x.mainPeople || []).forEach(n => add(n, dk(x.duty) === 'AMMOADMIN' ? 'Manager' : x.duty));
+        (x.sparePeople || []).forEach(n => add(n, dk(x.duty) === 'DAO' ? 'Reserved' : x.duty + ' spare')); });
+      if (e.people.length) ev.push(e);
+    }
+    return ev.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0).map(e => {
+      e.people.forEach(p => { p.done = mGcDone[e.date + '|' + e.for + '|' + p.name] || null; });
+      const days = Math.round((pd(e.date) - pd(today)) / 86400000), all = e.people.every(p => p.done);
+      return Object.assign(e, { days, state: all ? 'done' : days <= 0 ? 'due' : 'soon' });
+    });
+  }
   const attStore = {};
   const attRec = (d, n) => { const k = d + '|' + n; return attStore[k] || (attStore[k] = { clockIn:'', status:'' }); };
   const ATT_ROWS = { AL:'AL', UL:'UL', MC:'MC', OIL:'OIL', HL:'HL', CCL:'CCL', ICT:'ICT', COURSE:'Course', COMPASSIONATELEAVE:'Others', OTHERS:'Others' };
@@ -3817,13 +3886,15 @@ const MOCK = (() => {
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
+      news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, grab: canManage() ? mockGrab() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
     getInspections: () => mockInsp(),
+    getGrabCodes: () => mockGrab(),
+    grabIssue: (t, d, f, n, undo) => { const k = d + '|' + f + '|' + n; if (undo) delete mGcDone[k]; else mGcDone[k] = { by:S.me.name, at:today + ' 17:58' }; return mockGrab(); },
     getReports: () => mRep,
     getNews: () => mNewsList(),
     monthSummary: (t, ym) => mMonth(ym),
