@@ -354,6 +354,9 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .iedit{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0 2px;padding:8px 10px;background:#F4F6F3;border-radius:var(--r-sm)}
 .iedit input{min-height:38px;padding:6px 8px}
 .iedit[hidden]{display:none}
+.dmtag{display:inline-block;background:var(--ink);color:#fff;font:700 11px/1.6 var(--body);padding:0 7px;border-radius:5px;margin-right:7px;vertical-align:2px;letter-spacing:.4px}
+.irow .it2 span.dmtag,.irow.due .it2 span.dmtag{color:#fff;font-size:11px;font-weight:700}
+.pullq{padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);margin:8px 0;background:#fff}
 .str .sth{display:flex;justify-content:space-between;align-items:center;gap:8px}.str .sth h3{margin:0}
 .stg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0 6px}
 .stt{border:0;border-radius:var(--r-sm);padding:8px 4px;text-align:center;cursor:pointer;font:inherit;color:var(--ink)}
@@ -839,6 +842,7 @@ function drawHome(h, stale){
     const dmToday = (h.dmMap || {})[S.today] || (S.dm || {})[S.today] || '';
     if (h.monthSum) S.monthSum = h.monthSum;
     const dmMine = isMeDm(dmToday);
+    S.dmMine = dmMine; if (h.reports) S.rep = h.reports;
     V().innerHTML = `<div id="inst-slot">${stale ? '' : installBanner()}</div>
       <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="upd">Updating\u2026</span>' : ''}</h2>
         <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div><div class="hiright">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div></div>
@@ -848,7 +852,7 @@ function drawHome(h, stale){
       ${canManage() || dmMine ? strCard() : ''}
       <div id="news-slot">${newsCard(h.news)}</div>
       ${h.allergo && h.allergo.length ? algCard(h.allergo, 'Submit in Allergo') : ''}
-      ${h.inspections ? inspCard(h.inspections) : ''}
+      ${h.inspections || dmMine ? inspCard(h.inspections) : ''}
       ${h.grab ? gcCard(h.grab) : ''}
       ${h.reports ? repCard(h.reports) : ''}
       ${h.training ? myTrnCard(h.training) : ''}
@@ -867,7 +871,7 @@ function drawHome(h, stale){
     wireClock();
     wireNews(h.news, !stale);
     if (canManage() || dmMine) loadStrCard();
-    if (h.inspections) wireInsp(h.inspections);
+    if (h.inspections || dmMine) wireInsp(h.inspections);
     if (h.grab) { S.gc = h.grab; wireGc(h.grab); }
     if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
     if (h.training) wireMyTrn();
@@ -1778,9 +1782,24 @@ function inspLine(x){
   if (x.state === 'due') return 'Due today';
   return 'Due ' + when + ', in ' + x.days + ' day' + (x.days === 1 ? '' : 's');
 }
+/* Duty Manager of the day: Approved Ammo Voucher (every DM day), Draw Key 59 and 194 (Mon, Wed, Fri) */
+function dmTasks(){
+  if (!S.dmMine || !S.rep) return [];
+  const d = S.rep.date, dt = pd(d), dd = String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getFullYear()).slice(2);
+  const t = [{ id: 'dm-voucher', name: 'Approved Ammo Voucher', sub: dd, ask: 'Confirmed approved Ammo Voucher for ' + dd + '?' }];
+  if ([0, 2, 4].includes(dowIdx(d))) t.push({ id: 'dm-keys', name: 'Draw Key 59 and 194', sub: 'Today (every Mon, Wed and Fri)', ask: 'Confirmed drawn Key 59 and 194?' });
+  return t.map(x => Object.assign(x, { done: (S.rep.sent || {})[x.id] || null }));
+}
+function dmTaskRows(){
+  return dmTasks().map(x => `<div class="irow ${x.done ? '' : 'due'}"><div class="it2"><b><span class="dmtag">DM</span>${esc(x.name)}</b><span>${esc(x.sub)}</span>
+      ${x.done ? `<span style="display:block;font-weight:600;color:#15803D">Done ${esc(hrs(x.done.at))} by ${esc(x.done.by)}</span>` : ''}</div>
+      ${x.done ? `<button class="btn ghost ib" data-dmu="${x.id}">Undo</button>` : `<button class="btn ib" data-dmt="${x.id}">Done</button>`}</div>`).join('');
+}
 function inspCard(list){
-  if (!list || !list.length) return '';
-  return `<div class="insp" id="insp"><h3>Inspections</h3>${list.map(x => `
+  list = list || [];
+  const dmr = dmTaskRows();
+  if (!list.length && !dmr) return '';
+  return `<div class="insp" id="insp"><h3>Inspections</h3>${dmr}${list.map(x => `
     <div class="irow ${x.state}"><div class="it2"><b>${esc(x.name)}</b><span>${esc(inspLine(x))}</span>
       ${x.last ? `<span style="display:block;font-weight:400;color:var(--muted)">Last done ${esc(nice(x.last))}</span>` : ''}</div>
       <button class="btn ib" data-idone="${esc(x.id)}">Done</button>
@@ -1788,8 +1807,16 @@ function inspCard(list){
     <div class="iedit" data-ibox="${esc(x.id)}" hidden></div>`).join('')}</div>`;
 }
 function wireInsp(list){
+  list = list || [];
   const box = $('#insp'); if (!box) return;
   const redraw = l => { const old = $('#insp'); if (old) { old.outerHTML = inspCard(l); wireInsp(l); } };
+  box.querySelectorAll('[data-dmt],[data-dmu]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.dmt || b.dataset.dmu, undo = !!b.dataset.dmu, x = dmTasks().find(t => t.id === id);
+    if (!confirm(undo ? 'Undo "' + x.name + '" (not done yet)?' : x.ask)) return;
+    busy(b, true);
+    try { S.rep = await call('reportSent', S.token, id, undo); redraw(list); toast(undo ? 'Undone' : 'Done'); }
+    catch(e){ fail(e); busy(b, false); }
+  });
   const save = async (btn, fn, ...args) => {
     busy(btn, true);
     try { const r = await call(fn, S.token, ...args); S.insp = r; redraw(r); toast('Saved'); }
@@ -2381,6 +2408,13 @@ function openSlotEditor(wk, day, kind, label){
       if (!$('#ed-' + who, bg).value.trim()) { toast('Add the AM and PM names (AM can be NA).', true); return; }
       if (!/^([01][0-9]|2[0-3])[0-5][0-9]$/.test($('#sp-t', bg).value)) { toast('Key in the PM report time as 24hrs, e.g. 1200.', true); $('#sp-t', bg).focus(); return; }
     }
+    // someone newly put in who is already posted elsewhere that day: pull them out of there, or keep them in both?
+    const added = [];
+    fields.filter(f => NAME_KEYS.includes(f[0])).forEach(([k, , v]) => namesIn($('#ed-' + k, bg).value).forEach(n => { if (!namesIn(v).includes(n) && !added.includes(n)) added.push(n); }));
+    const others = added.map(n => ({ n, posts: postingsOf(day, n).filter(p => !(p.slot.kind === kind && p.slot.label === label) && (canManage() || p.slot.kind === 'medic')) }))
+      .filter(x => x.posts.length);
+    let pulls = [];
+    if (others.length) { pulls = await askPull(others, label, day); if (!pulls) return; }
     busy(e.target, true);
     let week = wk, warnings = [];
     try {
@@ -2390,6 +2424,16 @@ function openSlotEditor(wk, day, kind, label){
         const res = await call(canManage() ? 'adminSetSlot' : 'medicSetSlot', S.token, day.date, { kind, label, field:k }, nv);
         week = res.week; warnings = warnings.concat(res.warnings || []);
       }
+      // then take the pulled-out people off their other slots (several people from one slot: one write)
+      const bySlot = {};
+      pulls.forEach(p => { const key = p.slot.kind + '|' + p.slot.label + '|' + p.slot.field;
+        (bySlot[key] = bySlot[key] || { slot: p.slot, text: p.text, names: [] }).names.push(p.n); });
+      for (const key of Object.keys(bySlot)) {
+        const g = bySlot[key], left = g.names.reduce((t, n) => dropNameTxt(t, n), g.text);
+        const res = await call(canManage() ? 'adminSetSlot' : 'medicSetSlot', S.token, day.date, g.slot, left.toUpperCase());
+        week = res.week;
+      }
+      if (pulls.length) warnings = warnings.filter(w => !pulls.some(p => w.indexOf(p.n) >= 0));
       S.cache[week.monday] = week;
       close();
       drawBoard(week);
@@ -3235,6 +3279,29 @@ function staffName(short){
   return p ? p.name : '';
 }
 /* A cell's text with one person taken out ("TOH / LIM" -> "LIM"; shift parts keep their AM / PM) */
+/* Asked on Save when a person put into a slot is already posted elsewhere that day.
+   Resolves with [{ n, slot, text }] to pull out (may be empty), or null for Back. */
+function askPull(list, label, day){
+  return new Promise(resolve => {
+    const pick = list.map(() => 'pull');
+    const bg = document.createElement('div');
+    bg.className = 'sheet-bg';
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Already posted on ${esc(nice(day.date))}</h3>
+      <div class="src">You are putting ${list.length === 1 ? 'this person' : 'these people'} on <b>${esc(label)}</b>. Pull them out of their other role, or keep them in both?</div>
+      ${list.map((x, i) => `<div class="pullq"><div><b>${esc(x.n)}</b> is also on <b>${esc(x.posts.map(p => p.title).join(', '))}</b></div>
+        <div class="chips" style="margin-top:6px"><button class="chip" data-pq="${i}|pull" aria-pressed="true">Pull out</button><button class="chip" data-pq="${i}|keep" aria-pressed="false">Keep in both</button></div></div>`).join('')}
+      <div class="acts"><button class="btn ghost" id="pq-x">Back</button><button class="btn" id="pq-ok">Save</button></div></div>`;
+    document.body.appendChild(bg);
+    const done = v => { bg.remove(); resolve(v); };
+    bg.querySelectorAll('[data-pq]').forEach(b => b.onclick = () => {
+      const [i, v] = b.dataset.pq.split('|'); pick[+i] = v;
+      bg.querySelectorAll(`[data-pq^="${i}|"]`).forEach(c => c.setAttribute('aria-pressed', c.dataset.pq === b.dataset.pq));
+    });
+    $('#pq-x', bg).onclick = () => done(null);
+    bg.onclick = e => { if (e.target === bg) done(null); };
+    $('#pq-ok', bg).onclick = () => done(list.reduce((a, x, i) => pick[i] === 'pull' ? a.concat(x.posts.map(p => ({ n: x.n, slot: p.slot, text: p.text }))) : a, []));
+  });
+}
 function dropNameTxt(text, n){
   const out = [];
   String(text || '').split(/\s*\/\s*/).filter(Boolean).forEach(part => {
