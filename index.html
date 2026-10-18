@@ -4205,7 +4205,7 @@ const MOCK = (() => {
       return mTrn(!canManage()); },
     inspectionDone: (t, id, d) => { const x = inspM.find(i => i.id === id); x.last = d || today; return mockInsp(); },
     inspectionEdit: (t, id, f) => { const x = inspM.find(i => i.id === id); if (f.name) x.name = f.name; if (f.last != null) x.last = f.last; return mockInsp(); },
-    adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; const pulled = ['UL','AL','NPL','MC','HL','CCL','OIL','Course','ICT'].includes(st) ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
+    adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; const pulled = st && !/^Present/.test(st) ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
     adminChangeDates: (t, id, st, en, ses) => { const r = reqs.find(x => x.id === id); const was = [r.start, r.end]; Object.assign(r, { start:st, end:en, session: st === en ? ses : 'Full', days: st === en && ses !== 'Full' ? .5 : nDays(st, en) });
       const ds = []; for (let d = st; d <= en; d = addD(d, 1)) if (d < was[0] || d > was[1]) ds.push(d); return { pulled: mPull(r.name, ds), notWritten:[] }; },
     adminSetLateAfter: (t, hm, d) => { lateAfter = hm; return mockAtt(d); },
