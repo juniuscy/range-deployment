@@ -2627,7 +2627,7 @@ function openWhatsApp(day){
     waText(day), { key: 'plan:' + day.date });
 }
 /* From / To dates (and a remark) for leave over a period. Resolves with { start, end, remark } or null */
-function askRange(title, from){
+function askRange(title, from, remark0, remarkLabel){
   return new Promise(resolve => {
     const bg = document.createElement('div');
     bg.className = 'sheet-bg';
@@ -2636,7 +2636,7 @@ function askRange(title, from){
       <div class="row2"><label class="f"><span>From</span><input type="date" id="ar-s" value="${esc(from)}"></label>
         <label class="f"><span>To</span><input type="date" id="ar-e" value="${esc(from)}"></label></div>
       <div class="small muted" id="ar-n" style="margin:-6px 0 10px"></div>
-      <label class="f"><span>Remark (optional)</span><input type="text" id="ar-r" maxlength="120"></label>
+      <label class="f"><span>${esc(remarkLabel || 'Remark (optional)')}</span><input type="text" id="ar-r" maxlength="120" value="${esc(remark0 || '')}"></label>
       <div class="acts"><button class="btn ghost" id="ar-x">Cancel</button><button class="btn" id="ar-ok">Save</button></div></div>`;
     document.body.appendChild(bg);
     const s0 = $('#ar-s', bg), e0 = $('#ar-e', bg), n = $('#ar-n', bg);
@@ -2651,6 +2651,21 @@ function askRange(title, from){
       if (e0.value < s0.value) { toast('The last day is before the first day.', true); return; }
       done({ start: s0.value, end: e0.value, remark: $('#ar-r', bg).value.trim() });
     };
+  });
+}
+/* Pick one of a few options. Resolves with the option key, or null */
+function askChoice(title, sub, opts){
+  return new Promise(resolve => {
+    const bg = document.createElement('div');
+    bg.className = 'sheet-bg';
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(title)}</h3><div class="src">${esc(sub || '')}</div>
+      ${opts.map(([k, l]) => `<button class="btn block" data-ck="${esc(k)}" style="margin-top:8px">${esc(l)}</button>`).join('')}
+      <button class="btn ghost block" id="ck-x" style="margin-top:12px">Cancel</button></div>`;
+    document.body.appendChild(bg);
+    const done = v => { bg.remove(); resolve(v); };
+    bg.querySelectorAll('[data-ck]').forEach(b => b.onclick = () => done(b.dataset.ck));
+    $('#ck-x', bg).onclick = () => done(null);
+    bg.onclick = e => { if (e.target === bg) done(null); };
   });
 }
 /* Small text prompt. Resolves with the text, '' or null (Cancel / Skip) */
@@ -2765,7 +2780,9 @@ function swapName(text, name, repl){
   }
   return out.map((p, i) => (i ? ' ' + (p[0] || '/') + ' ' : '') + p[1]).join('').trim();
 }
-const ABS_TYPES = [['MC','MC'],['UL','Urgent leave'],['CL','Compassionate'],['OTHERS','Other']];
+const ABS_TYPES = [['MC','MC - Medical leave'],['RS','RS - Report sick (not seen doctor yet)'],['UL','UL - Urgent leave'],['CL','CL - Compassionate leave'],['MA','MA - Medical appointment'],
+  ['AL','AL - Annual leave'],['HL','HL - Hospitalisation leave'],['COURSE','Course'],['ML','ML - Maternity leave'],['PPL','PPL - Paid paternity leave'],['PSPL','PSPL - Paid shared parental leave'],['OTHERS','Others']];
+const ABS_ROW = { MC:'MC', RS:'RS', UL:'UL', CL:'CL', MA:'MA', AL:'AL', HL:'HL', COURSE:'Course', ML:'ML', PPL:'PPL', PSPL:'PSPL', OTHERS:'OTHERS' };
 
 /* o = { day, name?, candidates?, requestId?, reqType?, onDone(week) } */
 /* "Taken off: 15/10/26 50M2 employee, ..." after someone is put on MC / leave */
@@ -2792,12 +2809,12 @@ function openAbsent(o){
       <div class="src">${o.requestId ? 'Approves their request, writes it into the weekly tab, and hands their postings to someone else.' : 'Records them as away in the weekly tab and hands their postings to someone else in one step.'}</div>
       <label class="f"><span>Who can't make it</span>${o.name ? `<input type="text" value="${esc(o.name)}" disabled>` :
         `<select id="ab-n"><option value="">Choose</option>${choices.map(n => `<option ${n===st.name?'selected':''}>${esc(n)}</option>`).join('')}</select>`}</label>
-      ${o.requestId ? '' : `<label class="f"><span>Reason</span></label><div class="chips" style="margin:-8px 0 14px">${ABS_TYPES.map(([k,l]) =>
-        `<button class="chip" data-ty="${k}" aria-pressed="${k===st.type}">${l}</button>`).join('')}</div>
+      ${o.requestId ? '' : `<label class="f"><span>Reason</span><select id="ab-ty">${ABS_TYPES.map(([k,l]) =>
+        `<option value="${k}" ${k===st.type?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
         <div class="row2"><label class="f"><span>Last day away</span><input type="date" id="ab-e" value="${st.end || day.date}" min="${day.date}"></label>
         ${(st.end || day.date) === day.date ? `<label class="f"><span>Part of day</span><select id="ab-s">${['Full','AM','PM'].map(x => `<option value="${x}" ${x===st.session?'selected':''}>${x==='Full'?'Full day':x+' only'}</option>`).join('')}</select></label>` : '<span></span>'}</div>
-        <label class="f"><span>Remark (optional)</span><input type="text" id="ab-r" placeholder="e.g. MC 2 days, called in 0630"></label>
-        ${st.end && st.end > day.date ? `<div class="note blue">The ${({ MC:'MC', UL:'UL', CL:'Compassionate Leave', OTHERS:'OTHERS' })[st.type] || 'MC'} row is filled for every day up to ${nice(st.end)}. The hand-over below is for ${nice(day.date)}. On the later days they are taken off their postings automatically; fill those from the Deployment Plan.</div>` : ''}`}
+        <label class="f"><span>${st.type === 'RS' ? 'Reason for reporting sick (needed)' : st.type === 'MC' ? 'Reason (shown in the attendance message)' : 'Remark (optional)'}</span><input type="text" id="ab-r" maxlength="120" placeholder="${st.type === 'RS' || st.type === 'MC' ? 'e.g. Fever, food poisoning' : 'e.g. called in 0630'}"></label>
+        ${st.end && st.end > day.date ? `<div class="note blue">The ${ABS_ROW[st.type] || 'MC'} row is filled for every day up to ${nice(st.end)}. The hand-over below is for ${nice(day.date)}. On the later days they are taken off their postings automatically; fill those from the Deployment Plan.</div>` : ''}`}
       ${st.name ? (posts.length ? `<label class="f"><span>Hand over their postings</span></label>
         ${posts.map((p, i) => {
           const rep = st.reps[i] || '';
@@ -2817,7 +2834,7 @@ function openAbsent(o){
       <div class="acts"><button class="btn ghost" id="ab-x">Cancel</button><button class="btn" id="ab-ok" ${st.name ? '' : 'disabled'}>${o.requestId ? 'Approve and hand over' : 'Mark absent and hand over'}</button></div></div>`;
     $('#ab-x', bg).onclick = close;
     if ($('#ab-n', bg)) $('#ab-n', bg).onchange = e => { st.name = e.target.value; st.reps = {}; draw(); };
-    bg.querySelectorAll('[data-ty]').forEach(b => b.onclick = () => { st.type = b.dataset.ty; keep(); draw(); });
+    if ($('#ab-ty', bg)) $('#ab-ty', bg).onchange = e => { st.type = e.target.value; keep(); draw(); };
     if ($('#ab-s', bg)) $('#ab-s', bg).onchange = e => { st.session = e.target.value; };
     if ($('#ab-e', bg)) $('#ab-e', bg).onchange = e => { keep(); st.end = e.target.value < day.date ? day.date : e.target.value; if (st.end > day.date) st.session = 'Full'; draw(); };
     if ($('#ab-r', bg)) { $('#ab-r', bg).value = st.remark || ''; $('#ab-r', bg).oninput = e => st.remark = e.target.value; }
@@ -2835,6 +2852,8 @@ function openAbsent(o){
       st.reps[i] = c.dataset.f; lastRep = i; draw();
     });
     $('#ab-ok', bg).onclick = async e => {
+      keep();
+      if (!o.requestId && st.type === 'RS' && !String(st.remark || '').trim()) { toast('Key in the reason for reporting sick.', true); $('#ab-r', bg).focus(); return; }
       busy(e.target, true);
       const changes = posts.map((p, i) => ({ slot:p.slot, value: swapName(p.text, st.name, st.reps[i] || '') }))
         .filter((c, i) => c.value !== String(posts[i].text || '').toUpperCase());
@@ -3328,6 +3347,7 @@ function drawAtt(a){
         <td><input type="time" data-atc="${esc(r.name)}" value="${esc(r.clockIn)}" style="min-height:38px;padding:4px 6px;max-width:120px">
           ${r.by ? `<div class="small muted">entered by ${esc(r.by)}</div>` : ''}</td>
         <td><span class="pill ${cls(r.status)}">${esc(r.status || 'Not accounted')}</span>
+          ${r.status && !/^Present/.test(r.status) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${r.status === 'RS' ? `<button type="button" class="btn ib" data-atmc="${esc(r.name)}">Got MC</button>` : ''}<button type="button" class="btn ghost ib" data-atclr="${esc(r.name)}">Remove ${esc(r.status)}</button></div>` : ''}
           ${ATT_REASON.includes(r.status) ? `<div class="small" style="margin-top:4px">${r.reason ? 'Reason: <b>' + esc(r.reason) + '</b> ' : '<span style="color:var(--flag);font-weight:600">No reason yet</span> '}<button type="button" class="lnk" style="padding:0" data-atr="${esc(r.name)}">${r.reason ? 'Edit' : 'Add reason'}</button></div>` : ''}
           <select data-ats="${esc(r.name)}" style="margin-top:6px;min-height:38px;padding:6px 8px">
             <option value="">${r.override ? 'Back to automatic' : 'Automatic'}</option>
@@ -3349,6 +3369,30 @@ function drawAtt(a){
     inp.disabled = true;
     try { drawAtt(await call('adminClockIn', S.token, a.date, inp.dataset.atc, inp.value)); toast(inp.dataset.atc + (inp.value ? ' clocked in at ' + inp.value : ': clock-in cleared')); }
     catch(x){ fail(x); inp.disabled = false; }
+  });
+  // take an away status off (marked by mistake): a multi-day MC / leave asks whether only this day or all of it
+  A().querySelectorAll('[data-atclr]').forEach(b => b.onclick = async () => {
+    const n = b.dataset.atclr, r = a.rows.find(x => x.name === n);
+    const rec = (a.records || []).find(x => x.name === n && x.start <= a.date && x.end >= a.date && x.start !== x.end);
+    let scope = 'day';
+    if (rec) { scope = await askChoice('Remove ' + r.status + ': ' + n, n + ' is on ' + rec.typeLabel + ' from ' + span(rec.start, rec.end) + '.',
+        [['day', 'Only ' + nice(a.date)], ['all', 'The whole ' + rec.type + ' (' + span(rec.start, rec.end) + ')']]);
+      if (!scope) return; }
+    else if (!confirm('Remove ' + r.status + ' for ' + n + ' on ' + nice(a.date) + '? It is taken out of the app and the weekly tab.')) return;
+    busy(b, true);
+    try { const res = await call('adminClearAway', S.token, a.date, n, scope); drawAtt(res); S.cache = {};
+      toast(n + ': ' + (res.removed && res.removed.length ? 'removed ' + res.removed.join(', ') : 'nothing to remove') + '. Put them back in the Deployment Plan if needed.'); }
+    catch(x){ fail(x); busy(b, false); }
+  });
+  // RS -> MC: the doctor gave an MC (from / to)
+  A().querySelectorAll('[data-atmc]').forEach(b => b.onclick = async () => {
+    const n = b.dataset.atmc, r = a.rows.find(x => x.name === n);
+    const lv = await askRange('MC for ' + n + ' (was RS)', a.date, r.reason || '', 'Reason (shown in the attendance message)');
+    if (!lv) return;
+    busy(b, true);
+    try { const res = await call('adminRsToMc', S.token, a.date, n, lv.start, lv.end, lv.remark); drawAtt(res); S.cache = {};
+      toast(n + ': RS changed to MC ' + span(lv.start, lv.end) + pulledTxt(res.pulled)); }
+    catch(x){ fail(x); busy(b, false); }
   });
   A().querySelectorAll('[data-atr]').forEach(b => b.onclick = async () => {
     const r = a.rows.find(x => x.name === b.dataset.atr);
@@ -3372,7 +3416,9 @@ function drawAtt(a){
     }
     let why;                                            // MC / RS: ask for the reason (Skip leaves it for them to fill in)
     if (ATT_REASON.includes(sel.value)) {
-      why = await askText('Reason for ' + sel.value + ': ' + sel.dataset.ats, nice(a.date) + '. Shown in the attendance message. Leave it empty and ' + titleCase(sel.dataset.ats) + ' can fill it in on My Deploy.', (r0 && r0.reason) || '', 'e.g. Fever, food poisoning', 'Skip');
+      const rs = sel.value === 'RS';
+      why = await askText((rs ? 'Reason for reporting sick: ' : 'Reason for MC: ') + sel.dataset.ats, nice(a.date) + '. Shown in the attendance message.' + (rs ? '' : ' Leave it empty and ' + titleCase(sel.dataset.ats) + ' can fill it in on My Deploy.'), (r0 && r0.reason) || '', 'e.g. Fever, food poisoning', rs ? 'Cancel' : 'Skip');
+      if (rs && !why) { if (why !== null) toast('RS needs the reason for reporting sick.', true); sel.value = r0 && r0.override || ''; return; }
       if (why === null) why = undefined;
     }
     sel.disabled = true;
@@ -4404,8 +4450,17 @@ const MOCK = (() => {
       return mTrn(!canManage()); },
     inspectionDone: (t, id, d) => { const x = inspM.find(i => i.id === id); x.last = d || today; return mockInsp(); },
     inspectionEdit: (t, id, f) => { const x = inspM.find(i => i.id === id); if (f.name) x.name = f.name; if (f.last != null) x.last = f.last; return mockInsp(); },
+    adminClearAway: (t, d, n, scope) => { const r = attRec(d, n), removed = []; if (r.status && !/^Present/.test(r.status)) { removed.push(r.status); r.status = ''; r.reason = ''; }
+      reqs.filter(x => x.name === n && x.status === 'Approved' && x.start <= d && x.end >= d).forEach(x => {
+        if (scope === 'all' || x.start === x.end) { x.status = 'Cancelled'; for (let k = x.start; k <= x.end; k = addD(k, 1)) { const q = attRec(k, n); if (q.status === x.type) q.status = ''; } }
+        else if (d === x.start) x.start = addD(d, 1); else if (d === x.end) x.end = addD(d, -1); else { reqs.push(Object.assign({}, x, { id: x.id + 'b', start: addD(d, 1) })); x.end = addD(d, -1); }
+        removed.push(x.type); });
+      const day = (getWk(mondayOf(d)).days || [])[dowIdx(d)];
+      if (day) day.absences.forEach(a => { if (a.people.includes(n) && a.label.toUpperCase().replace(/\s+/g, '') !== 'OFFDAYEARNED') { a.text = a.text.split(/\s*,\s*/).filter(p => !namesIn(p).includes(n)).join(', '); a.people = a.people.filter(x => x !== n); removed.push(a.label + ' row'); } });
+      return Object.assign(mockAtt(d), { removed }); },
+    adminRsToMc: (t, d, n, st, en, why) => { MOCK.adminClearAway(t, d, n, 'day'); const res = MOCK.adminAddLeave(t, { name:n, type:'MC', start:st, end:en, remark:why, date:d }); attRec(d, n).reason = why || ''; return Object.assign(mockAtt(d), { pulled: res.pulled }); },
     adminAddLeave: (t, f) => { const ds = []; for (let d = f.start; d <= f.end; d = addD(d, 1)) { ds.push(d); attRec(d, f.name).status = f.type; }
-      reqs.push({ id:'R' + (reqs.length + 9), submitted: today + ' 12:30', name:f.name, type:f.type, typeLabel:({ ML:'Maternity leave', PPL:'Paid paternity leave', PSPL:'Paid shared parental leave' })[f.type] || f.type, start:f.start, end:f.end, session:'Full', days:ds.length, reason:f.remark || '', status:'Approved', warnings:[], othersAway:[] });
+      reqs.push({ id:'R' + (reqs.length + 9), submitted: today + ' 12:30', name:f.name, type:f.type, typeLabel:({ ML:'Maternity leave', PPL:'Paid paternity leave', PSPL:'Paid shared parental leave', MC:'Medical leave (MC)' })[f.type] || f.type, start:f.start, end:f.end, session:'Full', days:ds.length, reason:f.remark || '', status:'Approved', warnings:[], othersAway:[] });
       return Object.assign(mockAtt(f.date || f.start), { pulled: mPull(f.name, ds), notWritten: [] }); },
     attReason: (t, d, n, why) => { const me = !canManage() || n === S.me.name; attRec(d, me ? S.me.name : n).reason = why || ''; return me ? mockMyAtt(S.me.name) : mockAtt(d); },
     adminSetAttendance: (t, d, n, st, why) => { attRec(d, n).status = st; if (why != null) attRec(d, n).reason = why; const pulled = st && !/^Present/.test(st) ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
@@ -4442,8 +4497,9 @@ const MOCK = (() => {
     adminMarkAbsent: (t, f) => {
       const wk = getWk(mondayOf(f.date)); const d = wk.days[dowIdx(f.date)];
       if (f.requestId) { const r = reqs.find(x => x.id === f.requestId); if (r) r.status = 'Approved'; }
-      const lab = { MC:'MC', UL:'UL', CL:'Compassionate Leave', OTHERS:'OTHERS' }[f.type] || 'MC';
-      d.absences.push({ label:lab, text: f.name + ' ' + (f.type === 'MC' || f.type === 'UL' ? f.type : f.remark || ''), people:[f.name] });
+      const lab = ABS_ROW[f.type] || 'MC';
+      d.absences.push({ label:lab, text: f.name + ' ' + (f.type === 'OTHERS' ? f.remark || '' : f.type), people:[f.name] });
+      if (['MC','RS'].includes(f.type) && f.remark) attRec(f.date, f.name).reason = f.remark;
       let warnings = [];
       f.changes.forEach(c => { warnings = warnings.concat(MOCK.adminSetSlot(t, f.date, c.slot, c.value).warnings); });
       if (!f.requestId) reqs.push({ id:'RA' + Date.now(), submitted:today, name:f.name, type:f.type, typeLabel:(types.find(x => x.code === f.type) || {}).label || f.type, start:f.date, end:f.end || f.date, session:f.session, days: nDays(f.date, f.end || f.date), reason:f.remark, status:'Approved', warnings:[], othersAway:[] });
