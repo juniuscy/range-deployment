@@ -1086,7 +1086,7 @@ function drawTraining(d){
     if (waiting.length) { L.push('', '*WAITING FOR RESULT*'); waiting.forEach(x => L.push(x.p.name + ' - ' + x.c.per.label + ' (' + sdt(x.c.date) + trnT(x.c) + ')')); }
     if (coming.length) { L.push('', '*COMING UP*'); coming.forEach(x => L.push(sdt(x.c.date) + trnT(x.c) + ' - ' + x.p.name + ' ' + x.c.per.label + (trnR(x.c) ? ' (' + trnR(x.c) + ')' : ''))); }
     if (L.length === 2) L.push('', 'All trainings are arranged or done.');
-    openWaSheet('Training reminder', 'For the managers. You can edit it before sending.', '', L.join('\n'));
+    openWaSheet('Training reminder', 'For the managers. You can edit it before sending.', '', L.join('\n'), { key: 'trn-rem' });
   };
   if (d.canEdit) A().querySelectorAll('[data-tc]').forEach(td => td.onclick = () => {
     const [nm, k] = td.dataset.tc.split('|');
@@ -1297,7 +1297,7 @@ function drawAdmAllergo(d){
     const L = ['*ALLERGO SUBMISSION*', '*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(d.today)] + ')*', '',
       'Please submit in Allergo and tick it in the app:'];
     open.forEach(x => L.push('- ' + x.name + ': ' + x.type + ' ' + algSpan(x) + (x.state === 'late' ? ' (OVERDUE)' : ' (by ' + sdt(x.due) + ')')));
-    openWaSheet('Allergo reminder', 'For the staff group. You can edit it before sending.', '', L.join('\n'));
+    openWaSheet('Allergo reminder', 'For the staff group. You can edit it before sending.', '', L.join('\n'), { key: 'alg-rem' });
   };
 }
 
@@ -1407,16 +1407,23 @@ function drawIncForm(t){
       <datalist id="inc-rg">${rg.map(r => `<option value="${esc(r.range)}">${esc([r.unit, r.tf].filter(Boolean).join(' - '))}</option>`).join('')}</datalist>
     </div>
     <h3>Message</h3>
+    <div id="wa-drn"></div><div id="inc-edn"></div>
     <textarea id="wa-t" style="width:100%;min-height:260px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
     <button class="btn ghost block" id="inc-gc" style="margin-top:8px">Check grammar and wording</button>
     <div class="acts" style="display:flex;gap:8px;margin-top:8px"><button class="btn ghost" id="wa-c">Copy</button>
       <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div>
+    <button class="btn ghost block" id="wa-dr" style="margin-top:10px">Save draft (send later)</button>
     <button class="btn block" id="inc-log" style="margin-top:10px">Mark as sent and save to log</button>
     <p class="small muted">Pick the WhatsApp group as usual after tapping Open in WhatsApp. You can still edit the message above before sending.</p>`;
   const t2 = $('#wa-t'), link = $('#wa-o');
   const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
-  const build = () => { t2.value = t.text.replace(/\{([^{}\n]{1,40})\}/g, (m, f) => { const k = fields.find(x => incKey(x) === incKey(f.trim())); return k ? (v[k] == null ? '' : incKey(k) === 'DATE' && v[k] ? incDate(v[k]) : v[k]) : m; }); link.href = WA + encodeURIComponent(t2.value); };
-  t2.oninput = () => link.href = WA + encodeURIComponent(t2.value);
+  let edited = false;                                   // typed into the message: the boxes no longer rebuild it
+  const edNote = () => { const n = $('#inc-edn'); if (!n) return; n.innerHTML = edited ? '<div class="note small" style="margin:0 0 8px">You changed the message yourself, so the boxes above no longer update it. <button type="button" class="lnk" style="padding:0" id="inc-rb">Rebuild from the boxes</button></div>' : '';
+    const rb = $('#inc-rb'); if (rb) rb.onclick = () => { if (!confirm('Replace the message with one built from the boxes? Your own changes to the text are lost.')) return; edited = false; edNote(); build(); }; };
+  const gen = () => t.text.replace(/\{([^{}\n]{1,40})\}/g, (m, f) => { const k = fields.find(x => incKey(x) === incKey(f.trim())); return k ? (v[k] == null ? '' : incKey(k) === 'DATE' && v[k] ? incDate(v[k]) : v[k]) : m; });
+  const build0 = () => { t2.value = t.text.replace(/\{([^{}\n]{1,40})\}/g, (m, f) => { const k = fields.find(x => incKey(x) === incKey(f.trim())); return k ? (v[k] == null ? '' : incKey(k) === 'DATE' && v[k] ? incDate(v[k]) : v[k]) : m; }); link.href = WA + encodeURIComponent(t2.value); };
+  const build = () => { if (!edited) build0(); else link.href = WA + encodeURIComponent(t2.value); };
+  t2.oninput = () => { edited = t2.value !== gen(); edNote(); link.href = WA + encodeURIComponent(t2.value); };
   const setF = (f, val) => { v[f] = val; const el = $('[data-f="' + CSS.escape(f) + '"]'); if (el && el.value !== val) el.value = val; };
   $('#incb').querySelectorAll('[data-f]').forEach(el => el.oninput = () => {
     const f = el.dataset.f, k = incKey(f);
@@ -1430,7 +1437,11 @@ function drawIncForm(t){
     build();
   });
   build();
-  $('#inc-clr').onclick = () => { if (!confirm('Clear the boxes for this template?')) return; delete S.incVals[t.name]; drawIncForm(t); };
+  const dr = wireDraft({ key: 'inc:' + t.name, t: t2, setLink: () => { link.href = WA + encodeURIComponent(t2.value); }, note: $('#wa-drn'), btn: $('#wa-dr'), fresh: gen,
+    vals: () => Object.assign({}, v),
+    onLoad: d => { if (d.vals) Object.keys(d.vals).forEach(f => { if (fields.includes(f)) setF(f, d.vals[f]); }); edited = d.text !== gen(); edNote(); },
+    onFresh: () => { edited = false; edNote(); } });
+  $('#inc-clr').onclick = () => { if (!confirm('Clear the boxes for this template? A saved draft of it is deleted too.')) return; delete S.incVals[t.name]; dr.clear(); drawIncForm(t); };
   $('#inc-gc').onclick = async e => {
     busy(e.target, true);
     try {
@@ -1439,7 +1450,7 @@ function drawIncForm(t){
       busy(e.target, false);
       r.tidied = tidy.n;
       const fixed = await grammarReview(tidy.text, r);
-      if (fixed != null) { t2.value = fixed; link.href = WA + encodeURIComponent(t2.value); toast('Corrections applied to the message'); }
+      if (fixed != null) { t2.value = fixed; edited = t2.value !== gen(); edNote(); link.href = WA + encodeURIComponent(t2.value); toast('Corrections applied to the message'); }
     } catch(x){ fail(x); busy(e.target, false); }
   };
   $('#inc-ed').onclick = () => drawIncEdit(t);
@@ -1457,6 +1468,7 @@ function drawIncForm(t){
     try {
       S.inc = await call('incLog', S.token, { type: t.name, date: (df && v[df]) || S.today, time: (tf && v[tf]) || '', loc: (lf && v[lf]) || '', msg: t2.value });
       delete S.incVals[t.name];
+      dr.clear();
       toast('Saved to the incident log');
       drawInc();
     } catch(x){ fail(x); busy(e.target, false); }
@@ -1580,15 +1592,21 @@ function openDmReport(r, st, redraw){
       return `<label class="dmc${chk.c[i] ? ' on' : ''}" data-i="${i}"><input type="checkbox" ${chk.c[i] ? 'checked' : ''} data-ci="${i}"><span>${i + 1}) ${esc(x)}${last ? ` <input type="text" id="dm-time" inputmode="numeric" maxlength="4" placeholder="0815" value="${esc(chk.t)}" aria-label="Time, 24hrs"> hrs` : ''}</span></label>`; }).join('')}</div>
     ${r.id === 'dm-end' ? '<div id="dm-ext"></div>' : ''}
     <div class="small muted" id="dm-sv" style="margin:4px 0 8px">${saved ? 'Last saved ' + esc(saved.at) + ' by ' + esc(saved.by) : 'Not saved yet'}</div>
+    <div id="wa-drn"></div><div id="dm-ed"></div>
     <textarea id="wa-t" style="min-height:220px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
     <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy</button>
       <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div>
+    <button class="btn ghost block" id="wa-dr" style="margin-top:10px">Save draft (send later)</button>
     <button class="btn block" id="wa-s" style="margin-top:10px">Mark as sent</button></div>`;
   document.body.appendChild(bg);
   const t = $('#wa-t', bg), link = $('#wa-o', bg), tm = $('#dm-time', bg), sv = $('#dm-sv', bg);
   const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
   const setLink = () => link.href = WA + encodeURIComponent(t.value);
-  const render = () => { t.value = dmText(r.id, chk); setLink();
+  let edited = false;                                  // typed into the message: ticks no longer rebuild it
+  const gen = () => dmText(r.id, chk);
+  const edNote = () => { const n = $('#dm-ed', bg); n.innerHTML = edited ? '<div class="note small" style="margin:0 0 8px">You changed the message yourself, so ticks no longer update it. <button type="button" class="lnk" style="padding:0" id="dm-rb">Rebuild from the ticks</button></div>' : '';
+    const b = $('#dm-rb', bg); if (b) b.onclick = () => { if (!confirm('Replace the message with one built from the ticks? Your own changes to the text are lost.')) return; edited = false; edNote(); render(); }; };
+  const render = () => { if (!edited) t.value = gen(); setLink();
     bg.querySelectorAll('[data-ci]').forEach(cb => { const i = +cb.dataset.ci; cb.checked = chk.c[i]; cb.closest('.dmc').classList.toggle('on', chk.c[i]); }); };
   let timer = null, saving = Promise.resolve();
   const save = () => { clearTimeout(timer); sv.textContent = 'Saving...';
@@ -1611,7 +1629,7 @@ function openDmReport(r, st, redraw){
     render();
     if (!chk.t || okTime(chk.t)) save();
   };
-  t.oninput = setLink;
+  t.oninput = () => { edited = t.value !== gen(); edNote(); setLink(); };
   render();
   // extension ranges today: Reason, Total Strength, Last Shot and Outpro for each, added at the bottom of the message
   if (r.id === 'dm-end') repDay(S.today).then(day => {
@@ -1637,8 +1655,10 @@ function openDmReport(r, st, redraw){
     render();
   }).catch(() => {});
   const close = async () => { clearTimeout(timer); if (sv.textContent === 'Saving...') { await call('dmCheckSave', S.token, r.id, chk.c, chk.t, chk.x).then(ns => { S.rep = ns; }).catch(() => {}); } await saving; bg.remove(); redraw(S.rep); };
-  $('#wa-x', bg).onclick = close;
-  bg.onclick = e => { if (e.target === bg) close(); };
+  const dr = wireDraft({ key: 'rep:' + r.id + ':' + S.today, t, setLink, note: $('#wa-drn', bg), btn: $('#wa-dr', bg), fresh: gen,
+    onLoad: d => { edited = d.text !== gen(); edNote(); }, onFresh: () => { edited = false; edNote(); } });
+  $('#wa-x', bg).onclick = () => dr.close(close);
+  bg.onclick = e => { if (e.target === bg) dr.close(close); };
   $('#wa-c', bg).onclick = async () => {
     let ok = false;
     try { await navigator.clipboard.writeText(t.value); ok = true; } catch(e) {}
@@ -1653,7 +1673,7 @@ function openDmReport(r, st, redraw){
       clearTimeout(timer);
       await call('dmCheckSave', S.token, r.id, chk.c, chk.t, chk.x);
       const ns = await call('reportSent', S.token, r.id, false);
-      bg.remove(); redraw(ns); toast(r.title + ' marked as sent');
+      dr.clear(); bg.remove(); redraw(ns); toast(r.title + ' marked as sent');
     } catch(x){ fail(x); busy(e.target, false); }
   };
 }
@@ -1681,18 +1701,24 @@ function openAmmoReport(r, st, redraw){
     <div class="small muted" id="dm-sv" style="margin:4px 0 8px">${saved ? 'Last saved ' + esc(saved.at) + ' by ' + esc(saved.by) : 'Not saved yet'}</div>
     <label class="f"><span>Photo (needed)</span><input type="file" id="am-ph" accept="image/*"></label>
     <img id="am-pv" alt="" style="display:none;max-width:100%;max-height:220px;border-radius:10px;margin:-4px 0 10px;border:1px solid var(--line)">
+    <div id="wa-drn"></div><div id="dm-ed"></div>
     <textarea id="wa-t" style="min-height:170px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
     <button class="btn go block" id="am-sh" style="margin-top:4px">Share photo + message to WhatsApp</button>
     <p class="small muted" style="margin:6px 0 8px">Pick <b>${esc(r.grp)}</b> in WhatsApp. The message is also copied, so if WhatsApp sends only the photo, paste it as the caption.</p>
     <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy text</button>
       <a class="btn ghost" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Text only</a></div>
+    <button class="btn ghost block" id="wa-dr" style="margin-top:10px">Save draft (send later)</button>
     <button class="btn block" id="wa-s" style="margin-top:10px">Mark as sent</button></div>`;
   document.body.appendChild(bg);
   const t = $('#wa-t', bg), link = $('#wa-o', bg), sv = $('#dm-sv', bg), ph = $('#am-ph', bg), pv = $('#am-pv', bg);
   const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
   const okTime = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
   const setLink = () => link.href = WA + encodeURIComponent(t.value);
-  const render = () => { t.value = ammoText(chk); setLink();
+  let edited = false;                                  // typed into the message: ticks no longer rebuild it
+  const gen = () => ammoText(chk);
+  const edNote = () => { const n = $('#dm-ed', bg); n.innerHTML = edited ? '<div class="note small" style="margin:0 0 8px">You changed the message yourself, so ticks no longer update it. <button type="button" class="lnk" style="padding:0" id="dm-rb">Rebuild from the ticks</button></div>' : '';
+    const b = $('#dm-rb', bg); if (b) b.onclick = () => { if (!confirm('Replace the message with one built from the ticks? Your own changes to the text are lost.')) return; edited = false; edNote(); render(); }; };
+  const render = () => { if (!edited) t.value = gen(); setLink();
     bg.querySelectorAll('[data-ci]').forEach(cb => { const i = +cb.dataset.ci; cb.checked = chk.c[i]; cb.closest('.dmc').classList.toggle('on', chk.c[i]); }); };
   let timer = null, saving = Promise.resolve();
   const save = () => { clearTimeout(timer); sv.textContent = 'Saving...';
@@ -1716,7 +1742,7 @@ function openAmmoReport(r, st, redraw){
   });
   ph.onchange = () => { photo = ph.files && ph.files[0] || null;
     if (photo) { pv.src = URL.createObjectURL(photo); pv.style.display = 'block'; } else pv.style.display = 'none'; };
-  t.oninput = setLink;
+  t.oninput = () => { edited = t.value !== gen(); edNote(); setLink(); };
   render();
   const copy = async () => { let ok = false;
     try { await navigator.clipboard.writeText(t.value); ok = true; } catch(e) {}
@@ -1736,8 +1762,10 @@ function openAmmoReport(r, st, redraw){
     catch(e){ if (e && e.name !== 'AbortError') toast('Could not share. Message copied: send the photo in WhatsApp and paste it.', true); }
   };
   const close = async () => { clearTimeout(timer); if (sv.textContent === 'Saving...') { await call('dmCheckSave', S.token, r.id, chk.c, chk.t).then(ns => { S.rep = ns; }).catch(() => {}); } await saving; if (pv.src) URL.revokeObjectURL(pv.src); bg.remove(); redraw(S.rep); };
-  $('#wa-x', bg).onclick = close;
-  bg.onclick = e => { if (e.target === bg) close(); };
+  const dr = wireDraft({ key: 'rep:' + r.id + ':' + S.today, t, setLink, note: $('#wa-drn', bg), btn: $('#wa-dr', bg), fresh: gen,
+    onLoad: d => { edited = d.text !== gen(); edNote(); }, onFresh: () => { edited = false; edNote(); } });
+  $('#wa-x', bg).onclick = () => dr.close(close);
+  bg.onclick = e => { if (e.target === bg) dr.close(close); };
   $('#wa-c', bg).onclick = async () => { const ok = await copy(); toast(ok ? 'Copied. Attach the photo in WhatsApp and paste this as the caption.' : 'Select the text and copy it manually.', !ok); };
   $('#wa-s', bg).onclick = async e => {
     if (!ready()) return;
@@ -1747,7 +1775,7 @@ function openAmmoReport(r, st, redraw){
       clearTimeout(timer);
       await call('dmCheckSave', S.token, r.id, chk.c, chk.t);
       const ns = await call('reportSent', S.token, r.id, false);
-      bg.remove(); redraw(ns); toast(r.title + ' marked as sent');
+      dr.clear(); bg.remove(); redraw(ns); toast(r.title + ' marked as sent');
     } catch(x){ fail(x); busy(e.target, false); }
   };
 }
@@ -1779,7 +1807,7 @@ async function repPrepare(r, st, redraw){
     if (off.length) warn += `<div class="note red"><b>Check first:</b> ${esc(off.map(m => m.role + ' ' + m.who + ' is away').join('; '))}. Change the medic in the Deployment Plan, then Prepare again.</div>`;
   }
   openWaSheet(r.title, 'Send to: ' + r.grp + '. Open WhatsApp, pick the group, then tap Mark as sent here.', warn, text, {
-    sentLabel: 'Mark as sent',
+    sentLabel: 'Mark as sent', key: 'rep:' + r.id + ':' + S.today,
     onSent: async () => { const ns = await call('reportSent', S.token, r.id, false); redraw(ns); toast(r.title + ' marked as sent'); }
   });
 }
@@ -1952,7 +1980,7 @@ function openStrength(focus){
   load().then(() => { const el = focus && $('#sg-' + focus, bg); if (el) el.scrollIntoView({ block:'start' }); });
   timer = setInterval(() => { if (!document.body.contains(bg)) return clearInterval(timer); load(); }, 60000);
   $('#st-r', bg).onclick = e => load(e.target);
-  $('#st-w', bg).onclick = () => { if (S.str) openWaSheet('Strength accounting', 'Copy or send to your WhatsApp group.', '', strText(S.str)); };
+  $('#st-w', bg).onclick = () => { if (S.str) openWaSheet('Strength accounting', 'Copy or send to your WhatsApp group.', '', strText(S.str), { key: 'str:' + S.str.date }); };
 }
 
 /* ---------- Grab Code for Transport (Admin and Managers): 2 days before trainings and weekend ranges ---------- */
@@ -2578,28 +2606,74 @@ function openWhatsApp(day){
   openWaSheet('WhatsApp message', nice(day.date) + '. Taken from the Deployment Plan; you can edit it before sending.',
     (cl.length ? `<div class="note red"><b>Not covered yet:</b><ul style="margin:4px 0 0;padding-left:18px">${cl.map(c => `<li>${esc(c.where)}: ${esc(c.name)} (${esc(c.why)})</li>`).join('')}</ul>Fix these first if you can, then reopen this.</div>` : '') +
     (gp.length ? `<div class="note yellow"><b>No APO yet:</b> ${esc(gp.map(r => r.range).join(', '))}</div>` : ''),
-    waText(day));
+    waText(day), { key: 'plan:' + day.date });
+}
+/* ---------- message drafts: saved on the server (any phone, any manager / today's DM), 7 days ----------
+   o = { key, t (textarea), setLink, note (element for the draft line), btn (Save draft button),
+         fresh() -> a freshly built message, vals() -> box values to keep (optional), onLoad(d), onFresh() } */
+const draftKey = k => String(k || '').replace(/[^A-Za-z0-9:_-]+/g, '-').slice(0, 60);
+function wireDraft(o){
+  const key = draftKey(o.key);
+  let has = null, base = o.t.value;                     // base = the text last saved or loaded (for "unsaved changes")
+  const show = () => {
+    if (!o.note) return;
+    o.note.innerHTML = has ? `<div class="note blue small" style="margin:0 0 8px">Saved draft from ${esc(gcAt(has.at))} by ${esc(has.by)}. <button type="button" class="lnk" style="padding:0" data-dfr>Start a fresh message</button></div>` : '';
+    const b = o.note.querySelector('[data-dfr]'); if (b) b.onclick = fresh;
+  };
+  const fresh = async () => {
+    if (!confirm('Delete the saved draft and start again from a fresh message?')) return;
+    if (o.onFresh) o.onFresh();
+    o.t.value = o.fresh ? o.fresh() : o.t.value; o.setLink(); base = o.t.value; has = null; show();
+    try { await call('draftSave', S.token, key, ''); } catch(e) {}
+  };
+  const start = o.t.value;
+  call('draftGet', S.token, key).then(d => {
+    if (!d || !document.body.contains(o.t)) return;
+    has = d;
+    if (o.t.value === start) { if (o.onLoad) o.onLoad(d); o.t.value = d.text; o.setLink(); base = d.text; }
+    show();
+  }).catch(() => {});
+  const save = async btn => {
+    if (btn) busy(btn, true);
+    try { has = await call('draftSave', S.token, key, o.t.value, o.vals ? o.vals() : undefined); base = o.t.value; show();
+      toast(has ? 'Draft saved. Open this message again later to carry on.' : 'Draft deleted'); }
+    catch(x){ fail(x); }
+    if (btn) busy(btn, false);
+  };
+  if (o.btn) o.btn.onclick = e => save(e.target);
+  return {
+    dirty: () => o.t.value !== base,
+    save: () => save(null),
+    clear: () => { has = null; return call('draftSave', S.token, key, '').catch(() => {}); },
+    /* closing with unsaved changes: offer to keep them as a draft */
+    close: async done => { if (o.t.value !== base && o.t.value.trim() && confirm('Save your changes to this message as a draft?\n\nOK = save draft, Cancel = close without saving')) await save(null); done(); }
+  };
 }
 function openWaSheet(title, sub, warnHtml, text, opts){
+  opts = opts || {};
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
     <h3>${esc(title)}</h3>
     <div class="src">${esc(sub)}</div>
     ${warnHtml || ''}
+    <div id="wa-drn"></div>
     <textarea id="wa-t" style="min-height:320px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace">${esc(text)}</textarea>
     <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy</button>
       <a class="btn go" id="wa-o" target="_blank" rel="noopener" style="text-decoration:none">Open in WhatsApp</a></div>
-    ${opts && opts.onSent ? '<button class="btn block" id="wa-s" style="margin-top:10px">' + esc(opts.sentLabel || 'Mark as sent') + '</button>' : ''}</div>`;
+    ${opts.key ? '<button class="btn ghost block" id="wa-dr" style="margin-top:10px">Save draft (send later)</button>' : ''}
+    ${opts.onSent ? '<button class="btn block" id="wa-s" style="margin-top:10px">' + esc(opts.sentLabel || 'Mark as sent') + '</button>' : ''}</div>`;
   document.body.appendChild(bg);
   const t = $('#wa-t', bg), link = $('#wa-o', bg);
   // built without a double slash in quotes: Google's page server mistakes it for a comment
   const WA = 'https:' + String.fromCharCode(47, 47) + 'wa.me/?text=';
   const setLink = () => link.href = WA + encodeURIComponent(t.value);
   t.oninput = setLink; setLink();
-  $('#wa-x', bg).onclick = () => bg.remove();
-  bg.onclick = e => { if (e.target === bg) bg.remove(); };
-  if (opts && opts.onSent) $('#wa-s', bg).onclick = async e => { busy(e.target, true); try { await opts.onSent(); bg.remove(); } catch(x){ fail(x); busy(e.target, false); } };
+  const dr = opts.key ? wireDraft({ key: opts.key, t, setLink, note: $('#wa-drn', bg), btn: $('#wa-dr', bg), fresh: () => text }) : null;
+  const close = () => dr ? dr.close(() => bg.remove()) : bg.remove();
+  $('#wa-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  if (opts.onSent) $('#wa-s', bg).onclick = async e => { busy(e.target, true); try { await opts.onSent(); if (dr) dr.clear(); bg.remove(); } catch(x){ fail(x); busy(e.target, false); } };
   $('#wa-c', bg).onclick = async () => {
     let ok = false;
     try { await navigator.clipboard.writeText(t.value); ok = true; } catch(e) {}
@@ -3224,7 +3298,7 @@ function drawAtt(a){
   });
   A().querySelectorAll('[data-chd]').forEach(b => b.onclick = () => changeDates(a.records.find(x => x.id === b.dataset.chd), () => admAtt()));
   $('#at-wa').onclick = () => openWaSheet('Attendance message', nice(a.date) + '. You can edit it before sending.',
-    none.length ? `<div class="note red"><b>Not accounted yet:</b> ${esc(none.map(r => r.name).join(', '))}</div>` : '', attText(a));
+    none.length ? `<div class="note red"><b>Not accounted yet:</b> ${esc(none.map(r => r.name).join(', '))}</div>` : '', attText(a), { key: 'att:' + a.date });
 }
 
 /* Change the dates of approved MC / leave (e.g. the doctor gave 2 days instead of 1) */
@@ -4055,7 +4129,7 @@ const MOCK = (() => {
       return Object.assign({}, x, { due, days, state: days < 0 ? 'overdue' : days === 0 ? 'due' : days <= w ? 'soon' : 'ok' });
     });
   }
-  const mGcDone = {};
+  const mGcDone = {}, mDrafts = {};
   function mockGrab(){
     const ev = [{ date:addD(today, 1), for:'TEST TS', reason:'TEST TS training at 0900hrs', time:'0900', people:[{ name:'LEONARD', what:'' }, { name:'ONG', what:'Bring IC' }] }];
     for (let i = 0; i <= 2; i++) {
@@ -4168,6 +4242,9 @@ const MOCK = (() => {
       const names = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic').map(p => p.name);
       return { year: yr, from: yr + '-01-01', to: today, updated: today + ' 21:40', head,
         rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(roles.map(k => c(n, k)), wkCols.map(k => c(n, k)), ms.map(m => c(n, 'm' + String(MONS.indexOf(m) + 1).padStart(2, '0'))))) }; },
+    draftGet: (t, k) => mDrafts[k] ? JSON.parse(JSON.stringify(mDrafts[k])) : null,
+    draftSave: (t, k, text, vals) => { if (!String(text || '').trim()) { delete mDrafts[k]; return null; }
+      mDrafts[k] = { text, vals: vals || undefined, by: S.me.name, at: today + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'), d: today }; return JSON.parse(JSON.stringify(mDrafts[k])); },
     getStrength: () => { const a = mockAtt(today), now = /strnow=(\d{4})/.test(location.search) ? RegExp.$1.slice(0, 2) + ':' + RegExp.$1.slice(2) : '09:30';
       const day = (getWk(mondayOf(today)).days || [])[dowIdx(today)], wkend = dowIdx(today) >= 5;
       return { date:today, now, wkend, lateAfter:a.lateAfter, rows: a.rows.map(r => {
