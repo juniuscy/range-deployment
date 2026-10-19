@@ -1787,11 +1787,11 @@ function dmTasks(){
   if (!S.dmMine || !S.rep) return [];
   const d = S.rep.date, dt = pd(d), dd = String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getFullYear()).slice(2);
   const t = [{ id: 'dm-voucher', name: 'Approved Ammo Voucher', sub: dd, ask: 'Confirmed approved Ammo Voucher for ' + dd + '?' }];
-  if ([0, 2, 4].includes(dowIdx(d))) t.push({ id: 'dm-keys', name: 'Draw Key 59 and 194', sub: 'Today (every Mon, Wed and Fri)', ask: 'Confirmed drawn Key 59 and 194?' });
+  if ([0, 2, 4].includes(dowIdx(d))) t.push({ id: 'dm-keys', name: 'Draw Key 59 and 194', sub: 'CENCON: 001439900', sub2: 'Today (every Mon, Wed and Fri)', ask: 'Confirmed drawn Key 59 and 194?' });
   return t.map(x => Object.assign(x, { done: (S.rep.sent || {})[x.id] || null }));
 }
 function dmTaskRows(){
-  return dmTasks().map(x => `<div class="irow ${x.done ? '' : 'due'}"><div class="it2"><b><span class="dmtag">DM</span>${esc(x.name)}</b><span>${esc(x.sub)}</span>
+  return dmTasks().map(x => `<div class="irow ${x.done ? '' : 'due'}"><div class="it2"><b><span class="dmtag">DM</span>${esc(x.name)}</b><span>${esc(x.sub)}</span>${x.sub2 ? `<span style="display:block;font-weight:400">${esc(x.sub2)}</span>` : ''}
       ${x.done ? `<span style="display:block;font-weight:600;color:#15803D">Done ${esc(hrs(x.done.at))} by ${esc(x.done.by)}</span>` : ''}</div>
       ${x.done ? `<button class="btn ghost ib" data-dmu="${x.id}">Undo</button>` : `<button class="btn ib" data-dmt="${x.id}">Done</button>`}</div>`).join('');
 }
