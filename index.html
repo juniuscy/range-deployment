@@ -3267,7 +3267,9 @@ function pickGroups(){
 
 /* ---------- Attendance ---------- */
 const ATT_AWAY = ['UL','AL','NPL','MC','RS','MA','CL','ML','PPL','PSPL','HL','CCL','OIL','Course','ICT','Others'];
-const ATT_OPT = ['CL','ML','PPL','PSPL'];          // message lines shown only when someone is on them
+// attendance message lines, in this order (all shown, NIL when no one): [line label, status]; LIB Test / IPPT come from the weekly tab rows
+const ATT_MSG = [['AL','AL'],['UL','UL'],['HL','HL'],['CL','CL'],['ML','ML'],['RS','RS'],['MC','MC'],['MA','MA'],['OIL','OIL'],['CCL','CCL'],['ICT','ICT'],
+  ['PPL','PPL'],['PSPL','PSPL'],['Course','Course'],['LIB Test','@LIB Test'],['IPPT / TRG etc','@IPPT / TRG etc'],['OTHERS','Others']];
 const ATT_RANGE = ['ML','PPL','PSPL'];             // picked with From / To dates (saved as a leave record)
 const ATT_LABEL = { RS:'Report Sick', MA:'Medical Appointment', CL:'Compassionate Leave', ML:'Maternity Leave', PPL:'Paid Paternity Leave', PSPL:'Paid Shared Parental Leave' };
 const ATT_REASON = ['MC','RS'];                   // statuses that carry a reason (shown in the attendance message)
@@ -3318,7 +3320,15 @@ function attText(a){
     'Present (Late): ' + (by('Present (Late)').length ? by('Present (Late)').length + ' - ' + by('Present (Late)').map(r => titleCase(r.name) + (r.ext ? ' (Report ' + hrs(r.ext) + ')' : '')).join(', ') : 'NIL')].concat(laterLines(), [
     ''
   ]);
-  ATT_AWAY.forEach(c => { const v = leaveList(c); if (v === 'NIL' && ATT_OPT.includes(c)) return; L.push(c + ': ' + v); });
+  ATT_MSG.forEach(([lb, c]) => {
+    if (c[0] === '@') { const ns = ((a.plan || {})[c.slice(1)] || []); L.push(lb + ': ' + (ns.length ? ns.length + ' - ' + ns.map(titleCase).join(', ') : 'NIL')); return; }
+    let v = leaveList(c);
+    if (c === 'Others') {                              // NPL (no-pay leave) goes under OTHERS
+      const npl = rows.filter(r => r.status === 'NPL').map(r => titleCase(r.name) + ' (NPL)');
+      if (npl.length) { const m = /^(\d+) - (.*)$/.exec(v); v = m ? (+m[1] + npl.length) + ' - ' + m[2] + ', ' + npl.join(', ') : npl.length + ' - ' + npl.join(', '); }
+    }
+    L.push(lb + ': ' + v);
+  });
   const none = rows.filter(r => !r.status && !r.ext);
   if (none.length) L.push('Not accounted: ' + list(none));
   return L.join('\n');
@@ -4348,7 +4358,8 @@ const MOCK = (() => {
     });
     const prev = addD(d, -1);
     const records = reqs.filter(r => r.status === 'Approved' && r.start <= d && r.end >= prev).map(r => ({ id:r.id, name:r.name, type:r.type, typeLabel:r.typeLabel, start:r.start, end:r.end, session:r.session || 'Full', days:r.days, canChange: r.type !== 'OIL' }));
-    return { date:d, lateAfter, statuses:['Present','Present (Late)','AL','RS','MA','CL','ML','PPL','PSPL','UL','NPL','MC','HL','CCL','OIL','Course','ICT','Others','Off'], rows, records };
+    const plan = { 'LIB Test': [], 'IPPT / TRG etc': [] }; (wkd.absences || []).forEach(ab => { const k = ab.label.toUpperCase().replace(/\s+/g, ''); const lb = k === 'LIBTEST' ? 'LIB Test' : /^IPPT/.test(k) ? 'IPPT / TRG etc' : ''; if (lb) ab.people.forEach(n => { if (!plan[lb].includes(n)) plan[lb].push(n); }); });
+    return { plan, date:d, lateAfter, statuses:['Present','Present (Late)','AL','RS','MA','CL','ML','PPL','PSPL','UL','NPL','MC','HL','CCL','OIL','Course','ICT','Others','Off'], rows, records };
   }
   const libList = Object.keys(SNAP.lib).map((n, i) => ({ row: i + 2, label: n, name: n, date: SNAP.lib[n] }));
   const reqs = [{ id:'R1', submitted:today+' 09:10', name:'LEONARD', type:'AL', typeLabel:'Annual leave', start:addD(today, 9), end:addD(today, 10), session:'Full', days:2, reason:'Family trip', status:'Pending', warnings:[addD(today, 9)+': rostered 100M1 (with Teo BL)'], othersAway:['FAIRUZ AL '+addD(today,10)] }];
