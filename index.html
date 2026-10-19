@@ -1904,12 +1904,14 @@ function wireInsp(list){
 /* ---------- Strength today (Admin, Managers, today's DM): who is in, coming later, not in, away ---------- */
 const STR_GROUPS = [['missing', 'Not reported'], ['pending', 'Not in yet'], ['in', 'IN'], ['pmshift', 'PM SHIFT'], ['oilam', 'OIL AM'], ['oilpm', 'OIL PM'], ['left', 'LEFT'], ['away', 'AWAY'], ['off', 'Off']];
 const STR_PICK = [['in', 'IN (on site now)'], ['pmshift', 'PM SHIFT (coming in later)'], ['oilam', 'OIL AM (coming in after)'], ['oilpm', 'OIL PM (on site, leaving later)'], ['left', 'LEFT (gone off)'], ['away', 'AWAY']];
-function strBy(d){ const g = {}; STR_GROUPS.forEach(x => { g[x[0]] = []; }); (d.rows || []).forEach(r => (g[r.group] || (g[r.group] = [])).push(r)); return g; }
+const STR_RANK = { Manager:0, 'DY Manager':1, 'APO Supervisor':2, APO:3, 'Non-APO':4, Medic:5, 'Medic Certis':5, 'Backup Medic':6 };   // order of names in each group
+function strBy(d){ const g = {}; STR_GROUPS.forEach(x => { g[x[0]] = []; });
+  (d.rows || []).map((r, i) => [r, i]).sort((a, b) => ((STR_RANK[a[0].role] ?? 7) - (STR_RANK[b[0].role] ?? 7)) || a[1] - b[1]).forEach(([r]) => (g[r.group] || (g[r.group] = [])).push(r)); return g; }
 function strTotal(d){ return (d.rows || []).filter(r => r.group !== 'off').length; }
 function strCardInner(d){
-  if (!d) return `<div class="sth"><h3>Strength today</h3></div><div class="loading" style="padding:10px 0">Loading\u2026</div>`;
+  if (!d) return `<div class="sth"><h3>Strength Today</h3></div><div class="loading" style="padding:10px 0">Loading\u2026</div>`;
   const g = strBy(d), notin = g.missing.length + g.pending.length, onsite = g.in.length + g.oilpm.length, out = g.away.length + g.left.length + g.oilam.length;
-  return `<div class="sth"><h3>Strength today</h3><button class="btn ghost ib" data-stro="">View all</button></div>
+  return `<div class="sth"><h3>Strength Today</h3><button class="btn ghost ib" data-stro="">View all</button></div>
     <div class="stg">
       <button class="stt in" data-stro="in"><b>${onsite}</b><span>On site</span></button>
       <button class="stt later" data-stro="pmshift"><b>${g.pmshift.length}</b><span>PM shift</span></button>
@@ -1930,7 +1932,7 @@ async function loadStrCard(force){
     const d = await call('getStrength', S.token);
     S.str = d; S.strAt = Date.now();
     const box = $('#strc'); if (box) { box.innerHTML = strCardInner(d); wireStrCard(); }
-  } catch(e){ const box = $('#strc'); if (box && !S.str) box.innerHTML = `<div class="sth"><h3>Strength today</h3></div><div class="small muted">Could not load. ${esc(e.message || '')}</div>`; }
+  } catch(e){ const box = $('#strc'); if (box && !S.str) box.innerHTML = `<div class="sth"><h3>Strength Today</h3></div><div class="small muted">Could not load. ${esc(e.message || '')}</div>`; }
 }
 function strText(d){
   const g = strBy(d), dt = pd(d.date);
@@ -1969,7 +1971,7 @@ function openStrength(focus){
   bg.onclick = e => { if (e.target === bg) close(); };
   const draw = d => {
     const g = strBy(d);
-    $('#st-in', bg).innerHTML = `<h3>Strength today</h3>
+    $('#st-in', bg).innerHTML = `<h3>Strength Today</h3>
       <div class="src">${esc(nice(d.date))}, as at ${esc(hrs(d.now))} &middot; total strength ${strTotal(d)}. Refreshes every minute while open. Tap a name to move them (e.g. OIL PM to LEFT once they have gone).</div>
       ${STR_GROUPS.map(([k, label]) => g[k].length ? `<div class="sgrp ${k}" id="sg-${k}"><h4>${esc(label)} <i>${g[k].length}</i></h4>
         ${g[k].map(r => { const parts = strLine(r, k).split(' - '); return `<div class="srow" data-sn="${esc(r.name)}" style="cursor:pointer"><b>${esc(parts[0])}${r.marked ? ' <span class="small" style="color:#1D4ED8">\u25CF</span>' : ''}</b><small>${esc(parts.slice(1).join(' \u2022 '))}</small></div>`; }).join('')}</div>` : '').join('')}`;
@@ -3139,7 +3141,7 @@ async function admOil(){
   loadingA();
   try {
     const names = (S.staff || []).filter(p => p.role !== 'Admin').map(p => p.name).sort();
-    const list = await call('adminOil', S.token, S.oilFilter || '');
+    const list = await call('adminOil', S.token, S.oilFilter === '*' ? '' : (S.oilFilter || ''));
     const from = addD(mondayOf(S.today), -28), to = addD(S.today, -1);
     const status = o => o.reserved ? '<span class="pill Pending">On hold</span>'
       : o.remaining === 1 ? '<span class="pill Approved">Not taken</span>'
@@ -3163,11 +3165,11 @@ async function admOil(){
         <label class="f"><span>No date? What it's for instead</span><input type="text" id="o-o" placeholder="e.g. COHESION OIL 2026 (leave the date blank)"></label>
         <button class="btn" id="o-go">Add off day</button></div>
       <h3>Ledger</h3>
-      <label class="f"><span>Show</span><select id="o-flt"><option value="">Everyone</option>${names.map(n => `<option ${n===S.oilFilter?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
-      ${S.oilFilter ? '' : `<div class="sec small">${Object.keys(totals).map(n => `<b>${esc(n)}</b> ${fmtN(totals[n])}`).join('<br>')}</div>`}
+      <label class="f"><span>Show</span><select id="o-flt"><option value="">Select option</option><option value="*" ${S.oilFilter === '*' ? 'selected' : ''}>Everyone</option>${names.map(n => `<option ${n===S.oilFilter?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
+      ${S.oilFilter !== '*' ? '' : `<div class="sec small">${Object.keys(totals).map(n => `<b>${esc(n)}</b> ${fmtN(totals[n])}`).join('<br>')}</div>`}
       ${noTts ? `<div class="note">${noTts} off day${noTts===1?' has':'s have'} been taken but TTS ADJ is still blank. Tap "TTS done" once the timesheet is adjusted.</div>` : ''}
-      ${list.length ? `<div class="scroll"><table class="t"><tr><th>No.</th><th>Earned</th><th>Taken</th><th>Status</th></tr>
-        ${list.map(o => `<tr><td>${S.oilFilter ? '' : `<b>${esc(o.label)}</b><br>`}${esc(o.no)}</td>
+      ${!S.oilFilter ? '<p class="muted">Select an option above (a name, or Everyone) to see the ledger.</p>' : list.length ? `<div class="scroll"><table class="t"><tr><th>No.</th><th>Earned</th><th>Taken</th><th>Status</th></tr>
+        ${list.map(o => `<tr><td>${S.oilFilter !== '*' ? '' : `<b>${esc(o.label)}</b><br>`}${esc(o.no)}</td>
           <td><b>${o.date ? nice(o.date) : esc(o.dateText)}</b><div class="small">${esc(o.activity)}</div>${o.notes ? `<div class="small muted">${esc(o.notes)}</div>` : ''}</td>
           <td>${esc(o.taken) || '<span class="muted">-</span>'}${o.tts ? `<div class="small muted">${esc(o.tts)}</div>` : ''}</td>
           <td>${status(o)}${o.needsTts ? `<div style="margin-top:6px"><button class="btn ghost" style="${small}" data-tts="${esc(o.id)}">TTS done</button></div>` : ''}
