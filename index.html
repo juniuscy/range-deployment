@@ -1588,11 +1588,17 @@ function dmText(id, chk){
     const last = i === L.length - 1;
     out.push((i + 1) + ') ' + x + (last ? ' ' + (chk.t || 'XXXX') + 'hrs' : '') + (chk.c[i] ? ' \u2705' : ''));
   });
-  // End Range on an extension day: one Remarks block per EXT range
-  if (id === 'dm-end') (chk.x || []).forEach(e => {
-    out.push('', 'Remarks: Range Extension' + (e.reason ? ' ' + e.reason : ''), e.range,
-      'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last || 'XXXX') + 'hrs', 'Outpro: ' + (e.out || 'XXXX') + 'hrs');
-  });
+  // End Range on an extension day: one Remarks heading, the reason once, then a block per EXT range
+  const ex = id === 'dm-end' ? (chk.x || []) : [];
+  if (ex.length) {
+    // "Range Extension" said once, however the reason was typed (e.g. "Range Extension SLF", "EXT - SLF")
+    const why = e => { const t = String(e.reason || '').replace(/^(?:\s*(?:range\s+extension|range\s+ext|ext(?:ension)?)\b[\s:\-]*)+/i, '').replace(/\s+/g, ' ').trim(); return 'Range Extension' + (t ? ' ' + t : ''); };
+    const reasons = [];
+    ex.forEach(e => { const w = why(e), f = reasons.find(x => x.w.toLowerCase() === w.toLowerCase()); if (f) f.r.push(e.range); else reasons.push({ w, r: [e.range] }); });
+    out.push('', 'Remarks:');
+    reasons.forEach(x => out.push(x.w + (reasons.length > 1 ? ' (' + x.r.join(', ') + ')' : '')));
+    ex.forEach(e => out.push('', e.range, 'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last || 'XXXX') + 'hrs', 'Outpro: ' + (e.out || 'XXXX') + 'hrs'));
+  }
   return out.join('\n');
 }
 function openDmReport(r, st, redraw){
@@ -1652,11 +1658,19 @@ function openDmReport(r, st, redraw){
     const box = $('#dm-ext', bg); if (!box || !day) return;
     const ext = day.ranges.filter(x => x.active && (extOf(x.rmk) || splitOf(x.emp)));
     if (!ext.length) { if (chk.x && chk.x.length) { chk.x = []; render(); } return; }
-    chk.x = ext.map(x => Object.assign({ range: x.range, reason: x.note || '', strength: '', last: '', out: '' }, (chk.x || []).find(e => e.range === x.range) || {}));
+    // Reason comes straight from the range's TF in the weekly tab, unless you typed your own
+    chk.x = ext.map(x => {
+      const base = { range: x.range, reason: x.tf || x.note || '', strength: '', last: '', out: '' };
+      const sv = (chk.x || []).find(e => e.range === x.range);
+      if (!sv) return base;
+      const e = Object.assign({}, base, sv);
+      if (!sv.own || !String(sv.reason || '').trim()) { e.reason = base.reason; e.own = false; }
+      return e;
+    });
     const okT = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
     box.innerHTML = `<div class="dmext"><b>Range Extension today</b><div class="small muted">Added under Remarks at the bottom of the message. Times in 24hrs.</div>${chk.x.map((e, i) => `
       <div class="dmx"><div class="dmxr">${esc(e.range)}</div>
-        <label class="f"><span>Reason</span><input type="text" data-ex="${i}|reason" maxlength="150" value="${esc(e.reason)}" placeholder="e.g. Night firing"></label>
+        <label class="f"><span>Reason (TF)</span><input type="text" data-ex="${i}|reason" maxlength="150" value="${esc(e.reason)}" placeholder="TF from the weekly tab"></label>
         <div class="dmxg"><label class="f"><span>Total Strength</span><input type="text" data-ex="${i}|strength" inputmode="numeric" maxlength="4" value="${esc(e.strength)}"></label>
           <label class="f"><span>Last Shot</span><input type="text" data-ex="${i}|last" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(e.last)}"></label>
           <label class="f"><span>Outpro</span><input type="text" data-ex="${i}|out" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(e.out)}"></label></div></div>`).join('')}</div>`;
@@ -1666,6 +1680,7 @@ function openDmReport(r, st, redraw){
       const bad = (k === 'last' || k === 'out') && inp.value.length === 4 && !okT(inp.value);
       inp.classList.toggle('bad', bad);
       chk.x[+i][k] = (k === 'last' || k === 'out') && !okT(inp.value) ? '' : inp.value;
+      if (k === 'reason') chk.x[+i].own = !!inp.value.trim();
       render(); save();
     });
     render();
