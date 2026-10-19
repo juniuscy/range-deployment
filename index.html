@@ -356,6 +356,9 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .iedit[hidden]{display:none}
 .dmtag{display:inline-block;background:var(--ink);color:#fff;font:700 11px/1.6 var(--body);padding:0 7px;border-radius:5px;margin-right:7px;vertical-align:2px;letter-spacing:.4px}
 .irow .it2 span.dmtag,.irow.due .it2 span.dmtag{color:#fff;font-size:11px;font-weight:700}
+.dmext{border:1px solid #93C5FD;background:#EFF6FF;border-radius:var(--r-sm);padding:10px 12px;margin:6px 0 4px}
+.dmx{margin-top:10px;padding-top:8px;border-top:1px solid #BFDBFE}.dmxr{font:700 15px var(--body);margin-bottom:4px}
+.dmx .f{margin-bottom:6px}.dmxg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-items:end}.dmxg input{min-width:0}
 .pullq{padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);margin:8px 0;background:#fff}
 .str .sth{display:flex;justify-content:space-between;align-items:center;gap:8px}.str .sth h3{margin:0}
 .stg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0 6px}
@@ -1557,12 +1560,17 @@ function dmText(id, chk){
     const last = i === L.length - 1;
     out.push((i + 1) + ') ' + x + (last ? ' ' + (chk.t || '____') + 'hrs' : '') + (chk.c[i] ? ' \u2705' : ''));
   });
+  // End Range on an extension day: one Remarks block per EXT range
+  if (id === 'dm-end') (chk.x || []).forEach(e => {
+    out.push('', 'Remarks: Range Extension' + (e.reason ? ' ' + e.reason : ''), e.range,
+      'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last ? e.last + 'hrs' : ''), 'Outpro: ' + (e.out ? e.out + 'hrs' : ''));
+  });
   return out.join('\n');
 }
 function openDmReport(r, st, redraw){
   const L = DM_CHECKS[r.id];
   const saved = (st.dmchk || {})[r.id];
-  const chk = { c: L.map((x, i) => !!(saved && saved.c[i])), t: (saved && saved.t) || '' };
+  const chk = { c: L.map((x, i) => !!(saved && saved.c[i])), t: (saved && saved.t) || '', x: r.id === 'dm-end' ? ((saved && saved.x) || []).map(e => Object.assign({}, e)) : null };
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
@@ -1570,6 +1578,7 @@ function openDmReport(r, st, redraw){
     <div class="src">Send to: <b>${esc(r.grp)}</b>. Tick each check once done. Ticks are saved as you go, so you can close this and come back.</div>
     <div class="dmchk">${L.map((x, i) => { const last = i === L.length - 1;
       return `<label class="dmc${chk.c[i] ? ' on' : ''}" data-i="${i}"><input type="checkbox" ${chk.c[i] ? 'checked' : ''} data-ci="${i}"><span>${i + 1}) ${esc(x)}${last ? ` <input type="text" id="dm-time" inputmode="numeric" maxlength="4" placeholder="0815" value="${esc(chk.t)}" aria-label="Time, 24hrs"> hrs` : ''}</span></label>`; }).join('')}</div>
+    ${r.id === 'dm-end' ? '<div id="dm-ext"></div>' : ''}
     <div class="small muted" id="dm-sv" style="margin:4px 0 8px">${saved ? 'Last saved ' + esc(saved.at) + ' by ' + esc(saved.by) : 'Not saved yet'}</div>
     <textarea id="wa-t" style="min-height:220px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace"></textarea>
     <div class="acts"><button class="btn ghost" id="wa-x">Close</button><button class="btn ghost" id="wa-c">Copy</button>
@@ -1583,7 +1592,7 @@ function openDmReport(r, st, redraw){
     bg.querySelectorAll('[data-ci]').forEach(cb => { const i = +cb.dataset.ci; cb.checked = chk.c[i]; cb.closest('.dmc').classList.toggle('on', chk.c[i]); }); };
   let timer = null, saving = Promise.resolve();
   const save = () => { clearTimeout(timer); sv.textContent = 'Saving...';
-    timer = setTimeout(() => { saving = call('dmCheckSave', S.token, r.id, chk.c, chk.t)
+    timer = setTimeout(() => { saving = call('dmCheckSave', S.token, r.id, chk.c, chk.t, chk.x)
       .then(ns => { S.rep = ns; st.dmchk = ns.dmchk; const x = ns.dmchk[r.id]; sv.textContent = 'Saved ' + x.at; })
       .catch(e => { sv.textContent = 'Not saved'; fail(e); }); }, 400); };
   const okTime = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
@@ -1604,7 +1613,30 @@ function openDmReport(r, st, redraw){
   };
   t.oninput = setLink;
   render();
-  const close = async () => { clearTimeout(timer); if (sv.textContent === 'Saving...') { await call('dmCheckSave', S.token, r.id, chk.c, chk.t).then(ns => { S.rep = ns; }).catch(() => {}); } await saving; bg.remove(); redraw(S.rep); };
+  // extension ranges today: Reason, Total Strength, Last Shot and Outpro for each, added at the bottom of the message
+  if (r.id === 'dm-end') repDay(S.today).then(day => {
+    const box = $('#dm-ext', bg); if (!box || !day) return;
+    const ext = day.ranges.filter(x => x.active && (extOf(x.rmk) || splitOf(x.emp)));
+    if (!ext.length) { if (chk.x && chk.x.length) { chk.x = []; render(); } return; }
+    chk.x = ext.map(x => Object.assign({ range: x.range, reason: x.note || '', strength: '', last: '', out: '' }, (chk.x || []).find(e => e.range === x.range) || {}));
+    const okT = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
+    box.innerHTML = `<div class="dmext"><b>Range Extension today</b><div class="small muted">Added under Remarks at the bottom of the message. Times in 24hrs.</div>${chk.x.map((e, i) => `
+      <div class="dmx"><div class="dmxr">${esc(e.range)}</div>
+        <label class="f"><span>Reason</span><input type="text" data-ex="${i}|reason" maxlength="150" value="${esc(e.reason)}" placeholder="e.g. Night firing"></label>
+        <div class="dmxg"><label class="f"><span>Total Strength</span><input type="text" data-ex="${i}|strength" inputmode="numeric" maxlength="4" value="${esc(e.strength)}"></label>
+          <label class="f"><span>Last Shot</span><input type="text" data-ex="${i}|last" inputmode="numeric" maxlength="4" placeholder="1830" value="${esc(e.last)}"></label>
+          <label class="f"><span>Outpro</span><input type="text" data-ex="${i}|out" inputmode="numeric" maxlength="4" placeholder="1900" value="${esc(e.out)}"></label></div></div>`).join('')}</div>`;
+    box.querySelectorAll('[data-ex]').forEach(inp => inp.oninput = () => {
+      const [i, k] = inp.dataset.ex.split('|');
+      if (k !== 'reason') inp.value = inp.value.replace(/[^0-9]/g, '').slice(0, 4);
+      const bad = (k === 'last' || k === 'out') && inp.value.length === 4 && !okT(inp.value);
+      inp.classList.toggle('bad', bad);
+      chk.x[+i][k] = (k === 'last' || k === 'out') && !okT(inp.value) ? '' : inp.value;
+      render(); save();
+    });
+    render();
+  }).catch(() => {});
+  const close = async () => { clearTimeout(timer); if (sv.textContent === 'Saving...') { await call('dmCheckSave', S.token, r.id, chk.c, chk.t, chk.x).then(ns => { S.rep = ns; }).catch(() => {}); } await saving; bg.remove(); redraw(S.rep); };
   $('#wa-x', bg).onclick = close;
   bg.onclick = e => { if (e.target === bg) close(); };
   $('#wa-c', bg).onclick = async () => {
@@ -1619,7 +1651,7 @@ function openDmReport(r, st, redraw){
     busy(e.target, true);
     try {
       clearTimeout(timer);
-      await call('dmCheckSave', S.token, r.id, chk.c, chk.t);
+      await call('dmCheckSave', S.token, r.id, chk.c, chk.t, chk.x);
       const ns = await call('reportSent', S.token, r.id, false);
       bg.remove(); redraw(ns); toast(r.title + ' marked as sent');
     } catch(x){ fail(x); busy(e.target, false); }
@@ -4189,7 +4221,7 @@ const MOCK = (() => {
     incTplSave: (t, old, name, text) => { if (!name.trim()) throw new Error('Give the template a name.'); const c = mInc.templates.find(x => x.name === old); if (c) { c.name = name.trim(); c.text = text; } else mInc.templates.push({ name: name.trim(), text }); return mIncOut(); },
     incTplDelete: (t, name) => { mInc.templates = mInc.templates.filter(x => x.name !== name); return mIncOut(); },
     incLog: (t, f) => { mInc.log.unshift({ id: 'I' + Date.now(), at: today + ' ' + hhmm(), type: f.type, date: f.date, time: f.time, loc: f.loc, by: S.me.name, msg: f.msg }); return mIncOut(); },
-    dmCheckSave: (t, id, c, tm) => { mRep.dmchk[id] = { c: c.slice(), t: tm && typeof tm === 'object' ? Object.assign({}, tm) : tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
+    dmCheckSave: (t, id, c, tm, x) => { mRep.dmchk[id] = { x: x ? JSON.parse(JSON.stringify(x)) : undefined, c: c.slice(), t: tm && typeof tm === 'object' ? Object.assign({}, tm) : tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
     getAllergo: () => { const all = canManage(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
     allergoTick: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(); },
     reportSent: (t, id, undo) => { if (undo) delete mRep.sent[id]; else mRep.sent[id] = { by:S.me.name, at:String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return mRep; },
