@@ -359,6 +359,19 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .dmext{border:1px solid #93C5FD;background:#EFF6FF;border-radius:var(--r-sm);padding:10px 12px;margin:6px 0 4px}
 .dmx{margin-top:10px;padding-top:8px;border-top:1px solid #BFDBFE}.dmxr{font:700 15px var(--body);margin-bottom:4px}
 .dmx .f{margin-bottom:6px}.dmxg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-items:end}.dmxg input{min-width:0}
+.dmf h4{margin:16px 0 6px;font-size:16px}.dmf .dmfg{font-size:12px;color:var(--muted);font-weight:600;margin-top:8px}
+.dmfi{border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px;margin-top:6px;background:#fff}
+.dmfi .dl{font-weight:600;font-size:14px;margin-bottom:6px}
+.dmfr{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dmfr input.tm{width:74px;min-height:38px;padding:4px 6px;font:600 16px/1 ui-monospace,Menlo,Consolas,monospace;text-align:center}
+.dmfr input.rm{flex:1;min-width:120px;min-height:38px;padding:4px 8px}
+.dmfr .btn{min-height:38px;padding:4px 10px;font-size:14px}
+.ynb{display:inline-flex;border:1.5px solid #8C99A3;border-radius:8px;overflow:hidden}
+.ynb button{border:0;background:#fff;min-width:34px;min-height:36px;font-weight:700;cursor:pointer;color:var(--ink)}
+.ynb.auto button{cursor:default}.ynb.auto button:not([aria-pressed="true"]){color:#9AA5AE}
+.ynb button[aria-pressed="true"].y{background:#15803D;color:#fff}.ynb button[aria-pressed="true"].n{background:var(--flag);color:#fff}
+.dmfl{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.dmfl .loc{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 8px;background:#fff;font-size:14px;font-weight:600}
+.dmfs{position:sticky;bottom:0;background:var(--card);padding:8px 0 0;margin-top:10px;border-top:1px solid var(--line)}
 .pullq{padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);margin:8px 0;background:#fff}
 .str .sth{display:flex;justify-content:space-between;align-items:center;gap:8px}.str .sth h3{margin:0}
 .stg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0 6px}
@@ -845,7 +858,7 @@ function drawHome(h, stale){
     const dmToday = (h.dmMap || {})[S.today] || (S.dm || {})[S.today] || '';
     if (h.monthSum) S.monthSum = h.monthSum;
     const dmMine = isMeDm(dmToday);
-    S.dmMine = dmMine; if (h.reports) S.rep = h.reports;
+    S.dmMine = dmMine; S.dmToday = dmToday || ''; if (h.reports) S.rep = h.reports;
     V().innerHTML = `<div id="inst-slot">${stale ? '' : installBanner()}</div>
       <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="upd">Updating\u2026</span>' : ''}</h2>
         <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div><div class="hiright">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div></div>
@@ -1531,6 +1544,8 @@ const DM_CHECKS = {
 const repShown = (r, st) => r.dm ? isMeDm((S.dm || {})[S.today]) : r.weekly ? canManage() && !!(st && st.certDay) : canManage();
 const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
 function repStatus(r, st){
+  if (r.form) { const f = (st && st.dmform) || { filled:0, total:18 };
+    return { cls: f.filled >= f.total ? 'sent' : 'now', line: f.filled + ' of ' + f.total + ' times filled' + (f.savedAt ? ', saved ' + hrs(f.savedAt) + (f.by ? ' by ' + f.by : '') : ', not started') }; }
   const sent = st && st.date === S.today ? st.sent[r.id] : null;
   if (sent) return { cls:'sent', line:(r.task ? 'Done at ' : 'Sent at ') + sent.at + ' by ' + sent.by };
   if (r.weekly) return { cls:'now', line:'Last range day of the week. Tap Done once prepared.' };
@@ -1548,7 +1563,7 @@ function repCard(st){
     <h4>${g.label ? esc(g.label) : g.win[1] > addMin(g.win[0], 30) ? hrs(g.win[0]) + ' to ' + hrs(g.win[1]) : hrs(g.win[0])}</h4>
     ${g.list.map((r, i) => { const x = repStatus(r, st); return `<div class="irow ${x.cls}">
       <div class="it2"><b>${i + 1}. ${esc(r.title)}</b>${r.grp ? `<span class="grp">To ${esc(r.grp)}${r.dm ? ' &middot; Duty Manager report' : ''}</span>` : r.task ? '<span class="grp">Weekly task, no message to send</span>' : ''}<span>${esc(x.line)}</span></div>
-      ${x.cls === 'sent' ? `<button class="btn ghost ib" data-rundo="${r.id}">Undo</button>` : r.task ? `<button class="btn ib" data-rdone="${r.id}">Done</button>` : `<button class="btn ib" data-rprep="${r.id}">Prepare</button>`}</div>`; }).join('')}`).join('')}
+      ${r.form ? `<button class="btn ib" data-rform="1">${x.cls === 'sent' ? 'Open' : 'Fill in'}</button>` : x.cls === 'sent' ? `<button class="btn ghost ib" data-rundo="${r.id}">Undo</button>` : r.task ? `<button class="btn ib" data-rdone="${r.id}">Done</button>` : `<button class="btn ib" data-rprep="${r.id}">Prepare</button>`}</div>`; }).join('')}`).join('')}
     <p class="small muted" style="margin:8px 0 0">Yellow: not sent yet. Green: sent. Red: past the time and not sent. ${canManage() ? 'Either manager can send; once sent, it shows as sent for everyone.' : ''}${REPORTS.some(r => r.dm && repShown(r, st)) ? ' DM reports show on your Duty Manager days.' : ''}</p></div>`;
 }
 function addMin(hm, n){ const p = hm.split(':').map(Number), t = p[0] * 60 + p[1] + n; return String(Math.floor(t / 60)).padStart(2,'0') + ':' + String(t % 60).padStart(2,'0'); }
@@ -1780,6 +1795,81 @@ function openAmmoReport(r, st, redraw){
     } catch(x){ fail(x); busy(e.target, false); }
   };
 }
+/* DM Report form: fills that day's "dd/mm DM Report" Google Sheet in DM TOOLS / <year>; saves by itself as you type */
+async function openDmForm(redraw){
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet dmf" role="dialog" aria-modal="true"><div id="dmf-in"><div class="loading">Loading\u2026</div></div></div>`;
+  document.body.appendChild(bg);
+  let d;
+  try { d = await call('dmFormGet', S.token, S.today); } catch(e){ bg.remove(); return fail(e); }
+  const L = d.layout, v = d.data || {};
+  const st = { dm: v.dm || d.dm || '', items: {}, ir: v.ir || 'N', irText: v.irText || '', sec: Object.assign({}, v.sec), rc: Object.assign({}, v.rc),
+    secObs: v.secObs || '', rcObs: v.rcObs || '', remarks: v.remarks || '' };
+  L.sections.forEach(sc => sc.items.forEach(x => { const o = (v.items || {})[x.r] || {}; st.items[x.r] = { yn: o.t ? 'Y' : 'N', t: o.t || '', rmk: o.rmk || '' }; }));
+  let url = d.url, saving = null, timer = null, dirty = false, savedAt = v.savedAt || '';
+  const yn = (key, val, auto) => `<span class="ynb${auto ? ' auto' : ''}"${auto ? ` data-auto="${auto}" title="Ticks Y by itself once the time is keyed in"` : ''}><button type="button" class="y" data-yn="${key}|Y" aria-pressed="${val === 'Y'}"${auto ? ' disabled' : ''}>Y</button><button type="button" class="n" data-yn="${key}|N" aria-pressed="${val === 'N'}"${auto ? ' disabled' : ''}>N</button></span>`;
+  const autoYn = r => { const v = st.items[r].t ? 'Y' : 'N'; st.items[r].yn = v; const w = bg.querySelector(`[data-auto="${r}"]`); if (w) w.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.yn.endsWith('|' + v))); };
+  const locs = (cfg, key) => `<div class="dmfl">${cfg.locs.map(([l]) => `<div class="loc">${esc(l)} ${yn(key + ':' + l, st[key][l] || '')}</div>`).join('')}</div>`;
+  const dt = pd(S.today), fname = String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + ' DM Report';
+  const status = () => { const n = $('#dmf-st', bg); if (!n) return;
+    n.innerHTML = (saving ? 'Saving to Google Drive\u2026' : dirty ? 'Changes not saved yet' : savedAt ? 'Saved to Google Drive at ' + hrs(savedAt) : 'Not saved yet')
+      + (url ? ` &middot; <a href="${esc(url)}" target="_blank" rel="noopener">Open ${esc(fname)}</a>` : ''); };
+  $('#dmf-in', bg).innerHTML = `<h3>DM Report Form</h3>
+    <div class="src">${esc(nice(S.today))}. Saves by itself into Google Drive: <b>DM TOOLS / ${dt.getFullYear()} / ${esc(fname)}</b>. Key in a time and Y ticks by itself; no time stays N. Times are 24hrs (tap Now for the time now).</div>
+    <label class="f"><span>Name of DM</span><input type="text" id="dmf-dm" value="${esc(st.dm)}"></label>
+    ${L.sections.map(sc => `<h4>${esc(sc.t)}</h4>${sc.items.map((x, i) => `${i === 0 || sc.items[i - 1].g !== x.g ? `<div class="dmfg">${esc(x.g)}</div>` : ''}
+      <div class="dmfi"><div class="dl">${esc(x.l)}</div><div class="dmfr">${yn('i:' + x.r, st.items[x.r].yn, x.r)}
+        <input type="text" class="tm" inputmode="numeric" maxlength="4" placeholder="XXXX" data-tm="${x.r}" value="${esc(st.items[x.r].t)}"><button type="button" class="btn ghost" data-now="${x.r}">Now</button>
+        <input type="text" class="rm" maxlength="200" placeholder="Remarks" data-rmk="${x.r}" value="${esc(st.items[x.r].rmk)}"></div></div>`).join('')}`).join('')}
+    <h4>Others</h4>
+    <div class="dmfi"><div class="dl">Any IR raised?</div><div class="dmfr">${yn('ir', st.ir)}</div>
+      <textarea id="dmf-irt" rows="2" placeholder="If yes, briefly explain" style="margin-top:6px;${st.ir === 'Y' ? '' : 'display:none'}">${esc(st.irText)}</textarea></div>
+    <div class="dmfg">Security: Screening are carried out properly</div>${locs(L.sec, 'sec')}
+    <label class="f" style="margin-top:6px"><span>Observations (if any)</span><textarea id="dmf-so" rows="2" placeholder="NIL">${esc(st.secObs)}</textarea></label>
+    <div class="dmfg">Range Conduct: Adherence to Range Conduct Procedures &amp; Training Safety</div>${locs(L.rc, 'rc')}
+    <label class="f" style="margin-top:6px"><span>Observations (if any)</span><textarea id="dmf-ro" rows="2" placeholder="NIL">${esc(st.rcObs)}</textarea></label>
+    <label class="f"><span>Remarks / Other Observations (if any)</span><textarea id="dmf-rm" rows="3">${esc(st.remarks)}</textarea></label>
+    <div class="dmfs"><div class="small muted" id="dmf-st"></div>
+      <div class="acts"><button class="btn ghost" id="dmf-x">Close</button><button class="btn" id="dmf-s">Save now</button></div></div>`;
+  const okT = t => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(t);
+  const save = async () => {
+    clearTimeout(timer);
+    if (saving) { await saving; if (!dirty) return; }
+    dirty = false; status();
+    saving = call('dmFormSave', S.token, S.today, st).then(r => { url = r.url; savedAt = r.savedAt; if (S.rep) { S.rep.dmform = r.summary; } })
+      .catch(e => { dirty = true; fail(e); });
+    status(); await saving; saving = null; status();
+  };
+  const touch = () => { dirty = true; status(); clearTimeout(timer); timer = setTimeout(save, 1500); };
+  $('#dmf-dm', bg).oninput = e => { st.dm = e.target.value; touch(); };
+  bg.querySelectorAll('[data-yn]').forEach(b => b.onclick = () => {
+    const [key, val] = b.dataset.yn.split('|'), [kind, sub] = key.split(':');
+    const cur = kind === 'i' ? st.items[sub].yn : kind === 'ir' ? st.ir : st[kind][sub];
+    const nv = (kind === 'sec' || kind === 'rc') && cur === val ? '' : val;        // tap again to clear a location
+    if (kind === 'i') st.items[sub].yn = nv; else if (kind === 'ir') st.ir = nv; else st[kind][sub] = nv;
+    b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.yn === key + '|' + nv));
+    if (kind === 'ir') $('#dmf-irt', bg).style.display = nv === 'Y' ? '' : 'none';
+    touch();
+  });
+  bg.querySelectorAll('[data-tm]').forEach(inp => inp.oninput = () => {
+    inp.value = inp.value.replace(/[^0-9]/g, '').slice(0, 4);
+    inp.classList.toggle('bad', inp.value.length === 4 && !okT(inp.value));
+    const r = inp.dataset.tm, nt = okT(inp.value) ? inp.value : '';
+    if (st.items[r].t !== nt) { st.items[r].t = nt; autoYn(r); touch(); }
+  });
+  bg.querySelectorAll('[data-now]').forEach(b => b.onclick = () => {
+    const n = new Date(), t = String(n.getHours()).padStart(2, '0') + String(n.getMinutes()).padStart(2, '0');
+    const inp = bg.querySelector(`[data-tm="${b.dataset.now}"]`); inp.value = t; inp.classList.remove('bad'); st.items[b.dataset.now].t = t; autoYn(b.dataset.now); touch();
+  });
+  bg.querySelectorAll('[data-rmk]').forEach(inp => inp.oninput = () => { st.items[inp.dataset.rmk].rmk = inp.value; touch(); });
+  [['#dmf-irt', 'irText'], ['#dmf-so', 'secObs'], ['#dmf-ro', 'rcObs'], ['#dmf-rm', 'remarks']].forEach(([id, k]) => { $(id, bg).oninput = e => { st[k] = e.target.value; touch(); }; });
+  $('#dmf-s', bg).onclick = async e => { busy(e.target, true); dirty = true; await save(); busy(e.target, false); if (!dirty) toast('Saved to Google Drive'); };
+  const close = async () => { if (dirty || saving) { const n = $('#dmf-st', bg); if (n) n.textContent = 'Saving before closing\u2026'; await save(); } bg.remove(); if (redraw && S.rep) redraw(S.rep); };
+  $('#dmf-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  status();
+}
 async function repPrepare(r, st, redraw){
   if (r.ammo) return openAmmoReport(r, st, redraw);
   if (r.dm) return openDmReport(r, st, redraw);
@@ -1821,6 +1911,7 @@ function wireRep(st){
     try { await repPrepare(r, st, redraw); } catch(e){ fail(e); }
     busy(b, false);
   });
+  box.querySelectorAll('[data-rform]').forEach(b => b.onclick = () => openDmForm(redraw));
   box.querySelectorAll('[data-rdone]').forEach(b => b.onclick = async () => {
     const r = REPORTS.find(x => x.id === b.dataset.rdone);
     if (!confirm('Confirmed done prepared?')) return;
@@ -1844,15 +1935,22 @@ function inspLine(x){
   return 'Due ' + when + ', in ' + x.days + ' day' + (x.days === 1 ? '' : 's');
 }
 /* Duty Manager of the day: Approved Ammo Voucher (every DM day), Draw Key 59 and 194 (Mon, Wed, Fri) */
+function dmFormTask(){
+  const f = S.rep.dmform || { filled: 0, total: 18 };
+  return { id: 'dm-form', form: true, name: 'DM Report Form', sub: f.filled + ' of ' + f.total + ' times filled' + (f.savedAt ? ', saved to Google Drive at ' + hrs(f.savedAt) : ', saves into DM TOOLS / ' + S.today.slice(0, 4)), full: f.filled >= f.total };
+}
 function dmTasks(){
-  if (!S.dmMine || !S.rep) return [];
+  if (!S.rep) return [];
+  if (!S.dmMine) return canManage() ? [Object.assign(dmFormTask(), { cover: S.dmToday ? 'Today\u2019s DM: ' + S.dmToday : 'No DM on the roster today' })] : [];
   const d = S.rep.date, dt = pd(d), dd = String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getFullYear()).slice(2);
   const t = [{ id: 'dm-voucher', name: 'Approved Ammo Voucher', sub: dd, ask: 'Confirmed approved Ammo Voucher for ' + dd + '?' }];
   if ([0, 2, 4].includes(dowIdx(d))) t.push({ id: 'dm-keys', name: 'Draw Key 59 and 194', sub: 'CENCON: 001439900', sub2: 'Today (every Mon, Wed and Fri)', ask: 'Confirmed drawn Key 59 and 194?' });
-  return t.map(x => Object.assign(x, { done: (S.rep.sent || {})[x.id] || null }));
+  t.push(dmFormTask());
+  return t.map(x => Object.assign(x, { done: x.form ? null : (S.rep.sent || {})[x.id] || null }));
 }
 function dmTaskRows(){
-  return dmTasks().map(x => `<div class="irow ${x.done ? '' : 'due'}"><div class="it2"><b><span class="dmtag">DM</span>${esc(x.name)}</b><span>${esc(x.sub)}</span>${x.sub2 ? `<span style="display:block;font-weight:400">${esc(x.sub2)}</span>` : ''}
+  return dmTasks().map(x => x.form ? `<div class="irow ${x.full ? '' : 'soon'}"><div class="it2"><b><span class="dmtag">DM</span>${esc(x.name)}</b><span>${esc(x.sub)}</span>${x.cover ? `<span style="display:block;font-weight:400;color:var(--muted)">${esc(x.cover)}</span>` : ''}</div>
+      <button class="btn ib" data-dmform="1">${x.full ? 'Open' : 'Fill in'}</button></div>` : `<div class="irow ${x.done ? '' : 'due'}"><div class="it2"><b><span class="dmtag">DM</span>${esc(x.name)}</b><span>${esc(x.sub)}</span>${x.sub2 ? `<span style="display:block;font-weight:400">${esc(x.sub2)}</span>` : ''}
       ${x.done ? `<span style="display:block;font-weight:600;color:#15803D">Done ${esc(hrs(x.done.at))} by ${esc(x.done.by)}</span>` : ''}</div>
       ${x.done ? `<button class="btn ghost ib" data-dmu="${x.id}">Undo</button>` : `<button class="btn ib" data-dmt="${x.id}">Done</button>`}</div>`).join('');
 }
@@ -1871,6 +1969,7 @@ function wireInsp(list){
   list = list || [];
   const box = $('#insp'); if (!box) return;
   const redraw = l => { const old = $('#insp'); if (old) { old.outerHTML = inspCard(l); wireInsp(l); } };
+  box.querySelectorAll('[data-dmform]').forEach(b => b.onclick = () => openDmForm(() => redraw(list)));
   box.querySelectorAll('[data-dmt],[data-dmu]').forEach(b => b.onclick = async () => {
     const id = b.dataset.dmt || b.dataset.dmu, undo = !!b.dataset.dmu, x = dmTasks().find(t => t.id === id);
     if (!confirm(undo ? 'Undo "' + x.name + '" (not done yet)?' : x.ask)) return;
@@ -4289,7 +4388,15 @@ const MOCK = (() => {
       return Object.assign({}, x, { due, days, state: days < 0 ? 'overdue' : days === 0 ? 'due' : days <= w ? 'soon' : 'ok' });
     });
   }
-  const mGcDone = {}, mDrafts = {}, mPres = {};
+  const mGcDone = {}, mDrafts = {}, mPres = {}, mDmf = {};
+  const MOCK_DMF = { sections: [
+    { t:'Pre-Range', items: [{ r:9, g:'I2RMS Approval', l:'1) Approval of Ammo for Range Operations' }, { r:11, g:'Medical Support', l:'1) Presence of Ambulance' }, { r:12, g:'Medical Support', l:'2) Presence of Medics' },
+      { r:13, g:'Medical Support', l:'3) Medical Equipment Checks' }, { r:15, g:'Ammo Status', l:'1) Opening of CAS' }, { r:17, g:'Manpower', l:'1) Range Deployment' }, { r:19, g:'Systems', l:'1) Range Systems' }, { r:20, g:'Systems', l:'2) Range Infrastructure' }] },
+    { t:'Rest of the Day', items: [{ r:24, g:'CAS Big Door', l:'1) Opening' }, { r:25, g:'CAS Big Door', l:'2) Lock Upper Padlock' }, { r:26, g:'CAS Big Door', l:'3) Unlock Upper Padlock' }, { r:27, g:'CAS Big Door', l:'4) Closing' }, { r:29, g:'Ammo Packing in I2RMS', l:'1) Approval for Ammo Packing' }] },
+    { t:'Post-Range', items: [{ r:33, g:'Out-Process', l:'1) All Ranges Completed' }, { r:34, g:'Out-Process', l:'2) All troops out-pro without any issues' }, { r:35, g:'Out-Process', l:'3) All units left MMRC' },
+      { r:37, g:'End of Day Ammo Status', l:'1) All Ammo Accounted' }, { r:38, g:'End of Day Ammo Status', l:'2) Closing of CAS' }] }],
+    sec: { row:47, locs: [['50m1','B'],['50m2','D'],['100m1','F'],['100m2','H'],['MTR 1','J'],['MTR 2','L'],['CAS','N'],['Maintenance','P']] },
+    rc: { row:53, locs: [['50m1','B'],['50m2','D'],['100m1','F'],['100m2','H'],['MTR 1','J'],['MTR 2','L']] } };
   function mockGrab(){
     const ev = [{ date:addD(today, 1), for:'TEST TS', reason:'TEST TS training at 0900hrs', time:'0900', people:[{ name:'LEONARD', what:'' }, { name:'ONG', what:'Bring IC' }] }];
     for (let i = 0; i <= 2; i++) {
@@ -4407,6 +4514,10 @@ const MOCK = (() => {
     draftSave: (t, k, text, vals) => { if (!String(text || '').trim()) { delete mDrafts[k]; return null; }
       mDrafts[k] = { text, vals: vals || undefined, by: S.me.name, at: today + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'), d: today }; return JSON.parse(JSON.stringify(mDrafts[k])); },
     strengthMark: (t, n, st) => { if (st) mPres[n] = { st, by:S.me.name, at:'13:05' }; else delete mPres[n]; return MOCK.getStrength(); },
+    dmFormGet: (t, d) => ({ date:d, dm:(mDm[d] || S.me.name).toUpperCase(), layout: MOCK_DMF, data: mDmf[d] ? JSON.parse(JSON.stringify(mDmf[d])) : {}, url: (mDmf[d] || {}).url || '' }),
+    dmFormSave: (t, d, f) => { mDmf[d] = Object.assign(JSON.parse(JSON.stringify(f)), { url:'https:' + String.fromCharCode(47, 47) + 'docs.google.com/spreadsheets/d/preview/edit', savedAt:'15:30', by:S.me.name });
+      const items = [].concat(...MOCK_DMF.sections.map(x => x.items)), filled = items.filter(x => (f.items[x.r] || {}).t).length;
+      mRep.dmform = { filled, total: items.length, url: mDmf[d].url, savedAt:'15:30', by:S.me.name }; return { url: mDmf[d].url, savedAt:'15:30', summary: mRep.dmform }; },
     getStrength: () => { const a = mockAtt(today), now = /strnow=(\d{4})/.test(location.search) ? RegExp.$1.slice(0, 2) + ':' + RegExp.$1.slice(2) : '09:30';
       const day = (getWk(mondayOf(today)).days || [])[dowIdx(today)], wkend = dowIdx(today) >= 5;
       return { date:today, now, wkend, lateAfter:a.lateAfter, rows: a.rows.map(r => {
