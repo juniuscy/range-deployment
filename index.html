@@ -1588,16 +1588,23 @@ function dmText(id, chk){
     const last = i === L.length - 1;
     out.push((i + 1) + ') ' + x + (last ? ' ' + (chk.t || 'XXXX') + 'hrs' : '') + (chk.c[i] ? ' \u2705' : ''));
   });
-  // End Range on an extension day: one Remarks heading, the reason once, then a block per EXT range
+  // End Range on an extension day: one Remarks heading; one shared reason line, or a bold reason on top of each range when they differ
   const ex = id === 'dm-end' ? (chk.x || []) : [];
   if (ex.length) {
     // "Range Extension" said once, however the reason was typed (e.g. "Range Extension SLF", "EXT - SLF")
     const why = e => { const t = String(e.reason || '').replace(/^(?:\s*(?:range\s+extension|range\s+ext|ext(?:ension)?)\b[\s:\-]*)+/i, '').replace(/\s+/g, ' ').trim(); return 'Range Extension' + (t ? ' ' + t : ''); };
     const reasons = [];
     ex.forEach(e => { const w = why(e), f = reasons.find(x => x.w.toLowerCase() === w.toLowerCase()); if (f) f.r.push(e.range); else reasons.push({ w, r: [e.range] }); });
+    const block = e => [e.range, 'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last || 'XXXX') + 'hrs', 'Outpro: ' + (e.out || 'XXXX') + 'hrs'];
     out.push('', 'Remarks:');
-    reasons.forEach(x => out.push(x.w + (reasons.length > 1 ? ' (' + x.r.join(', ') + ')' : '')));
-    ex.forEach(e => out.push('', e.range, 'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last || 'XXXX') + 'hrs', 'Outpro: ' + (e.out || 'XXXX') + 'hrs'));
+    if (reasons.length === 1) {
+      // same reason for every range: said once, then the range blocks
+      out.push('*' + reasons[0].w + '*');
+      ex.forEach(e => out.push('', ...block(e)));
+    } else {
+      // different reasons: each range gets its own bold reason line right on top of its block
+      ex.forEach((e, i) => { if (i) out.push(''); out.push('*' + why(e) + ' (' + e.range + ')*', ...block(e)); });
+    }
   }
   return out.join('\n');
 }
