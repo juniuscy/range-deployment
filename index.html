@@ -373,7 +373,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .sgrp{margin-top:12px}.sgrp h4{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:8px}
 .sgrp h4 i{font-style:normal;font-size:12px;font-weight:700;border-radius:999px;padding:1px 9px;color:#fff}
 .sgrp.missing h4 i{background:var(--flag)}.sgrp.pending h4 i{background:#CA8A04}.sgrp.later h4 i{background:#1D4ED8}
-.sgrp.in h4 i{background:#15803D}.sgrp.left h4 i{background:#9A3412}.sgrp.away h4 i,.sgrp.off h4 i{background:#6B7280}
+.sgrp.in h4 i{background:#15803D}.sgrp.left h4 i{background:#9A3412}.sgrp.pmshift h4 i{background:#1D4ED8}.sgrp.oilam h4 i,.sgrp.oilpm h4 i{background:#7C3AED}.sgrp.away h4 i,.sgrp.off h4 i{background:#6B7280}
 .srow{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px solid var(--line);font-size:14px}
 .srow b{font-weight:600}.srow small{color:var(--muted);text-align:right}
 .sgrp.missing .srow{background:var(--flag-soft)}
@@ -1902,19 +1902,20 @@ function wireInsp(list){
 }
 
 /* ---------- Strength today (Admin, Managers, today's DM): who is in, coming later, not in, away ---------- */
-const STR_GROUPS = [['missing', 'Not reported'], ['pending', 'Not in yet'], ['later', 'Reporting later'], ['in', 'In'], ['left', 'Left (gone off)'], ['away', 'Away'], ['off', 'Off']];
+const STR_GROUPS = [['missing', 'Not reported'], ['pending', 'Not in yet'], ['in', 'IN'], ['pmshift', 'PM SHIFT'], ['oilam', 'OIL AM'], ['oilpm', 'OIL PM'], ['left', 'LEFT'], ['away', 'AWAY'], ['off', 'Off']];
+const STR_PICK = [['in', 'IN (on site now)'], ['pmshift', 'PM SHIFT (coming in later)'], ['oilam', 'OIL AM (coming in after)'], ['oilpm', 'OIL PM (on site, leaving later)'], ['left', 'LEFT (gone off)'], ['away', 'AWAY']];
 function strBy(d){ const g = {}; STR_GROUPS.forEach(x => { g[x[0]] = []; }); (d.rows || []).forEach(r => (g[r.group] || (g[r.group] = [])).push(r)); return g; }
 function strTotal(d){ return (d.rows || []).filter(r => r.group !== 'off').length; }
 function strCardInner(d){
   if (!d) return `<div class="sth"><h3>Strength today</h3></div><div class="loading" style="padding:10px 0">Loading\u2026</div>`;
-  const g = strBy(d), notin = g.missing.length + g.pending.length, out = g.away.length + g.left.length;
+  const g = strBy(d), notin = g.missing.length + g.pending.length, onsite = g.in.length + g.oilpm.length, out = g.away.length + g.left.length + g.oilam.length;
   return `<div class="sth"><h3>Strength today</h3><button class="btn ghost ib" data-stro="">View all</button></div>
     <div class="stg">
-      <button class="stt in" data-stro="in"><b>${g.in.length}</b><span>In</span></button>
-      <button class="stt later" data-stro="later"><b>${g.later.length}</b><span>Later</span></button>
+      <button class="stt in" data-stro="in"><b>${onsite}</b><span>On site</span></button>
+      <button class="stt later" data-stro="pmshift"><b>${g.pmshift.length}</b><span>PM shift</span></button>
       <button class="stt notin${g.missing.length ? ' red' : ''}" data-stro="${g.missing.length ? 'missing' : 'pending'}"><b>${notin}</b><span>Not in</span></button>
-      <button class="stt away" data-stro="${g.left.length ? 'left' : 'away'}"><b>${out}</b><span>Away</span></button></div>
-    <div class="small muted">Strength ${strTotal(d)} &middot; as at ${esc(hrs(d.now))}${g.off.length ? ' &middot; ' + g.off.length + ' off' : ''}</div>
+      <button class="stt away" data-stro="${g.left.length ? 'left' : g.oilam.length ? 'oilam' : 'away'}"><b>${out}</b><span>Away</span></button></div>
+    <div class="small muted">Strength ${strTotal(d)} &middot; as at ${esc(hrs(d.now))}${g.oilpm.length ? ' &middot; on site incl. ' + g.oilpm.length + ' OIL PM' : ''}${g.left.length ? ' &middot; ' + g.left.length + ' left' : ''}${g.off.length ? ' &middot; ' + g.off.length + ' off' : ''}</div>
     ${g.missing.length ? `<div class="stmiss">Not reported: ${esc(g.missing.map(r => r.name).join(', '))}</div>` : ''}`;
 }
 function strCard(){ return `<div class="insp str" id="strc">${strCardInner(S.str)}</div>`; }
@@ -1936,7 +1937,7 @@ function strText(d){
   const dd = String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getFullYear()).slice(2);
   const L = ['*Strength Accounting*', DOW[dowIdx(d.date)] + ' ' + dd + ', ' + hrs(d.now), '',
     'Total strength: ' + strTotal(d),
-    'In: ' + g.in.length + ' | Later: ' + g.later.length + ' | Not in: ' + (g.missing.length + g.pending.length) + ' | Away: ' + (g.away.length + g.left.length)];
+    'On site: ' + (g.in.length + g.oilpm.length) + ' | PM shift: ' + g.pmshift.length + ' | Not in: ' + (g.missing.length + g.pending.length) + ' | Away: ' + (g.away.length + g.left.length + g.oilam.length)];
   STR_GROUPS.forEach(([k, label]) => {
     const list = g[k]; if (!list.length) return;
     L.push('', '*' + label + ' (' + list.length + ')*');
@@ -1947,8 +1948,9 @@ function strText(d){
 function strLine(r, k){
   const bits = [];
   if (k === 'in') bits.push(r.marked ? 'in now' : r.clockIn ? hrs(r.clockIn) + (r.status === 'Present (Late)' ? ' late' : '') : 'marked present');
-  if (k === 'later') bits.push(r.ext ? 'report ' + hrs(r.ext) : 'coming later');
-  if (k === 'left') bits.push(r.marked ? 'gone off' : r.note || 'gone off');
+  if (k === 'pmshift') bits.push((r.ext ? 'report ' + hrs(r.ext) : 'coming in later') + (r.late && !r.marked ? ', not in yet' : ''));
+  if (k === 'oilam' || k === 'oilpm') bits.push(r.marked ? (k === 'oilam' ? 'coming in after' : 'leaving later') : r.note || '');
+  if (k === 'left') bits.push('gone off');
   if (k === 'missing' || k === 'pending') bits.push('due ' + hrs(r.due));
   if (k === 'away' || k === 'off') bits.push(r.status ? r.status + (r.half ? ' (' + r.half + ')' : '') + (r.reason && ATT_REASON.includes(r.status) ? ' (' + r.reason + ')' : '') : 'no posting');
   if (r.where && k !== 'away' && k !== 'off') bits.push(r.where);
@@ -1968,16 +1970,16 @@ function openStrength(focus){
   const draw = d => {
     const g = strBy(d);
     $('#st-in', bg).innerHTML = `<h3>Strength today</h3>
-      <div class="src">${esc(nice(d.date))}, as at ${esc(hrs(d.now))} &middot; total strength ${strTotal(d)}. Refreshes every minute while open. Tap a name to set where they are now (In now, Left, Coming later).</div>
+      <div class="src">${esc(nice(d.date))}, as at ${esc(hrs(d.now))} &middot; total strength ${strTotal(d)}. Refreshes every minute while open. Tap a name to move them (e.g. OIL PM to LEFT once they have gone).</div>
       ${STR_GROUPS.map(([k, label]) => g[k].length ? `<div class="sgrp ${k}" id="sg-${k}"><h4>${esc(label)} <i>${g[k].length}</i></h4>
         ${g[k].map(r => { const parts = strLine(r, k).split(' - '); return `<div class="srow" data-sn="${esc(r.name)}" style="cursor:pointer"><b>${esc(parts[0])}${r.marked ? ' <span class="small" style="color:#1D4ED8">\u25CF</span>' : ''}</b><small>${esc(parts.slice(1).join(' \u2022 '))}</small></div>`; }).join('')}</div>` : '').join('')}`;
     $('#st-in', bg).querySelectorAll('[data-sn]').forEach(el => el.onclick = async () => {
       const n = el.dataset.sn, r = (d.rows || []).find(x => x.name === n);
       const pick = await askChoice(n, 'Where is ' + titleCase(n) + ' now? Only changes this Strength view (today), not the attendance report.',
-        [['in', 'In now (on site)'], ['left', 'Left / gone off (e.g. OIL PM, went home)'], ['later', 'Coming later'], ['', 'Automatic' + (r && r.marked ? ' (clear my change)' : '')]]);
+        STR_PICK.filter(([k]) => !r || k !== r.group || r.marked).concat([['', 'Automatic' + (r && r.marked ? ' (clear my change)' : '')]]));
       if (pick === null) return;
       try { const nd = await call('strengthMark', S.token, n, pick); S.str = nd; S.strAt = Date.now(); draw(nd);
-        const box = $('#strc'); if (box) { box.innerHTML = strCardInner(nd); wireStrCard(); } toast(titleCase(n) + ': ' + ({ in:'in now', left:'left', later:'coming later' }[pick] || 'automatic')); }
+        const box = $('#strc'); if (box) { box.innerHTML = strCardInner(nd); wireStrCard(); } toast(titleCase(n) + ': ' + ((STR_PICK.find(x => x[0] === pick) || [, 'automatic'])[1])); }
       catch(x){ fail(x); }
     });
   };
@@ -4396,11 +4398,12 @@ const MOCK = (() => {
       const day = (getWk(mondayOf(today)).days || [])[dowIdx(today)], wkend = dowIdx(today) >= 5;
       return { date:today, now, wkend, lateAfter:a.lateAfter, rows: a.rows.map(r => {
         const ps = day ? postingsOf(day, r.name).map(x => x.title.replace(' main', '')) : [], ext = r.ext, lateAt = ext ? addMin(ext, 15) : a.lateAfter;
-        let group, note = ''; const mk = mPres[r.name], ph = [r.leave].concat((r.leave && r.leave.also) || []).filter(x => x && x.half === 'PM')[0];
-        if (mk) { group = mk.st; note = 'set by ' + mk.by + ' at ' + hrs(mk.at); } else if (/^Present/.test(r.status) && ph && now >= '12:00') { group = 'left'; note = ph.cat + ' (PM)'; }
-        else if (/^Present/.test(r.status) && ext && !r.clockIn && now < ext) group = 'later'; else if (/^Present/.test(r.status)) group = 'in'; else if (r.status === 'Off' || (!r.status && wkend && !ps.length)) group = 'off';
-        else if (r.status) group = 'away'; else if (ext && now < ext) group = 'later'; else if (now <= lateAt) group = 'pending'; else group = 'missing';
-        return { name:r.name, role:r.role, group, note, marked: !!mk, status:r.status, clockIn:r.clockIn, by:r.by, where:ps.join(', '), due: ext || a.lateAfter, ext, half: r.leave && r.leave.half && !r.clockIn ? r.leave.half : '' }; }) }; },
+        let group, note = ''; const mk = mPres[r.name], hf = h => [r.leave].concat((r.leave && r.leave.also) || []).filter(x => x && x.half === h)[0], am = hf('AM'), pm = hf('PM'), isIn = /^Present/.test(r.status);
+        if (mk) { group = mk.st; note = 'set by ' + mk.by + ' at ' + hrs(mk.at); } else if (r.clockIn) { group = pm ? 'oilpm' : 'in'; if (pm) note = pm.cat + ' (PM)'; }
+        else if (am) { group = 'oilam'; note = am.cat + ' (AM)'; } else if (pm && (isIn || r.status === pm.cat)) { group = 'oilpm'; note = pm.cat + ' (PM)'; }
+        else if (ext && (isIn || !r.status)) group = 'pmshift'; else if (isIn) group = 'in'; else if (r.status === 'Off' || (!r.status && wkend && !ps.length)) group = 'off';
+        else if (r.status) group = 'away'; else if (now <= lateAt) group = 'pending'; else group = 'missing';
+        return { name:r.name, role:r.role, group, note, marked: !!mk, late: !!ext && now > lateAt, status:r.status, clockIn:r.clockIn, by:r.by, where:ps.join(', '), due: ext || a.lateAfter, ext, half: r.leave && r.leave.half && !r.clockIn ? r.leave.half : '' }; }) }; },
     getInspections: () => mockInsp(),
     getGrabCodes: () => mockGrab(),
     grabIssue: (t, d, f, n, undo) => { const k = d + '|' + f + '|' + n; if (undo) delete mGcDone[k]; else mGcDone[k] = { by:S.me.name, at:today + ' 17:58' }; return mockGrab(); },
