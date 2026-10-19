@@ -849,7 +849,7 @@ function drawHome(h, stale){
     V().innerHTML = `<div id="inst-slot">${stale ? '' : installBanner()}</div>
       <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="upd">Updating\u2026</span>' : ''}</h2>
         <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div><div class="hiright">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div></div>
-      ${h.attendance ? clockNotes(h.attendance) : ''}
+      ${h.attendance ? clockNotes(h.attendance) + sickBox(h.attendance) : ''}
       ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
       ${canManage() || dmMine ? strCard() : ''}
@@ -872,6 +872,7 @@ function drawHome(h, stale){
     S.next14 = h.upcoming;
     wireInstall();
     wireClock();
+    wireSick();
     wireNews(h.news, !stale);
     if (canManage() || dmMine) loadStrCard();
     if (h.inspections || dmMine) wireInsp(h.inspections);
@@ -1948,7 +1949,7 @@ function strLine(r, k){
   if (k === 'in') bits.push(r.clockIn ? hrs(r.clockIn) + (r.status === 'Present (Late)' ? ' late' : '') : 'marked present');
   if (k === 'later') bits.push('report ' + hrs(r.ext));
   if (k === 'missing' || k === 'pending') bits.push('due ' + hrs(r.due));
-  if (k === 'away' || k === 'off') bits.push(r.status ? r.status + (r.half ? ' (' + r.half + ')' : '') : 'no posting');
+  if (k === 'away' || k === 'off') bits.push(r.status ? r.status + (r.half ? ' (' + r.half + ')' : '') + (r.reason && ATT_REASON.includes(r.status) ? ' (' + r.reason + ')' : '') : 'no posting');
   if (r.where && k !== 'away' && k !== 'off') bits.push(r.where);
   return r.name + ' - ' + bits.join(' - ');
 }
@@ -2039,6 +2040,23 @@ function clockCard(a){
   return `<div class="clock cm todo"><button class="btn" id="clk">Clock in</button><span>${when} &middot; late after ${esc(a.lateAfter)}</span></div>`;
 }
 /* Notes under the greeting when not clocked in yet */
+/* On MC / RS today: the person adds the reason themselves (shown in the attendance message) */
+function sickBox(a){
+  const st = a.status || (a.leave && a.leave.cat) || '';
+  if (!ATT_REASON.includes(st)) return '';
+  return `<div class="note" id="sickb"><b>You are on ${st === 'RS' ? 'RS (report sick)' : 'MC'} today.</b> ${a.reason ? 'Reason: <b>' + esc(a.reason) + '</b>' : 'Please add the reason for the attendance report.'}
+    <div style="display:flex;gap:8px;margin-top:8px"><input type="text" id="sick-r" maxlength="150" placeholder="e.g. Fever" value="${esc(a.reason || '')}" style="flex:1;min-width:0;min-height:42px">
+    <button class="btn" id="sick-s" style="min-height:42px;padding:6px 14px">Save</button></div></div>`;
+}
+function wireSick(){
+  const b = $('#sick-s'); if (!b) return;
+  b.onclick = async () => {
+    busy(b, true);
+    try { const a = await call('attReason', S.token, S.today, S.me.name, $('#sick-r').value);
+      const box = $('#sickb'); if (box) { box.outerHTML = sickBox(a); wireSick(); } toast('Reason saved'); }
+    catch(e){ fail(e); busy(b, false); }
+  };
+}
 function clockNotes(a){
   if (a.clockIn || (a.status && a.status !== 'Present' && a.status !== 'Present (Late)')) return '';
   return (a.leave ? `<div class="note" id="clkn1">The plan shows you on <b>${esc(a.leave.cat)}</b> today (${esc(a.leave.text)}). Only clock in if you are at work.</div>` : '')
@@ -2608,6 +2626,22 @@ function openWhatsApp(day){
     (gp.length ? `<div class="note yellow"><b>No APO yet:</b> ${esc(gp.map(r => r.range).join(', '))}</div>` : ''),
     waText(day), { key: 'plan:' + day.date });
 }
+/* Small text prompt. Resolves with the text, '' or null (Cancel / Skip) */
+function askText(title, sub, value, ph, cancelLabel){
+  return new Promise(resolve => {
+    const bg = document.createElement('div');
+    bg.className = 'sheet-bg';
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(title)}</h3><div class="src">${esc(sub || '')}</div>
+      <label class="f"><span>Reason</span><textarea id="ak-t" rows="3" maxlength="150" placeholder="${esc(ph || '')}">${esc(value || '')}</textarea></label>
+      <div class="acts"><button class="btn ghost" id="ak-x">${esc(cancelLabel || 'Cancel')}</button><button class="btn" id="ak-ok">Save</button></div></div>`;
+    document.body.appendChild(bg);
+    const done = v => { bg.remove(); resolve(v); };
+    $('#ak-x', bg).onclick = () => done(null);
+    bg.onclick = e => { if (e.target === bg) done(null); };
+    $('#ak-ok', bg).onclick = () => done($('#ak-t', bg).value.replace(/\s+/g, ' ').trim());
+    setTimeout(() => $('#ak-t', bg).focus(), 50);
+  });
+}
 /* ---------- message drafts: saved on the server (any phone, any manager / today's DM), 7 days ----------
    o = { key, t (textarea), setLink, note (element for the draft line), btn (Save draft button),
          fresh() -> a freshly built message, vals() -> box values to keep (optional), onLoad(d), onFresh() } */
@@ -3174,7 +3208,8 @@ function pickGroups(){
 }
 
 /* ---------- Attendance ---------- */
-const ATT_AWAY = ['UL','AL','NPL','MC','MA','HL','CCL','OIL','Course','ICT','Others'];
+const ATT_AWAY = ['UL','AL','NPL','MC','RS','MA','HL','CCL','OIL','Course','ICT','Others'];
+const ATT_REASON = ['MC','RS'];                   // statuses that carry a reason (shown in the attendance message)
 const MON_ATT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
 const DAYL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const titleCase = n => n.toLowerCase().replace(/(^|[\s(\/-])([a-z])/g, (m, a, c) => a + c.toUpperCase());
@@ -3196,7 +3231,7 @@ function attText(a){
   const leaveList = c => {
     const out = [];
     rows.forEach(r => {
-      if (r.status === c) out.push(titleCase(r.name) + half(r.leave && r.leave.cat === c ? r.leave.half : ''));
+      if (r.status === c) out.push(titleCase(r.name) + half(r.leave && r.leave.cat === c ? r.leave.half : '') + (ATT_REASON.includes(c) && r.reason ? ' (' + r.reason + ')' : ''));
       (r.leave && r.leave.also || []).forEach(x => { if (x.cat === c && r.status !== c) out.push(titleCase(r.name) + half(x.half)); });
     });
     const n = out.length + (c === 'Others' ? later.length : 0);
@@ -3263,6 +3298,7 @@ function drawAtt(a){
         <td><input type="time" data-atc="${esc(r.name)}" value="${esc(r.clockIn)}" style="min-height:38px;padding:4px 6px;max-width:120px">
           ${r.by ? `<div class="small muted">entered by ${esc(r.by)}</div>` : ''}</td>
         <td><span class="pill ${cls(r.status)}">${esc(r.status || 'Not accounted')}</span>
+          ${ATT_REASON.includes(r.status) ? `<div class="small" style="margin-top:4px">${r.reason ? 'Reason: <b>' + esc(r.reason) + '</b> ' : '<span style="color:var(--flag);font-weight:600">No reason yet</span> '}<button type="button" class="lnk" style="padding:0" data-atr="${esc(r.name)}">${r.reason ? 'Edit' : 'Add reason'}</button></div>` : ''}
           <select data-ats="${esc(r.name)}" style="margin-top:6px;min-height:38px;padding:6px 8px">
             <option value="">${r.override ? 'Back to automatic' : 'Automatic'}</option>
             ${a.statuses.map(st => `<option ${st === r.override ? 'selected' : ''}>${esc(st)}</option>`).join('')}
@@ -3284,10 +3320,22 @@ function drawAtt(a){
     try { drawAtt(await call('adminClockIn', S.token, a.date, inp.dataset.atc, inp.value)); toast(inp.dataset.atc + (inp.value ? ' clocked in at ' + inp.value : ': clock-in cleared')); }
     catch(x){ fail(x); inp.disabled = false; }
   });
+  A().querySelectorAll('[data-atr]').forEach(b => b.onclick = async () => {
+    const r = a.rows.find(x => x.name === b.dataset.atr);
+    const why = await askText('Reason for ' + r.status + ': ' + r.name, nice(a.date) + '. Shown in the attendance message.', r.reason || '', 'e.g. Fever, food poisoning');
+    if (why == null) return;
+    try { drawAtt(await call('attReason', S.token, a.date, r.name, why)); toast('Reason saved'); } catch(x){ fail(x); }
+  });
   A().querySelectorAll('[data-ats]').forEach(sel => sel.onchange = async () => {
+    const r0 = a.rows.find(x => x.name === sel.dataset.ats);
+    let why;                                            // MC / RS: ask for the reason (Skip leaves it for them to fill in)
+    if (ATT_REASON.includes(sel.value)) {
+      why = await askText('Reason for ' + sel.value + ': ' + sel.dataset.ats, nice(a.date) + '. Shown in the attendance message. Leave it empty and ' + titleCase(sel.dataset.ats) + ' can fill it in on My Deploy.', (r0 && r0.reason) || '', 'e.g. Fever, food poisoning', 'Skip');
+      if (why === null) why = undefined;
+    }
     sel.disabled = true;
     try {
-      const res = await call('adminSetAttendance', S.token, a.date, sel.dataset.ats, sel.value);
+      const res = await call('adminSetAttendance', S.token, a.date, sel.dataset.ats, sel.value, why);
       drawAtt(res);
       const inSheet = sel.value && !['Present','Present (Late)','Off'].includes(sel.value);
       toast(res.warn ? 'Saved in the app, but not in the weekly tab: ' + res.warn
@@ -4169,7 +4217,7 @@ const MOCK = (() => {
     });
     return out;
   }
-  function mockMyAtt(n){ const r = attRec(today, n); return { date:today, clockIn:r.clockIn, status:r.status, late: !!r.clockIn && r.clockIn > lateAfter, leave: mockLeave(today)[n] || null, lateAfter }; }
+  function mockMyAtt(n){ const r = attRec(today, n); return { date:today, clockIn:r.clockIn, status:r.status, reason:r.reason || '', late: !!r.clockIn && r.clockIn > lateAfter, leave: mockLeave(today)[n] || null, lateAfter }; }
   /* preview: take someone off every slot on these days (same rules as the server) */
   function mDrop(text, n){ const out = [];
     String(text || '').split(/\s*\/\s*/).filter(Boolean).forEach(part => {
@@ -4196,11 +4244,11 @@ const MOCK = (() => {
     const rows = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic' && p.active && p.att !== false).map(p => {
       const r = attRec(d, p.name); let status = '';
       if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
-      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, ext: rep[p.name] || '' };
+      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, reason:r.reason || '', ext: rep[p.name] || '' };
     });
     const prev = addD(d, -1);
     const records = reqs.filter(r => r.status === 'Approved' && r.start <= d && r.end >= prev).map(r => ({ id:r.id, name:r.name, type:r.type, typeLabel:r.typeLabel, start:r.start, end:r.end, session:r.session || 'Full', days:r.days, canChange: r.type !== 'OIL' }));
-    return { date:d, lateAfter, statuses:['Present','Present (Late)','UL','AL','NPL','MC','MA','HL','CCL','OIL','Course','ICT','Others','Off'], rows, records };
+    return { date:d, lateAfter, statuses:['Present','Present (Late)','UL','AL','NPL','MC','RS','MA','HL','CCL','OIL','Course','ICT','Others','Off'], rows, records };
   }
   const libList = Object.keys(SNAP.lib).map((n, i) => ({ row: i + 2, label: n, name: n, date: SNAP.lib[n] }));
   const reqs = [{ id:'R1', submitted:today+' 09:10', name:'LEONARD', type:'AL', typeLabel:'Annual leave', start:addD(today, 9), end:addD(today, 10), session:'Full', days:2, reason:'Family trip', status:'Pending', warnings:[addD(today, 9)+': rostered 100M1 (with Teo BL)'], othersAway:['FAIRUZ AL '+addD(today,10)] }];
@@ -4314,7 +4362,8 @@ const MOCK = (() => {
       return mTrn(!canManage()); },
     inspectionDone: (t, id, d) => { const x = inspM.find(i => i.id === id); x.last = d || today; return mockInsp(); },
     inspectionEdit: (t, id, f) => { const x = inspM.find(i => i.id === id); if (f.name) x.name = f.name; if (f.last != null) x.last = f.last; return mockInsp(); },
-    adminSetAttendance: (t, d, n, st) => { attRec(d, n).status = st; const pulled = st && !/^Present/.test(st) ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
+    attReason: (t, d, n, why) => { const me = !canManage() || n === S.me.name; attRec(d, me ? S.me.name : n).reason = why || ''; return me ? mockMyAtt(S.me.name) : mockAtt(d); },
+    adminSetAttendance: (t, d, n, st, why) => { attRec(d, n).status = st; if (why != null) attRec(d, n).reason = why; const pulled = st && !/^Present/.test(st) ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
     adminChangeDates: (t, id, st, en, ses) => { const r = reqs.find(x => x.id === id); const was = [r.start, r.end]; Object.assign(r, { start:st, end:en, session: st === en ? ses : 'Full', days: st === en && ses !== 'Full' ? .5 : nDays(st, en) });
       const ds = []; for (let d = st; d <= en; d = addD(d, 1)) if (d < was[0] || d > was[1]) ds.push(d); return { pulled: mPull(r.name, ds), notWritten:[] }; },
     adminSetLateAfter: (t, hm, d) => { lateAfter = hm; return mockAtt(d); },
