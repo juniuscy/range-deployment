@@ -1113,7 +1113,7 @@ function trnEditor(d, person, c){
     const open = c.row && !c.row.result ? c.row : null;
     body = `<div class="row2"><label class="f"><span>${open ? 'Arranged date' : 'Arrange a date'}</span>
         <input type="date" id="te-d" value="${esc(open ? open.arranged : '')}" min="${per.start}" max="${per.end}"></label>
-      <label class="f"><span>Time of booking (24hrs)</span><input type="text" id="te-tm" class="tm" inputmode="numeric" maxlength="4" placeholder="0900" value="${esc(open && open.time ? open.time : '')}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
+      <label class="f"><span>Time of booking (24hrs)</span><input type="text" id="te-tm" class="tm" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(open && open.time ? open.time : '')}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
       <label class="f"><span>Remarks (optional)</span><textarea id="te-rm" maxlength="200" rows="2" placeholder="e.g. Report at Gym Block B, bring PT kit" style="min-height:60px">${esc(open && open.remark ? open.remark : '')}</textarea></label>
       <p class="small muted" style="margin-top:-8px">Saving puts <b>${esc(person.name + ' ' + per.t)} (time hrs)</b> in that day's IPPT/ TRG row, so they show as away.</p>
       <div class="acts" style="margin-top:6px">${open ? '<button class="btn ghost" id="te-clr">Clear date</button>' : ''}<button class="btn" id="te-save">Save date</button></div>
@@ -1397,7 +1397,7 @@ function drawIncForm(t){
   fields.forEach(f => { if (v[f] == null) v[f] = def(f); });
   const box = f => { const k = incKey(f), id = 'if-' + fields.indexOf(f);
     if (k === 'DATE') return `<label class="f"><span>Date</span><input type="date" id="${id}" data-f="${esc(f)}" value="${esc(v[f])}"></label>`;
-    if (isTimeKey(k)) return `<label class="f"><span>${k === 'TIME' ? 'Time of incident' : esc(f)} (24hrs)</span><input type="text" class="tm" id="${id}" data-f="${esc(f)}" inputmode="numeric" maxlength="4" placeholder="1430" value="${esc(v[f])}"></label>`;
+    if (isTimeKey(k)) return `<label class="f"><span>${k === 'TIME' ? 'Time of incident' : esc(f)} (24hrs)</span><input type="text" class="tm" id="${id}" data-f="${esc(f)}" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(v[f])}"></label>`;
     if (k === 'RANGE' || k === 'LOCATION') return `<label class="f"><span>${esc(f)}${rg.length ? ' (pick a range in use today, or type)' : ''}</span><input type="text" id="${id}" data-f="${esc(f)}" list="inc-rg" value="${esc(v[f])}" autocomplete="off"></label>`;
     if (INC_AUTO.includes(k)) return `<label class="f"><span>${esc(f)}</span><input type="text" id="${id}" data-f="${esc(f)}" value="${esc(v[f])}" autocomplete="off"></label>`;
     return `<label class="f"><span>${esc(f)}</span><textarea id="${id}" data-f="${esc(f)}" rows="2">${esc(v[f])}</textarea></label>`; };
@@ -1519,8 +1519,8 @@ const REPORTS = [
   { id:'dm-start', win:['07:00','08:30'], title:'DM Report Start Range', grp:'MMRC Mgt Group', dm:true },
   { id:'pm-plan', win:['17:00','17:30'], title:'Next day Deployment Plan', grp:'OPS SP Ammo Team' },
   { id:'pm-good', win:['17:00','23:59'], label:'Good Day', title:'Medical Support Standdown', grp:'OPS SP - Medical grp' },
-  { id:'dm-end', win:['17:00','23:59'], label:'Good Day', title:'DM Report End Range', grp:'MMRC Mgt Group', dm:true },
   { id:'dm-ammo', win:['17:00','23:59'], label:'Good Day', title:'DM Ammo Storage Report', grp:'I2RMS Approval by DM', dm:true, ammo:true },
+  { id:'dm-end', win:['17:00','23:59'], label:'Good Day', title:'DM Report End Range', grp:'MMRC Mgt Group', dm:true },
   { id:'wk-cert', win:['17:00','23:59'], label:'Good Day', title:'Prepare Weekly Ammo Cert 4 x SEAL', grp:'', task:true, weekly:true }
 ];
 /* DM reports: only for today's Duty Manager. The last check of each has a time (24hrs). */
@@ -1571,12 +1571,12 @@ function dmText(id, chk){
     'Date: ' + String(dt.getDate()).padStart(2, '0') + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear(), ''];
   L.forEach((x, i) => {
     const last = i === L.length - 1;
-    out.push((i + 1) + ') ' + x + (last ? ' ' + (chk.t || '____') + 'hrs' : '') + (chk.c[i] ? ' \u2705' : ''));
+    out.push((i + 1) + ') ' + x + (last ? ' ' + (chk.t || 'XXXX') + 'hrs' : '') + (chk.c[i] ? ' \u2705' : ''));
   });
   // End Range on an extension day: one Remarks block per EXT range
   if (id === 'dm-end') (chk.x || []).forEach(e => {
     out.push('', 'Remarks: Range Extension' + (e.reason ? ' ' + e.reason : ''), e.range,
-      'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last ? e.last + 'hrs' : ''), 'Outpro: ' + (e.out ? e.out + 'hrs' : ''));
+      'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last || 'XXXX') + 'hrs', 'Outpro: ' + (e.out || 'XXXX') + 'hrs');
   });
   return out.join('\n');
 }
@@ -1590,7 +1590,7 @@ function openDmReport(r, st, redraw){
     <h3>${esc(r.title)}</h3>
     <div class="src">Send to: <b>${esc(r.grp)}</b>. Tick each check once done. Ticks are saved as you go, so you can close this and come back.</div>
     <div class="dmchk">${L.map((x, i) => { const last = i === L.length - 1;
-      return `<label class="dmc${chk.c[i] ? ' on' : ''}" data-i="${i}"><input type="checkbox" ${chk.c[i] ? 'checked' : ''} data-ci="${i}"><span>${i + 1}) ${esc(x)}${last ? ` <input type="text" id="dm-time" inputmode="numeric" maxlength="4" placeholder="0815" value="${esc(chk.t)}" aria-label="Time, 24hrs"> hrs` : ''}</span></label>`; }).join('')}</div>
+      return `<label class="dmc${chk.c[i] ? ' on' : ''}" data-i="${i}"><input type="checkbox" ${chk.c[i] ? 'checked' : ''} data-ci="${i}"><span>${i + 1}) ${esc(x)}${last ? ` <input type="text" id="dm-time" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(chk.t)}" aria-label="Time, 24hrs"> hrs` : ''}</span></label>`; }).join('')}</div>
     ${r.id === 'dm-end' ? '<div id="dm-ext"></div>' : ''}
     <div class="small muted" id="dm-sv" style="margin:4px 0 8px">${saved ? 'Last saved ' + esc(saved.at) + ' by ' + esc(saved.by) : 'Not saved yet'}</div>
     <div id="wa-drn"></div><div id="dm-ed"></div>
@@ -1643,8 +1643,8 @@ function openDmReport(r, st, redraw){
       <div class="dmx"><div class="dmxr">${esc(e.range)}</div>
         <label class="f"><span>Reason</span><input type="text" data-ex="${i}|reason" maxlength="150" value="${esc(e.reason)}" placeholder="e.g. Night firing"></label>
         <div class="dmxg"><label class="f"><span>Total Strength</span><input type="text" data-ex="${i}|strength" inputmode="numeric" maxlength="4" value="${esc(e.strength)}"></label>
-          <label class="f"><span>Last Shot</span><input type="text" data-ex="${i}|last" inputmode="numeric" maxlength="4" placeholder="1830" value="${esc(e.last)}"></label>
-          <label class="f"><span>Outpro</span><input type="text" data-ex="${i}|out" inputmode="numeric" maxlength="4" placeholder="1900" value="${esc(e.out)}"></label></div></div>`).join('')}</div>`;
+          <label class="f"><span>Last Shot</span><input type="text" data-ex="${i}|last" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(e.last)}"></label>
+          <label class="f"><span>Outpro</span><input type="text" data-ex="${i}|out" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(e.out)}"></label></div></div>`).join('')}</div>`;
     box.querySelectorAll('[data-ex]').forEach(inp => inp.oninput = () => {
       const [i, k] = inp.dataset.ex.split('|');
       if (k !== 'reason') inp.value = inp.value.replace(/[^0-9]/g, '').slice(0, 4);
@@ -1682,8 +1682,8 @@ function openDmReport(r, st, redraw){
 function ammoText(chk){
   const dt = pd(S.today), t = chk.t || {};
   const out = ['Ammo Status for ' + String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getFullYear()).slice(2) + '.'];
-  if (chk.c[0]) out.push('Small Door Closed and Locked at ' + (t.s || '____') + 'hrs.');
-  if (chk.c[1]) out.push('Big Door Closed and Locked at ' + (t.b || '____') + 'hrs.');
+  if (chk.c[0]) out.push('Small Door Closed and Locked at ' + (t.s || 'XXXX') + 'hrs.');
+  if (chk.c[1]) out.push('Big Door Closed and Locked at ' + (t.b || 'XXXX') + 'hrs.');
   if (chk.c[2]) out.push('Both Big and Small Door are Sealed.');
   return out.join('\n\n');                          // blank line between paragraphs
 }
@@ -1694,7 +1694,7 @@ function openAmmoReport(r, st, redraw){
   let photo = null;
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
-  const row = (i, txt, key) => `<label class="dmc${chk.c[i] ? ' on' : ''}"><input type="checkbox" data-ci="${i}" ${chk.c[i] ? 'checked' : ''}><span>${txt}${key ? ` at <input type="text" data-tk="${key}" inputmode="numeric" maxlength="4" placeholder="1700" value="${esc(chk.t[key])}" aria-label="Time locked, 24hrs"> hrs` : ''}</span></label>`;
+  const row = (i, txt, key) => `<label class="dmc${chk.c[i] ? ' on' : ''}"><input type="checkbox" data-ci="${i}" ${chk.c[i] ? 'checked' : ''}><span>${txt}${key ? ` at <input type="text" data-tk="${key}" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(chk.t[key])}" aria-label="Time locked, 24hrs"> hrs` : ''}</span></label>`;
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
     <h3>${esc(r.title)}</h3>
     <div class="src">Send to: <b>${esc(r.grp)}</b>. Tick the door(s) opened today with the time locked, and/or sealed. Ticks are saved as you go.</div>
@@ -3971,7 +3971,7 @@ function drawLib(list){
         <div class="lbtns"><button class="btn go" data-lat="${esc(x.name)}">Attended</button><button class="btn ghost" data-lre="${esc(x.name)}">Reschedule</button></div>`;
     } else {
       next = `<div class="lpick"><label><span>Next LIB test date</span><input type="date" min="${S.today}" data-ld="${esc(x.name)}" value="${esc(editing ? x.arranged : '')}"></label>
-          <label><span>Time (24hrs)</span><input type="text" inputmode="numeric" maxlength="4" placeholder="0900" data-lt="${esc(x.name)}" value="${esc(editing ? x.time : '')}"></label></div>
+          <label><span>Time (24hrs)</span><input type="text" inputmode="numeric" maxlength="4" placeholder="XXXX" data-lt="${esc(x.name)}" value="${esc(editing ? x.time : '')}"></label></div>
         <div class="lbtns"><button class="btn" data-larr="${esc(x.name)}">Arrange</button><button class="btn ghost" data-lclr="${esc(x.name)}">${editing ? 'Back' : 'Clear'}</button></div>
         ${editing ? `<button class="linkbtn" data-lcancel="${esc(x.name)}" style="margin-top:6px">Cancel this LIB test</button>` : ''}`;
     }
