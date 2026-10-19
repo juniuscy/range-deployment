@@ -1858,9 +1858,12 @@ async function openDmForm(redraw){
     const r = inp.dataset.tm, nt = okT(inp.value) ? inp.value : '';
     if (st.items[r].t !== nt) { st.items[r].t = nt; autoYn(r); touch(); }
   });
-  bg.querySelectorAll('[data-now]').forEach(b => b.onclick = () => {
+  bg.querySelectorAll('[data-now]').forEach(b => b.onclick = async () => {
     const n = new Date(), t = String(n.getHours()).padStart(2, '0') + String(n.getMinutes()).padStart(2, '0');
-    const inp = bg.querySelector(`[data-tm="${b.dataset.now}"]`); inp.value = t; inp.classList.remove('bad'); st.items[b.dataset.now].t = t; autoYn(b.dataset.now); touch();
+    const r = b.dataset.now, item = [].concat(...L.sections.map(sc => sc.items)).find(x => String(x.r) === String(r)) || {}, old = st.items[r].t;
+    const ok = await askBox('Put the time now?', `<b style="font-size:17px">${esc(t)}hrs</b><br>${esc(item.l || '')}${old && old !== t ? `<br><span class="muted">This replaces ${esc(old)}hrs.</span>` : ''}`, 'Yes, put it');
+    if (!ok) return;
+    const inp = bg.querySelector(`[data-tm="${r}"]`); inp.value = t; inp.classList.remove('bad'); st.items[b.dataset.now].t = t; autoYn(b.dataset.now); touch();
   });
   bg.querySelectorAll('[data-rmk]').forEach(inp => inp.oninput = () => { st.items[inp.dataset.rmk].rmk = inp.value; touch(); });
   [['#dmf-irt', 'irText'], ['#dmf-so', 'secObs'], ['#dmf-ro', 'rcObs'], ['#dmf-rm', 'remarks']].forEach(([id, k]) => { $(id, bg).oninput = e => { st[k] = e.target.value; touch(); }; });
