@@ -118,6 +118,7 @@ textarea{min-height:80px;resize:vertical}
 .note.red{border-color:var(--flag);background:var(--flag-soft)}
 .note.blue{border-color:var(--steel);background:var(--steel-soft)}
 .awr{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px;background:var(--card)}.awh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}.awp{background:#FEF3C7;color:#92400E}
+.algadm{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .pill{display:inline-block;white-space:nowrap;font:600 13px/1 var(--body);padding:5px 9px;border-radius:999px}
 .pill.Pending{background:var(--wait-soft);color:var(--wait)}
 .pill.Approved{background:var(--go-soft);color:var(--go)}
@@ -1262,7 +1263,9 @@ function algRow(x, who){
   const due = x.state === 'late' ? 'Overdue: was due ' + nice(x.due) : x.state === 'done' ? 'Submitted in Allergo, ticked ' + esc(String(x.ticked.at)) : 'Submit in Allergo by ' + nice(x.due);
   return `<div class="algr ${x.state}"><div class="tx"><b>${who ? esc(x.name) + (x.sid ? ' <small class="muted" style="font-weight:400">' + esc(x.sid) + '</small>' : '') + ' &middot; ' : ''}${esc(ALG_LBL[x.type] || x.type)}</b>
     <span>${esc(algSpan(x))}, ${fmtN(x.days)} day${x.days === 1 ? '' : 's'}</span><span class="due">${due}</span></div>
-    ${who ? '' : x.ticked ? '<span class="tick on" aria-label="Submitted">&#10003;</span>' : `<button class="tick" data-alg="${esc(x.keys.join('|'))}" aria-label="Tick when submitted in Allergo"></button>`}</div>`;
+    ${who ? (x.ticked ? `<div class="algadm"><span class="small muted">by ${esc(titleCase(x.ticked.by || ''))}</span><button class="btn ghost ib" data-agu="${esc(x.keys.join('|'))}">Undo</button></div>`
+      : `<button class="btn ib" data-aga="${esc(x.keys.join('|'))}">Mark submitted</button>`)
+    : x.ticked ? '<span class="tick on" aria-label="Submitted">&#10003;</span>' : `<button class="tick" data-alg="${esc(x.keys.join('|'))}" aria-label="Tick when submitted in Allergo"></button>`}</div>`;
 }
 function algCard(items, title){
   if (!items || !items.length) return '';
@@ -1306,8 +1309,23 @@ function drawAdmAllergo(d){
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn go" id="ag-wa">WhatsApp reminder</button><button class="btn ghost" id="ag-rf">Refresh</button></div>`
       : '<div class="sec"><p>Everything is submitted in Allergo.</p></div><button class="btn ghost" id="ag-rf">Refresh</button>'}
     ${done.length ? `<h3>Submitted this month</h3>${done.map(x => algRow(x, true)).join('')}` : ''}
-    <p class="small muted" style="margin-top:10px">Each person ticks their own on My Deploy or in Requests, once they've submitted it in Allergo. Due 7 days after it was applied for (or marked, for MC / UL). Ticks can't be undone.</p>`;
+    <p class="small muted" style="margin-top:10px">Each person ticks their own on My Deploy or in Requests, once they've submitted it in Allergo. You can also tap <b>Mark submitted</b> here for them, and <b>Undo</b> a tick made by mistake. Due 7 days after it was applied for (or marked, for MC / UL).</p>`;
   $('#ag-rf').onclick = () => admAllergo();
+  // Admin / Manager: mark it submitted for them (e.g. they told you, or you submitted it), or undo a tick made by mistake
+  A().querySelectorAll('[data-aga]').forEach(b => b.onclick = async () => {
+    const x = d.items.find(i => i.keys.join('|') === b.dataset.aga); if (!x) return;
+    const ok = await askBox('Mark as submitted in Allergo?', `<b style="font-size:17px">${esc(titleCase(x.name))}</b><br>${esc(ALG_LBL[x.type] || x.type)}, ${esc(algSpan(x))}`, 'Yes, submitted');
+    if (!ok) return;
+    busy(b, true);
+    try { drawAdmAllergo(await call('adminAllergoTick', S.token, x.name, x.keys)); toast(titleCase(x.name) + ': marked submitted'); } catch(e){ fail(e); busy(b, false); }
+  });
+  A().querySelectorAll('[data-agu]').forEach(b => b.onclick = async () => {
+    const x = d.items.find(i => i.keys.join('|') === b.dataset.agu); if (!x) return;
+    const ok = await askBox('Undo "submitted"?', `<b style="font-size:17px">${esc(titleCase(x.name))}</b><br>${esc(ALG_LBL[x.type] || x.type)}, ${esc(algSpan(x))}<br><span class="muted">It goes back to Not submitted.</span>`, 'Yes, undo');
+    if (!ok) return;
+    busy(b, true);
+    try { drawAdmAllergo(await call('adminAllergoUndo', S.token, x.keys)); toast('Undone'); } catch(e){ fail(e); busy(b, false); }
+  });
   if ($('#ag-wa')) $('#ag-wa').onclick = () => {
     const dt = pd(d.today);
     const L = ['*ALLERGO SUBMISSION*', '*Date: ' + dt.getDate() + ' ' + MON_ATT[dt.getMonth()] + ' ' + dt.getFullYear() + ' (' + DAYL[dowIdx(d.today)] + ')*', '',
@@ -4643,6 +4661,8 @@ const MOCK = (() => {
     dmCheckSave: (t, id, c, tm, x) => { mRep.dmchk[id] = { x: x ? JSON.parse(JSON.stringify(x)) : undefined, c: c.slice(), t: tm && typeof tm === 'object' ? Object.assign({}, tm) : tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
     getAllergo: () => { const all = canManage(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
     allergoTick: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(); },
+    adminAllergoTick: (t, n, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(t); },
+    adminAllergoUndo: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = null; return MOCK.getAllergo(t); },
     reportSent: (t, id, undo) => { if (undo) delete mRep.sent[id]; else mRep.sent[id] = { by:S.me.name, at:String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return mRep; },
     getTraining: () => mTrn(),
     getBirthdays: () => mBdays(),
