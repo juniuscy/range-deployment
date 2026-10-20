@@ -2508,7 +2508,6 @@ function openSlotEditor(wk, day, kind, label){
   const who = fields[0][0];
   const free = freeOn(day, pool);
   const freeMg = freeOn(day, pool === 'Medic' ? 'Backup Medic' : 'Manager');   // the reserve for this kind of slot
-  const names = namesFor(pool);
   const spOk = kind === 'range' || (kind === 'duty' && SHIFT_DUTIES.includes(label));
   const spHtml = spOk ? `<label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="sp-on" style="width:20px;height:20px" ${sp0 ? 'checked' : ''}><span><b>Extension: ${kind === 'duty' ? esc(label) + ' Main ' : ''}AM and PM shifts</b></span></label>
       <div class="spbox" id="sp-box" ${sp0 ? '' : 'hidden'}>
@@ -2524,10 +2523,9 @@ function openSlotEditor(wk, day, kind, label){
     <h3 id="ed-t">${esc(label)}, ${nice(day.date)}</h3>
     <div class="src">${src}</div>
     ${spHtml ? `<div class="sptop">${spHtml}</div>` : ''}
-    ${fields.map(([k, l, v]) => `<label class="f"${NAME_KEYS.includes(k) ? ' style="margin-bottom:4px"' : ''}><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${NAME_KEYS.includes(k) ? 'list="ed-names" data-nk="' + k + '"' : ''} autocomplete="off"></label>` +
+    ${fields.map(([k, l, v]) => `<label class="f"${NAME_KEYS.includes(k) ? ' style="margin-bottom:4px"' : ''}><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${NAME_KEYS.includes(k) ? 'data-nk="' + k + '"' : ''} autocomplete="off"></label>` +
       (NAME_KEYS.includes(k) ? `<div class="tags" data-tags="${k}"></div><label class="f addto" data-addwrap="${k}" style="margin-top:2px"${k === who && sp0 ? ' hidden' : ''}><select data-addto="${k}" aria-label="Add a name to ${esc(l)}"><option value="">Add a name to ${esc(l)}</option>${pickerOptions(day, pool)}</select></label>` : '')).join('')}
     ${fields.filter(f => NAME_KEYS.includes(f[0])).length > 1 ? `<div class="tgt" id="ed-tgt">Names you tap go to: ${fields.filter(f => NAME_KEYS.includes(f[0])).map(f => `<button class="chip" data-tg="${f[0]}" aria-pressed="${f[0] === who}">${esc(f[1])}</button>`).join('')}</div>` : ''}
-    <datalist id="ed-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     <div id="ed-warn"></div>
     ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to add:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup Medics' : 'Managers (Reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
@@ -2959,11 +2957,11 @@ function openAbsent(o){
           return `<div class="sec" style="margin:-4px 0 10px;padding:10px 12px">
             <div style="font:700 18px var(--cond)">${esc(p.title)} <span class="small muted" style="font-family:var(--body);font-weight:400">now ${esc(p.text)}</span></div>
             <select data-repsel="${i}" style="margin-top:6px"><option value="">${rep ? 'Change: ' + esc(rep) : 'Replace ' + esc(st.name) + ' with\u2026'}</option>${pickerOptions(day, pool, [st.name])}</select>
-            <input type="text" data-rep="${i}" list="ab-names" value="${esc(rep)}" placeholder="or type a name" autocomplete="off" style="margin-top:6px">
+            <input type="text" data-rep="${i}" value="${esc(rep)}" placeholder="or type a name" autocomplete="off" style="margin-top:6px">
             <div class="small muted" style="margin-top:4px">Cell becomes: <b>${nv ? esc(nv) : 'blank'}</b></div>
             ${w.length ? `<div class="note red" style="margin:6px 0 0"><ul style="margin:0;padding-left:18px">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>`;
         }).join('')}
-        <datalist id="ab-names">${namesFor(pool).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+        
         ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to fill the last box you touched:</p><div class="chips">${free.map(n => `<button class="chip" data-f="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
         ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup Medics' : 'Managers (Reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-f="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}`
         : `<div class="note blue">${esc(st.name)} has no posting that day, so nothing needs covering.</div>`) : ''}
