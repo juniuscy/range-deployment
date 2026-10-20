@@ -118,6 +118,14 @@ textarea{min-height:80px;resize:vertical}
 .note.red{border-color:var(--flag);background:var(--flag-soft)}
 .note.blue{border-color:var(--steel);background:var(--steel-soft)}
 .awr{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px;background:var(--card)}.awh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}.awp{background:#FEF3C7;color:#92400E}
+.lyc .lylg{display:flex;gap:14px;font-size:13px;color:var(--muted);margin:0 0 10px}.lylg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.lyr{display:grid;grid-template-columns:86px 1fr;align-items:center;gap:8px;width:100%;background:none;border:0;padding:3px 0;margin:0;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
+.lynm{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lytr{display:flex;align-items:center;gap:2px;min-height:24px}
+.lyseg{height:20px;display:inline-flex;align-items:center;justify-content:center;font:700 12.5px/1 var(--body);min-width:22px}.lytr .lyseg:nth-last-child(2){border-radius:0 4px 4px 0}
+.lyval{margin-left:6px;font-size:13px;white-space:nowrap}.lyz{color:#9AA5AE;font-size:13px}
+.lyd{margin:0 0 8px 94px;font-size:13px;display:flex;flex-direction:column;gap:3px}.lyd[hidden]{display:none}.lydot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.lyt td,.lyt th{text-align:right}.lyt td:first-child,.lyt th:first-child{text-align:left}
+.actr{display:flex;gap:10px;justify-content:space-between;align-items:center;border:1.5px solid #F59E0B;background:#FFFBEB;border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px}.actr .tx{display:flex;flex-direction:column;gap:2px;min-width:0}.acts2{display:flex;flex-direction:column;gap:6px;flex:none}
 .algadm{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .pill{display:inline-block;white-space:nowrap;font:600 13px/1 var(--body);padding:5px 9px;border-radius:999px}
 .pill.Pending{background:var(--wait-soft);color:var(--wait)}
@@ -1298,12 +1306,51 @@ function wireAlg(items, after){
   });
 }
 async function admAllergo(){
+  if (S.algView === 'year') return admLeaveYear();
   loadingA();
   try { drawAdmAllergo(await call('getAllergo', S.token)); } catch(e){ fail(e); }
 }
+const algSwitch = () => `<div class="chips" style="margin:0 0 12px"><button class="chip" data-algv="list" aria-pressed="${S.algView !== 'year'}">To submit</button><button class="chip" data-algv="year" aria-pressed="${S.algView === 'year'}">MC, UL &amp; NPL by year</button></div>`;
+const wireAlgSwitch = () => A().querySelectorAll('[data-algv]').forEach(b => b.onclick = () => { S.algView = b.dataset.algv; admAllergo(); });
+/* MC (red), UL (yellow) and NPL (blue) per person, 1 Jan to 31 Dec. Everyone except backup medics. */
+const LY_COL = { MC: '#d93a32', UL: '#eda100', NPL: '#2a78d6' }, LY_INK = { MC: '#fff', UL: '#17212B', NPL: '#fff' };
+async function admLeaveYear(refresh, btn){
+  S.lyYear = S.lyYear || S.today.slice(0, 4);
+  if (btn) busy(btn, true); else loadingA();
+  try { drawLeaveYear(await call('getLeaveYear', S.token, S.lyYear, !!refresh)); if (btn) toast('Updated'); } catch(e){ fail(e); if (btn) busy(btn, false); }
+}
+function drawLeaveYear(d){
+  const cats = d.cats || ['MC', 'UL', 'NPL'];
+  const rows = (d.rows || []).slice().sort((a, b) => b.total - a.total || (a.name < b.name ? -1 : 1));
+  const mx = Math.max(1, ...rows.map(r => r.total));
+  const fmtD = v => (Math.round(v * 10) / 10).toString();
+  const tot = c => rows.reduce((a, r) => a + r[c].days, 0);
+  const bar = r => !r.total ? '<span class="lyz">none</span>' : cats.filter(c => r[c].days).map(c =>
+      `<span class="lyseg" style="width:calc(${r[c].days / mx * 100}% - 2px);background:${LY_COL[c]};color:${LY_INK[c]}" title="${c}: ${fmtD(r[c].days)} day${r[c].days === 1 ? '' : 's'}">${fmtD(r[c].days)}</span>`).join('')
+    + `<span class="lyval"><b>${fmtD(r.total)}</b> day${r.total === 1 ? '' : 's'}</span>`;
+  const note = !d.firstTab ? `No weekly tabs found for ${esc(d.year)} yet.` : d.firstTab > d.from ? `Counted from the weekly tabs: the first one for ${esc(d.year)} starts ${esc(nice(d.firstTab))}, so days before that are not in the count.` : '';
+  A().innerHTML = algSwitch() + `<div class="wkbar"><button class="btn ghost" id="ly-pv">&lsaquo; ${+d.year - 1}</button><h2>${esc(d.year)}</h2><button class="btn ghost" id="ly-nx">${+d.year + 1} &rsaquo;</button></div>
+    <div class="ttiles" style="grid-template-columns:repeat(3,1fr)">${cats.map(c => `<div class="ts-na"><b>${fmtD(tot(c))}</b>${c} days</div>`).join('')}</div>
+    <div class="sec lyc"><h3 style="margin:0">MC, UL and NPL days per person</h3>
+      <p class="small muted" style="margin:2px 0 8px">1 Jan to 31 Dec ${esc(d.year)} &middot; most first &middot; the number in each colour is that type's days. Tap a name for the dates.</p>
+      <div class="lylg">${cats.map(c => `<span><i style="background:${LY_COL[c]}"></i>${c}</span>`).join('')}</div>
+      ${rows.map((r, i) => `<button type="button" class="lyr" data-ly="${i}"><span class="lynm">${esc(titleCase(r.name))}</span><span class="lytr">${bar(r)}</span></button><div class="lyd" id="lyd-${i}" hidden>${r.list.length ? r.list.map(x =>
+        `<div><span class="lydot" style="background:${LY_COL[x.cat]}"></span><b>${esc(x.cat)}</b> ${esc(span(x.start, x.end))}${x.half ? ' (' + esc(x.half) + ')' : ''} &middot; ${fmtD(x.days)} day${x.days === 1 ? '' : 's'}${x.reason ? ' &middot; ' + esc(x.reason) : ''}</div>`).join('') : '<div class="muted">No MC, UL or NPL this year.</div>'}</div>`).join('')}</div>
+    <div class="sec"><h3 style="margin-top:0">Table</h3><p class="small muted" style="margin:0 0 6px">Days, and how many separate times (a 3-day MC is 3 days, 1 time).</p>
+      <div class="scroll"><table class="t lyt"><tr><th>Name</th>${cats.map(c => `<th>${c} days</th><th>${c} times</th>`).join('')}</tr>
+      ${rows.map(r => `<tr><td>${esc(titleCase(r.name))}</td>${cats.map(c => `<td>${fmtD(r[c].days)}</td><td>${r[c].times}</td>`).join('')}</tr>`).join('')}</table></div></div>
+    ${note ? `<p class="small muted">${note}</p>` : ''}
+    <p class="small muted">From the MC, UL and OTHERS (NPL) rows of the weekly tabs, plus leave marked in the app for weeks with no tab yet. Half days count as 0.5. Updated ${esc(d.updated || '')}.</p>
+    <button class="btn ghost" id="ly-r">Update now</button>`;
+  wireAlgSwitch();
+  $('#ly-pv').onclick = () => { S.lyYear = String(+d.year - 1); admLeaveYear(); };
+  $('#ly-nx').onclick = () => { S.lyYear = String(+d.year + 1); admLeaveYear(); };
+  $('#ly-r').onclick = e => admLeaveYear(true, e.target);
+  A().querySelectorAll('[data-ly]').forEach(b => b.onclick = () => { const x = $('#lyd-' + b.dataset.ly); x.hidden = !x.hidden; });
+}
 function drawAdmAllergo(d){
   const open = d.items.filter(x => !x.ticked), late = open.filter(x => x.state === 'late'), done = d.items.filter(x => x.ticked);
-  A().innerHTML = `<div class="ttiles" style="grid-template-columns:repeat(3,1fr)"><div class="ts-todo"><b>${open.length}</b>Not submitted</div>
+  A().innerHTML = algSwitch() + `<div class="ttiles" style="grid-template-columns:repeat(3,1fr)"><div class="ts-todo"><b>${open.length}</b>Not submitted</div>
       <div class="ts-fail"><b>${late.length}</b>Overdue (7 days)</div><div class="ts-done"><b>${done.length}</b>Submitted this month</div></div>
     ${open.length ? `<h3>Not submitted in Allergo</h3>${open.map(x => algRow(x, true)).join('')}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn go" id="ag-wa">WhatsApp reminder</button><button class="btn ghost" id="ag-rf">Refresh</button></div>`
@@ -1311,6 +1358,7 @@ function drawAdmAllergo(d){
     ${done.length ? `<h3>Submitted this month</h3>${done.map(x => algRow(x, true)).join('')}` : ''}
     <p class="small muted" style="margin-top:10px">Each person ticks their own on My Deploy or in Requests, once they've submitted it in Allergo. You can also tap <b>Mark submitted</b> here for them, and <b>Undo</b> a tick made by mistake. Due 7 days after it was applied for (or marked, for MC / UL).</p>`;
   $('#ag-rf').onclick = () => admAllergo();
+  wireAlgSwitch();
   // Admin / Manager: mark it submitted for them (e.g. they told you, or you submitted it), or undo a tick made by mistake
   A().querySelectorAll('[data-aga]').forEach(b => b.onclick = async () => {
     const x = d.items.find(i => i.keys.join('|') === b.dataset.aga); if (!x) return;
@@ -3215,7 +3263,46 @@ function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), 
 
 async function admPending(){
   loadingA();
-  try { drawPending(A(), await call('adminPending', S.token), admPending); } catch(e){ fail(e); }
+  try {
+    const [list, acts] = await Promise.all([call('adminPending', S.token), call('adminActions', S.token).catch(() => null)]);
+    A().innerHTML = '<div id="acts"></div><div id="preq"></div>';
+    drawActions($('#acts'), acts);
+    drawPending($('#preq'), list, admPending, acts && (acts.rs.length || acts.allergo.length) ? '<div class="sec"><p>No requests waiting.</p></div>' : undefined);
+  } catch(e){ fail(e); }
+}
+/* "Needs updating": RS not yet changed to MC (or taken off), and Allergo past the 7 days */
+function drawActions(box, a){
+  if (!box || !a || (!a.rs.length && !a.allergo.length)) { if (box) box.innerHTML = ''; return; }
+  const rsCard = (r, i) => `<div class="actr"><div class="tx"><b>${esc(titleCase(r.name))} <span class="pill awp">RS</span></b>
+      <span>Reported sick ${esc(span(r.start, r.end))}${r.days > 1 ? ' (' + r.days + ' days)' : ''}${r.reason ? ', ' + esc(r.reason) : ''}</span>
+      <span class="small muted">Still RS: update to MC once the MC is in, or remove RS if no MC.</span></div>
+    <div class="acts2"><button class="btn ib" data-rsmc="${i}">Got MC</button><button class="btn ghost ib" data-rsx="${i}">Remove RS</button></div></div>`;
+  box.innerHTML = `<h3 style="margin-top:0">Needs updating <span class="muted" style="font-weight:500">(${a.rs.length + (a.allergo.length ? 1 : 0)})</span></h3>
+    ${a.rs.map(rsCard).join('')}
+    ${a.allergo.length ? `<div class="actr"><div class="tx"><b>Allergo overdue (${a.allergo.length})</b>
+      <span>${esc(a.allergo.map(x => titleCase(x.name) + ' ' + x.type + ' ' + span(x.start, x.end)).join('; '))}</span>
+      <span class="small muted">Past the 7 days and not submitted in Allergo.</span></div>
+      <div class="acts2"><button class="btn ghost ib" id="act-alg">Open Allergo</button></div></div>` : ''}
+    <h3>Requests</h3>`;
+  box.querySelectorAll('[data-rsmc]').forEach(b => b.onclick = async () => {
+    const r = a.rs[+b.dataset.rsmc];
+    const lv = await askRange('MC for ' + r.name + ' (was RS)', r.start, r.reason || '', 'Reason (shown in the attendance message)');
+    if (!lv) return;
+    busy(b, true);
+    try { const res = await call('adminRsToMc', S.token, r.start, r.name, lv.start, lv.end, lv.remark); S.cache = {};
+      toast(r.name + ': RS changed to MC ' + span(lv.start, lv.end) + pulledTxt(res.pulled)); admPending(); }
+    catch(x){ fail(x); busy(b, false); }
+  });
+  box.querySelectorAll('[data-rsx]').forEach(b => b.onclick = async () => {
+    const r = a.rs[+b.dataset.rsx];
+    const ok = await askBox('Remove RS?', `<b style="font-size:17px">${esc(titleCase(r.name))}</b><br>RS ${esc(span(r.start, r.end))}<br><span class="muted">Taken off the attendance and the weekly tab, as if it was never marked.</span>`, 'Yes, remove');
+    if (!ok) return;
+    busy(b, true);
+    try { for (let d = r.start; d <= r.end; d = addD(d, 1)) await call('adminClearAway', S.token, d, r.name, 'day');
+      S.cache = {}; toast(r.name + ': RS removed'); admPending(); }
+    catch(x){ fail(x); busy(b, false); }
+  });
+  if ($('#act-alg', box)) $('#act-alg', box).onclick = () => { S.adminTab = 'alg'; viewAdmin(); };
 }
 /* Requests waiting for approval, drawn into any box (Admin, Pending or the top of Requests) */
 function drawPending(box, list, reload, emptyHtml){
@@ -4568,6 +4655,19 @@ const MOCK = (() => {
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
+    getLeaveYear: (t, y) => { y = String(y || today.slice(0, 4)); const cats = ['MC','UL','NPL'];
+      const ppl = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic');
+      const st = MOCK.adminAwayList(t, y + '-01-01', 366).rows.filter(r => cats.includes(r.cat));
+      if (y === '2026') [['ARIF','MC','2026-03-02','2026-03-03','Fever'],['LEONARD','MC','2026-05-11','2026-05-13','Back pain'],['CHEW','UL','2026-06-15','2026-06-15',''],['WONG','UL','2026-07-20','2026-07-21',''],['LIM','NPL','2026-08-24','2026-08-28',''],['LEONARD','UL','2026-09-07','2026-09-07',''],['FAIRUZ','MC','2026-04-06','2026-04-06','Flu']]
+        .forEach(([n, c, a, b, why]) => { let k = 0; for (let d = a; d <= b; d = addD(d, 1)) if (dowIdx(d) < 5) k++; st.push({ name: n, cat: c, start: a, end: b, days: k, reason: why }); });
+      const rows = ppl.map(p => { const o = { name: p.name, role: p.role }; const mine = st.filter(r => r.name === p.name);
+        cats.forEach(c => { const m = mine.filter(r => r.cat === c); o[c] = { days: m.reduce((a, r) => a + r.days, 0), times: m.length }; });
+        o.list = mine.sort((a, b) => a.start < b.start ? -1 : 1).map(r => ({ cat: r.cat, start: r.start, end: r.end, days: r.days, half: '', reason: r.reason || '' }));
+        o.total = cats.reduce((a, c) => a + o[c].days, 0); return o; });
+      return { year: y, from: y + '-01-01', to: y + '-12-31', cats, rows, firstTab: y === '2026' ? '2026-01-05' : '', lastTab: '', updated: today + ' 16:40' }; },
+    adminActions: () => { const rs = [];
+      Object.keys(attStore).forEach(k => { const [d, n] = k.split('|'); if (attStore[k].status === 'RS' && d <= today && d >= addD(today, -30)) rs.push({ kind: 'rs', name: n, start: d, end: d, days: 1, reason: attStore[k].reason || '' }); });
+      return { today, rs, allergo: mAlg.filter(x => !x.ticked && today > x.due).map(x => ({ name: x.name, type: x.type, start: x.start, end: x.end, due: x.due })) }; },
     adminAwayList: (t, from, n) => { const to = addD(from, (n || 28) - 1), scan = addD(from, -35), hit = {}, LBL = { AL:'Annual Leave', MC:'Medical Certificate', OIL:'Off In Lieu', UL:'Urgent Leave', HL:'Hospitalisation Leave', NPL:'No Pay Leave', RS:'Report Sick', MA:'Medical Appointment', CCL:'Childcare Leave', COURSE:'Course', ICT:'ICT', CL:'Compassionate Leave' };
       for (let ds = scan; ds <= to; ds = addD(ds, 1)) { const d = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)]; if (!d) continue;
         (d.absences || []).forEach(a => { let c = String(a.label).toUpperCase().replace(/\s+/g, ''); if (['IPPT/TRGETC','LIBTEST','ORIENTATION','OFFDAYEARNED'].includes(c)) return;
