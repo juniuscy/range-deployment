@@ -1306,12 +1306,12 @@ function wireAlg(items, after){
   });
 }
 async function admAllergo(){
-  if (S.algView === 'year') return admLeaveYear();
   loadingA();
   try { drawAdmAllergo(await call('getAllergo', S.token)); } catch(e){ fail(e); }
 }
-const algSwitch = () => `<div class="chips" style="margin:0 0 12px"><button class="chip" data-algv="list" aria-pressed="${S.algView !== 'year'}">To submit</button><button class="chip" data-algv="year" aria-pressed="${S.algView === 'year'}">MC, UL &amp; NPL by year</button></div>`;
-const wireAlgSwitch = () => A().querySelectorAll('[data-algv]').forEach(b => b.onclick = () => { S.algView = b.dataset.algv; admAllergo(); });
+/* Away List has two views: the list (from when to when) and MC, UL & NPL by year */
+const awaySwitch = () => `<div class="chips" style="margin:0 0 12px"><button class="chip" data-awv="list" aria-pressed="${S.awayView !== 'year'}">Who is away</button><button class="chip" data-awv="year" aria-pressed="${S.awayView === 'year'}">MC, UL &amp; NPL by year</button></div>`;
+const wireAwaySwitch = () => A().querySelectorAll('[data-awv]').forEach(b => b.onclick = () => { S.awayView = b.dataset.awv; admAway(); });
 /* MC (red), UL (yellow) and NPL (blue) per person, 1 Jan to 31 Dec. Everyone except backup medics. */
 const LY_COL = { MC: '#d93a32', UL: '#eda100', NPL: '#2a78d6' }, LY_INK = { MC: '#fff', UL: '#17212B', NPL: '#fff' };
 async function admLeaveYear(refresh, btn){
@@ -1329,7 +1329,7 @@ function drawLeaveYear(d){
       `<span class="lyseg" style="width:calc(${r[c].days / mx * 100}% - 2px);background:${LY_COL[c]};color:${LY_INK[c]}" title="${c}: ${fmtD(r[c].days)} day${r[c].days === 1 ? '' : 's'}">${fmtD(r[c].days)}</span>`).join('')
     + `<span class="lyval"><b>${fmtD(r.total)}</b> day${r.total === 1 ? '' : 's'}</span>`;
   const note = !d.firstTab ? `No weekly tabs found for ${esc(d.year)} yet.` : d.firstTab > d.from ? `Counted from the weekly tabs: the first one for ${esc(d.year)} starts ${esc(nice(d.firstTab))}, so days before that are not in the count.` : '';
-  A().innerHTML = algSwitch() + `<div class="wkbar"><button class="btn ghost" id="ly-pv">&lsaquo; ${+d.year - 1}</button><h2>${esc(d.year)}</h2><button class="btn ghost" id="ly-nx">${+d.year + 1} &rsaquo;</button></div>
+  A().innerHTML = awaySwitch() + `<div class="wkbar"><button class="btn ghost" id="ly-pv">&lsaquo; ${+d.year - 1}</button><h2>${esc(d.year)}</h2><button class="btn ghost" id="ly-nx">${+d.year + 1} &rsaquo;</button></div>
     <div class="ttiles" style="grid-template-columns:repeat(3,1fr)">${cats.map(c => `<div class="ts-na"><b>${fmtD(tot(c))}</b>${c} days</div>`).join('')}</div>
     <div class="sec lyc"><h3 style="margin:0">MC, UL and NPL days per person</h3>
       <p class="small muted" style="margin:2px 0 8px">1 Jan to 31 Dec ${esc(d.year)} &middot; most first &middot; the number in each colour is that type's days. Tap a name for the dates.</p>
@@ -1342,7 +1342,7 @@ function drawLeaveYear(d){
     ${note ? `<p class="small muted">${note}</p>` : ''}
     <p class="small muted">From the MC, UL and OTHERS (NPL) rows of the weekly tabs, plus leave marked in the app for weeks with no tab yet. Half days count as 0.5. Updated ${esc(d.updated || '')}.</p>
     <button class="btn ghost" id="ly-r">Update now</button>`;
-  wireAlgSwitch();
+  wireAwaySwitch();
   $('#ly-pv').onclick = () => { S.lyYear = String(+d.year - 1); admLeaveYear(); };
   $('#ly-nx').onclick = () => { S.lyYear = String(+d.year + 1); admLeaveYear(); };
   $('#ly-r').onclick = e => admLeaveYear(true, e.target);
@@ -1350,7 +1350,7 @@ function drawLeaveYear(d){
 }
 function drawAdmAllergo(d){
   const open = d.items.filter(x => !x.ticked), late = open.filter(x => x.state === 'late'), done = d.items.filter(x => x.ticked);
-  A().innerHTML = algSwitch() + `<div class="ttiles" style="grid-template-columns:repeat(3,1fr)"><div class="ts-todo"><b>${open.length}</b>Not submitted</div>
+  A().innerHTML = `<div class="ttiles" style="grid-template-columns:repeat(3,1fr)"><div class="ts-todo"><b>${open.length}</b>Not submitted</div>
       <div class="ts-fail"><b>${late.length}</b>Overdue (7 days)</div><div class="ts-done"><b>${done.length}</b>Submitted this month</div></div>
     ${open.length ? `<h3>Not submitted in Allergo</h3>${open.map(x => algRow(x, true)).join('')}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn go" id="ag-wa">WhatsApp reminder</button><button class="btn ghost" id="ag-rf">Refresh</button></div>`
@@ -1358,7 +1358,6 @@ function drawAdmAllergo(d){
     ${done.length ? `<h3>Submitted this month</h3>${done.map(x => algRow(x, true)).join('')}` : ''}
     <p class="small muted" style="margin-top:10px">Each person ticks their own on My Deploy or in Requests, once they've submitted it in Allergo. You can also tap <b>Mark submitted</b> here for them, and <b>Undo</b> a tick made by mistake. Due 7 days after it was applied for (or marked, for MC / UL).</p>`;
   $('#ag-rf').onclick = () => admAllergo();
-  wireAlgSwitch();
   // Admin / Manager: mark it submitted for them (e.g. they told you, or you submitted it), or undo a tick made by mistake
   A().querySelectorAll('[data-aga]').forEach(b => b.onclick = async () => {
     const x = d.items.find(i => i.keys.join('|') === b.dataset.aga); if (!x) return;
@@ -4077,6 +4076,7 @@ async function openAutoFill(wk){
 }
 /* Admin > Away List: who is away, from when to when (read from the weekly tabs' leave rows) */
 async function admAway(){
+  if (S.awayView === 'year') return admLeaveYear();
   S.awayFrom = S.awayFrom || S.today; S.awayDays = S.awayDays || 28;
   loadingA();
   try { drawAway(await call('adminAwayList', S.token, S.awayFrom, S.awayDays)); } catch(e){ fail(e); }
@@ -4093,12 +4093,13 @@ function drawAway(d){
       <div>${esc(span(r.start, r.end))}${r.half ? ' (' + esc(r.half) + ')' : ''} <span class="muted">&middot; ${r.days} day${r.days === 1 ? '' : 's'}</span></div>
       ${(r.label && r.label !== r.cat) || det ? `<div class="small muted">${[r.label !== r.cat ? esc(r.label) : '', det ? esc(det) : ''].filter(Boolean).join(' &middot; ')}</div>` : ''}</div>`; };
   const sec = (h, xs, none) => `<h3 style="margin:16px 0 8px">${h} <span class="muted" style="font-weight:500">(${xs.length})</span></h3>` + (xs.length ? xs.map(card).join('') : `<p class="small muted">${none}</p>`);
-  A().innerHTML = `<p class="small muted">Who is away and from when to when, read from the leave rows of the weekly tabs (plus leave marked in the app for weeks that have no tab yet).</p>
+  A().innerHTML = awaySwitch() + `<p class="small muted">Who is away and from when to when, read from the leave rows of the weekly tabs (plus leave marked in the app for weeks that have no tab yet).</p>
     <div class="row2"><label class="f"><span>From</span><input type="date" id="aw-f" value="${esc(S.awayFrom)}"></label>
       <label class="f"><span>Period</span><select id="aw-d">${[[14,'2 weeks'],[28,'4 weeks'],[56,'8 weeks'],[91,'3 months']].map(([v, l]) => `<option value="${v}"${v === S.awayDays ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <p class="small muted" style="margin:-4px 0 8px">${esc(nice(d.from))} to ${esc(nice(d.to))}</p>
     ${cats.length > 1 ? `<div class="chips" style="margin-bottom:6px"><button class="chip" data-awt="" aria-pressed="${!S.awayType}">All</button>${cats.map(c => `<button class="chip" data-awt="${esc(c)}" aria-pressed="${c === S.awayType}">${esc(c)}</button>`).join('')}</div>` : ''}
     ${sec('Away today', now, 'Nobody is away today.')}${sec('Coming up', next, 'Nothing coming up in this period.')}${past.length ? sec('Earlier in this period', past, '') : ''}`;
+  wireAwaySwitch();
   $('#aw-f').onchange = e => { if (e.target.value) { S.awayFrom = e.target.value; admAway(); } };
   $('#aw-d').onchange = e => { S.awayDays = +e.target.value; admAway(); };
   A().querySelectorAll('[data-awt]').forEach(b => b.onclick = () => { S.awayType = b.dataset.awt; drawAway(d); });
