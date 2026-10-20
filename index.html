@@ -1313,34 +1313,43 @@ async function admAllergo(){
 const awaySwitch = () => `<div class="chips" style="margin:0 0 12px"><button class="chip" data-awv="list" aria-pressed="${S.awayView !== 'year'}">Who is away</button><button class="chip" data-awv="year" aria-pressed="${S.awayView === 'year'}">MC, UL &amp; NPL by year</button></div>`;
 const wireAwaySwitch = () => A().querySelectorAll('[data-awv]').forEach(b => b.onclick = () => { S.awayView = b.dataset.awv; admAway(); });
 /* MC (red), UL (yellow) and NPL (blue) per person, 1 Jan to 31 Dec. Everyone except backup medics. */
-const LY_COL = { MC: '#d93a32', UL: '#eda100', NPL: '#2a78d6' }, LY_INK = { MC: '#fff', UL: '#17212B', NPL: '#fff' };
+const LY_COL = { MC: '#d93a32', UL: '#eda100', NPL: '#2a78d6', LATE: '#e87ba4' }, LY_INK = { MC: '#fff', UL: '#17212B', NPL: '#fff', LATE: '#17212B' };
 async function admLeaveYear(refresh, btn){
   S.lyYear = S.lyYear || S.today.slice(0, 4);
   if (btn) busy(btn, true); else loadingA();
   try { drawLeaveYear(await call('getLeaveYear', S.token, S.lyYear, !!refresh)); if (btn) toast('Updated'); } catch(e){ fail(e); if (btn) busy(btn, false); }
 }
 function drawLeaveYear(d){
-  const cats = d.cats || ['MC', 'UL', 'NPL'];
-  const rows = (d.rows || []).slice().sort((a, b) => b.total - a.total || (a.name < b.name ? -1 : 1));
-  const mx = Math.max(1, ...rows.map(r => r.total));
+  // one chart: MC, UL, NPL and Present (Late) days, each in its own colour, in one bar per person
+  const cats = (d.cats || ['MC', 'UL', 'NPL']).concat(['LATE']);
+  const lbl = c => c === 'LATE' ? 'Late' : c;
   const fmtD = v => (Math.round(v * 10) / 10).toString();
+  (d.rows || []).forEach(r => {
+    r.LATE = r.LATE || { days: 0, times: 0 }; r.lateList = r.lateList || [];
+    r.all = cats.reduce((a, c) => a + r[c].days, 0);
+    r.items = r.list.concat(r.lateList.map(x => ({ cat: 'LATE', start: x.date, end: x.date, days: 1, at: x.at }))).sort((a, b) => a.start < b.start ? -1 : 1);
+  });
+  const rows = (d.rows || []).slice().sort((a, b) => b.all - a.all || (a.name < b.name ? -1 : 1));
+  const mx = Math.max(1, ...rows.map(r => r.all));
   const tot = c => rows.reduce((a, r) => a + r[c].days, 0);
-  const bar = r => !r.total ? '<span class="lyz">none</span>' : cats.filter(c => r[c].days).map(c =>
-      `<span class="lyseg" style="width:calc(${r[c].days / mx * 100}% - 2px);background:${LY_COL[c]};color:${LY_INK[c]}" title="${c}: ${fmtD(r[c].days)} day${r[c].days === 1 ? '' : 's'}">${fmtD(r[c].days)}</span>`).join('')
-    + `<span class="lyval"><b>${fmtD(r.total)}</b> day${r.total === 1 ? '' : 's'}</span>`;
+  const bar = r => !r.all ? '<span class="lyz">none</span>' : cats.filter(c => r[c].days).map(c =>
+      `<span class="lyseg" style="width:calc(${r[c].days / mx * 100}% - 2px);background:${LY_COL[c]};color:${LY_INK[c]}" title="${lbl(c)}: ${fmtD(r[c].days)} day${r[c].days === 1 ? '' : 's'}">${fmtD(r[c].days)}</span>`).join('')
+    + `<span class="lyval"><b>${fmtD(r.all)}</b> day${r.all === 1 ? '' : 's'}</span>`;
+  const item = x => x.cat === 'LATE'
+    ? `<div><span class="lydot" style="background:${LY_COL.LATE}"></span><b>Late</b> ${esc(nice(x.start))}${x.at ? ' &middot; in at ' + esc(hrs(x.at)) : ' &middot; marked Present (Late)'}</div>`
+    : `<div><span class="lydot" style="background:${LY_COL[x.cat]}"></span><b>${esc(x.cat)}</b> ${esc(span(x.start, x.end))}${x.half ? ' (' + esc(x.half) + ')' : ''} &middot; ${fmtD(x.days)} day${x.days === 1 ? '' : 's'}${x.reason ? ' &middot; ' + esc(x.reason) : ''}</div>`;
   const note = !d.firstTab ? `No weekly tabs found for ${esc(d.year)} yet.` : d.firstTab > d.from ? `Counted from the weekly tabs: the first one for ${esc(d.year)} starts ${esc(nice(d.firstTab))}, so days before that are not in the count.` : '';
   A().innerHTML = awaySwitch() + `<div class="wkbar"><button class="btn ghost" id="ly-pv">&lsaquo; ${+d.year - 1}</button><h2>${esc(d.year)}</h2><button class="btn ghost" id="ly-nx">${+d.year + 1} &rsaquo;</button></div>
-    <div class="ttiles" style="grid-template-columns:repeat(3,1fr)">${cats.map(c => `<div class="ts-na"><b>${fmtD(tot(c))}</b>${c} days</div>`).join('')}</div>
-    <div class="sec lyc"><h3 style="margin:0">MC, UL and NPL days per person</h3>
+    <div class="ttiles" style="grid-template-columns:repeat(4,1fr)">${cats.map(c => `<div class="ts-na"><b>${fmtD(tot(c))}</b>${lbl(c)} days</div>`).join('')}</div>
+    <div class="sec lyc"><h3 style="margin:0">MC, UL, NPL and Late days per person</h3>
       <p class="small muted" style="margin:2px 0 8px">1 Jan to 31 Dec ${esc(d.year)} &middot; most first &middot; the number in each colour is that type's days. Tap a name for the dates.</p>
-      <div class="lylg">${cats.map(c => `<span><i style="background:${LY_COL[c]}"></i>${c}</span>`).join('')}</div>
-      ${rows.map((r, i) => `<button type="button" class="lyr" data-ly="${i}"><span class="lynm">${esc(titleCase(r.name))}</span><span class="lytr">${bar(r)}</span></button><div class="lyd" id="lyd-${i}" hidden>${r.list.length ? r.list.map(x =>
-        `<div><span class="lydot" style="background:${LY_COL[x.cat]}"></span><b>${esc(x.cat)}</b> ${esc(span(x.start, x.end))}${x.half ? ' (' + esc(x.half) + ')' : ''} &middot; ${fmtD(x.days)} day${x.days === 1 ? '' : 's'}${x.reason ? ' &middot; ' + esc(x.reason) : ''}</div>`).join('') : '<div class="muted">No MC, UL or NPL this year.</div>'}</div>`).join('')}</div>
+      <div class="lylg">${cats.map(c => `<span><i style="background:${LY_COL[c]}"></i>${lbl(c)}</span>`).join('')}</div>
+      ${rows.map((r, i) => `<button type="button" class="lyr" data-ly="${i}"><span class="lynm">${esc(titleCase(r.name))}</span><span class="lytr">${bar(r)}</span></button><div class="lyd" id="lyd-${i}" hidden>${r.items.length ? r.items.map(item).join('') : '<div class="muted">No MC, UL, NPL or late this year.</div>'}</div>`).join('')}</div>
     <div class="sec"><h3 style="margin-top:0">Table</h3><p class="small muted" style="margin:0 0 6px">Days, and how many separate times (a 3-day MC is 3 days, 1 time).</p>
-      <div class="scroll"><table class="t lyt"><tr><th>Name</th>${cats.map(c => `<th>${c} days</th><th>${c} times</th>`).join('')}</tr>
-      ${rows.map(r => `<tr><td>${esc(titleCase(r.name))}</td>${cats.map(c => `<td>${fmtD(r[c].days)}</td><td>${r[c].times}</td>`).join('')}</tr>`).join('')}</table></div></div>
+      <div class="scroll"><table class="t lyt"><tr><th>Name</th>${cats.map(c => c === 'LATE' ? '<th>Late days</th>' : `<th>${c} days</th><th>${c} times</th>`).join('')}</tr>
+      ${rows.map(r => `<tr><td>${esc(titleCase(r.name))}</td>${cats.map(c => c === 'LATE' ? `<td>${r.LATE.days}</td>` : `<td>${fmtD(r[c].days)}</td><td>${r[c].times}</td>`).join('')}</tr>`).join('')}</table></div></div>
     ${note ? `<p class="small muted">${note}</p>` : ''}
-    <p class="small muted">From the MC, UL and OTHERS (NPL) rows of the weekly tabs, plus leave marked in the app for weeks with no tab yet. Half days count as 0.5. Updated ${esc(d.updated || '')}.</p>
+    <p class="small muted">MC, UL and NPL from the weekly tabs (MC, UL and OTHERS rows), plus leave marked in the app for weeks with no tab yet; half days count as 0.5. Late = marked Present (Late) in Attendance, or clocked in after ${esc(hrs(d.lateAfter || '07:45'))} (after their report time on EXT / PM days). Updated ${esc(d.updated || '')}.</p>
     <button class="btn ghost" id="ly-r">Update now</button>`;
   wireAwaySwitch();
   $('#ly-pv').onclick = () => { S.lyYear = String(+d.year - 1); admLeaveYear(); };
@@ -4119,7 +4128,7 @@ function drawDuty(d){
   // per role column: highest count red, lowest green, among APOs who did that role at least once (helps balancing)
   const ext = head.map((h, i) => { if (!i || isMon(h)) return null; const v = rows.map(r => r[i]).filter(x => x > 0);
     return v.length > 1 ? { hi: Math.max.apply(null, v), lo: Math.min.apply(null, v) } : null; });
-  A().innerHTML = `<p class="small muted">Counted from ${esc(nice(d.from || '2026-10-01'))} ${esc(String(d.from || '2026').slice(0, 4))} to ${esc(nice(d.to))}: days and roles per person, from the weekly tabs. Red = most in that column, green = fewest. Updated ${esc(d.updated || '')}.</p>
+  A().innerHTML = `<p class="small muted">Counted from ${esc(nice(d.from || '2026-10-01'))} ${esc(String(d.from || '2026').slice(0, 4))} to ${esc(nice(d.to))}: APO Supervisor, APO, Non-APO and medics only. Days and roles per person, from the weekly tabs. Red = most in that column, green = fewest. Updated ${esc(d.updated || '')}.</p>
     <div class="note blue small" style="margin:0 0 10px">Also in the sheet: <b>App Duty Count</b> (this table) and <b>App Duty Log</b> (every posting, one row per person per day, easy to filter). Both are rebuilt every night.</div>
     <div class="scroll" style="max-height:70vh;border:1px solid var(--line);border-radius:var(--r-md)"><table class="dct"><thead><tr>${head.map(h => `<th class="${cls(h)}">${esc(h)}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(r => `<tr>${r.map((v, i) => !i ? `<td><b>${esc(titleCase(v))}</b></td>` : `<td class="${!v ? 'z' : ext[i] && v === ext[i].hi && ext[i].hi !== ext[i].lo ? 'hi' : ext[i] && v === ext[i].lo && ext[i].hi !== ext[i].lo ? 'lo' : ''}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
@@ -4664,8 +4673,10 @@ const MOCK = (() => {
       const rows = ppl.map(p => { const o = { name: p.name, role: p.role }; const mine = st.filter(r => r.name === p.name);
         cats.forEach(c => { const m = mine.filter(r => r.cat === c); o[c] = { days: m.reduce((a, r) => a + r.days, 0), times: m.length }; });
         o.list = mine.sort((a, b) => a.start < b.start ? -1 : 1).map(r => ({ cat: r.cat, start: r.start, end: r.end, days: r.days, half: '', reason: r.reason || '' }));
-        o.total = cats.reduce((a, c) => a + o[c].days, 0); return o; });
-      return { year: y, from: y + '-01-01', to: y + '-12-31', cats, rows, firstTab: y === '2026' ? '2026-01-05' : '', lastTab: '', updated: today + ' 16:40' }; },
+        o.total = cats.reduce((a, c) => a + o[c].days, 0);
+        const lt = { ARIF: ['2026-02-10','2026-06-03','2026-10-06'], WONG: ['2026-10-06'], ONG: ['2026-03-17','2026-09-29'], TOH: ['2026-08-11'] }[p.name] || [];
+        o.LATE = { days: y === '2026' ? lt.length : 0, times: y === '2026' ? lt.length : 0 }; o.lateList = y === '2026' ? lt.map(dd => ({ date: dd, at: '07:5' + (dd.length % 9) })) : []; return o; });
+      return { year: y, from: y + '-01-01', to: y + '-12-31', cats, lateAfter: '07:45', rows, firstTab: y === '2026' ? '2026-01-05' : '', lastTab: '', updated: today + ' 16:40' }; },
     adminActions: () => { const rs = [];
       Object.keys(attStore).forEach(k => { const [d, n] = k.split('|'); if (attStore[k].status === 'RS' && d <= today && d >= addD(today, -30)) rs.push({ kind: 'rs', name: n, start: d, end: d, days: 1, reason: attStore[k].reason || '' }); });
       return { today, rs, allergo: mAlg.filter(x => !x.ticked && today > x.due).map(x => ({ name: x.name, type: x.type, start: x.start, end: x.end, due: x.due })) }; },
@@ -4691,10 +4702,11 @@ const MOCK = (() => {
       const mons = Object.keys(per).reduce((a, n) => a.concat(Object.keys(per[n].r).filter(k => /^m\d\d$/.test(k)).map(k => +k.slice(1))), []);
       const ms = MONS.slice(9, +today.slice(5, 7)).map(m => m + ' 2026');
       const wkCols = ['Wkend Range', 'Wkend DAO Main', 'Wkend Reserved', 'Wkend Manager'], c = (n, k) => Object.keys((per[n] && per[n].r[k]) || {}).length;
-      const head = ['Name', 'Days deployed', 'Weekend days', 'EXT / late report days'].concat(roles, wkCols, ms);
-      const names = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic').map(p => p.name);
+      const names = staffList.filter(p => ['APO Supervisor','APO','Non-APO','Medic','Medic Certis'].includes(p.role)).map(p => p.name);
+      const wkU = wkCols.filter(k => k !== 'Wkend Manager' || names.some(n => c(n, k))), rolesU = roles.filter(k => names.some(n => c(n, k)));
+      const head = ['Name', 'Days deployed', 'Weekend days', 'EXT / late report days'].concat(rolesU, wkU, ms);
       return { year: yr, from: '2026-10-01', to: today, updated: today + ' 21:40', head,
-        rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(roles.map(k => c(n, k)), wkCols.map(k => c(n, k)), ms.map(m => c(n, 'm' + String(MONS.indexOf(m.slice(0, 3)) + 1).padStart(2, '0'))))) }; },
+        rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(rolesU.map(k => c(n, k)), wkU.map(k => c(n, k)), ms.map(m => c(n, 'm' + String(MONS.indexOf(m.slice(0, 3)) + 1).padStart(2, '0'))))) }; },
     draftGet: (t, k) => mDrafts[k] ? JSON.parse(JSON.stringify(mDrafts[k])) : null,
     draftSave: (t, k, text, vals) => { if (!String(text || '').trim()) { delete mDrafts[k]; return null; }
       mDrafts[k] = { text, vals: vals || undefined, by: S.me.name, at: today + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'), d: today }; return JSON.parse(JSON.stringify(mDrafts[k])); },
