@@ -2410,20 +2410,27 @@ function busyOn(day){
   day.absences.forEach(a => a.people.forEach(n => b.add(n)));
   return b;
 }
-/* Grouped name list for replacement drop-downs. Managers are always offered as the reserve. */
+/* Full name list for every drop-down that adds or swaps a person, in groups:
+   APO: APO Undeployed | APO Deployed (where) | Managers (Reserve) | Away (why).  Medics: Medics Undeployed | Medics Deployed | Backup Medics | Away. */
 function pickerOptions(day, pool, exclude){
   exclude = exclude || [];
-  const busy = busyOn(day);
+  const away = {};
+  Object.keys(goneOn(day)).forEach(n => { away[n] = 'left'; });
+  day.absences.forEach(a => a.people.forEach(n => { if (!away[n]) away[n] = a.label; }));
+  const where = n => postingsOf(day, n).map(p => p.title).join(', ');
   const by = role => (S.staff || []).filter(p => inRole(p, role) && !exclude.includes(p.name)).map(p => p.name).sort();
-  const grp = (label, names, mark) => names.length ? `<optgroup label="${label}">${names.map(n =>
-    `<option value="${esc(n)}">${esc(n)}${mark && busy.has(n) ? ' (posted or away)' : ''}</option>`).join('')}</optgroup>` : '';
-  const mg = by('Manager');
+  const grp = (label, names, note) => names.length ? `<optgroup label="${label}">${names.map(n => { const w = note ? note(n) : '';
+    return `<option value="${esc(n)}">${esc(n)}${w ? ' (' + esc(w) + ')' : ''}</option>`; }).join('')}</optgroup>` : '';
+  const here = list => list.filter(n => !away[n]);
+  const free = list => here(list).filter(n => !where(n)), posted = list => here(list).filter(n => !!where(n));
   if (pool === 'Medic') {
     const m = by('Medic'), bk = by('Backup Medic');
-    return grp('Undeployed medics', m.filter(n => !busy.has(n))) + grp('Backup medics', bk, true) + grp('Medics posted or away', m.filter(n => busy.has(n)));
+    return grp('Medics Undeployed', free(m)) + grp('Medics Deployed', posted(m), where) + grp('Backup Medics', here(bk), where)
+      + grp('Away', m.concat(bk).filter(n => away[n]), n => away[n]);
   }
-  const a = by('APO');
-  return grp('Undeployed APO', a.filter(n => !busy.has(n))) + grp('Managers (reserve)', mg, true) + grp('APO posted or away', a.filter(n => busy.has(n)));
+  const a = by('APO'), mg = by('Manager');
+  return grp('APO Undeployed', free(a)) + grp('APO Deployed', posted(a), where) + grp('Managers (Reserve)', here(mg), where)
+    + grp('Away', a.concat(mg).filter(n => away[n]), n => away[n]);
 }
 /* Names allowed in a slot: APO slots take APOs (and managers as reserve); medic slots take medics only */
 function namesFor(pool){
@@ -2518,13 +2525,12 @@ function openSlotEditor(wk, day, kind, label){
     <div class="src">${src}</div>
     ${spHtml ? `<div class="sptop">${spHtml}</div>` : ''}
     ${fields.map(([k, l, v]) => `<label class="f"${NAME_KEYS.includes(k) ? ' style="margin-bottom:4px"' : ''}><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${NAME_KEYS.includes(k) ? 'list="ed-names" data-nk="' + k + '"' : ''} autocomplete="off"></label>` +
-      (NAME_KEYS.includes(k) ? `<div class="tags" data-tags="${k}"></div>` : '') +
-      (k === who ? `<label class="f" style="margin-top:2px"><span class="small muted" style="font-weight:600">Add a name from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '')).join('')}
+      (NAME_KEYS.includes(k) ? `<div class="tags" data-tags="${k}"></div><label class="f addto" data-addwrap="${k}" style="margin-top:2px"${k === who && sp0 ? ' hidden' : ''}><select data-addto="${k}" aria-label="Add a name to ${esc(l)}"><option value="">Add a name to ${esc(l)}</option>${pickerOptions(day, pool)}</select></label>` : '')).join('')}
     ${fields.filter(f => NAME_KEYS.includes(f[0])).length > 1 ? `<div class="tgt" id="ed-tgt">Names you tap go to: ${fields.filter(f => NAME_KEYS.includes(f[0])).map(f => `<button class="chip" data-tg="${f[0]}" aria-pressed="${f[0] === who}">${esc(f[1])}</button>`).join('')}</div>` : ''}
     <datalist id="ed-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     <div id="ed-warn"></div>
     ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to add:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-    ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup medics' : 'Managers (reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+    ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup Medics' : 'Managers (Reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     <p class="small muted" style="margin-top:10px">Tap more than one name to post several people. Tap &times; on a name to take it out. Leave blank to clear the slot.</p>
     ${namesIn(fields[0][2]).length && canManage() ? `<button class="btn ghost block" id="ed-abs" style="margin-top:12px">Absent today (MC or urgent leave)? Mark and replace</button>` : ''}
     <div class="acts"><button class="btn ghost" id="ed-x">Cancel</button>${fields[0][2] ? '<button class="btn no" id="ed-un">Undeploy</button>' : ''}<button class="btn" id="ed-ok">Save</button></div></div>`;
@@ -2554,6 +2560,7 @@ function openSlotEditor(wk, day, kind, label){
     on.addEventListener('change', () => setTimeout(() => { const tb = bg.querySelector('[data-tags="' + who + '"]'); if (tb) { tb.hidden = on.checked || !inp.value.trim(); if (!on.checked) inp.dispatchEvent(new Event('input')); } }, 0));
     let beforeSplit = inp.value;
     on.onchange = () => { box.hidden = !on.checked; inp.readOnly = on.checked;
+      const aw = bg.querySelector('[data-addwrap="' + who + '"]'); if (aw) aw.hidden = on.checked;
       if (on.checked) beforeSplit = inp.value; else { inp.value = beforeSplit; warn(); }
       if (on.checked && !lst.am.length && !lst.pm.length && namesIn(inp.value).length) { lst.am = namesIn(inp.value); drawShift('am'); }
       if (on.checked) compose(); };
@@ -2575,16 +2582,17 @@ function openSlotEditor(wk, day, kind, label){
     box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
       const ps2 = parts(el); ps2.splice(+b.dataset.rm.split('|')[1], 1); el.value = ps2.join(' / '); drawTags(k); warn(); });
   };
-  const addName = n => {
-    if (target === who && splitOn()) { toast('Pick AM / PM in the boxes below.'); return; }
-    const el = $('#ed-' + target, bg), ps = parts(el);
+  const addName = (n, k) => {
+    k = k || target;
+    if (k === who && splitOn()) { toast('Pick AM / PM in the extension box.'); return; }
+    const el = $('#ed-' + k, bg), ps = parts(el);
     if (ps.some(x => namesIn(x).includes(n) || x.toUpperCase() === n)) { toast(n + ' is already in.'); return; }
-    ps.push(n); el.value = ps.join(' / '); drawTags(target); warn();
+    ps.push(n); el.value = ps.join(' / '); drawTags(k); warn();
   };
   const setTarget = k => { target = k; bg.querySelectorAll('[data-tg]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tg === k)); };
   bg.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => setTarget(b.dataset.tg));
   bg.querySelectorAll('[data-nk]').forEach(el => { el.addEventListener('input', () => drawTags(el.dataset.nk)); el.addEventListener('focus', () => setTarget(el.dataset.nk)); drawTags(el.dataset.nk); });
-  $('#ed-pick', bg).onchange = e => { if (e.target.value) addName(e.target.value); e.target.value = ''; };
+  bg.querySelectorAll('[data-addto]').forEach(sel => sel.onchange = () => { if (sel.value) addName(sel.value, sel.dataset.addto); sel.value = ''; });
   bg.querySelectorAll('[data-n]').forEach(c => c.onclick = () => addName(c.dataset.n));
   const close = () => bg.remove();
   $('#ed-x', bg).onclick = close;
@@ -2957,7 +2965,7 @@ function openAbsent(o){
         }).join('')}
         <datalist id="ab-names">${namesFor(pool).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
         ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to fill the last box you touched:</p><div class="chips">${free.map(n => `<button class="chip" data-f="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-        ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup medics' : 'Managers (reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-f="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}`
+        ${freeMg.length ? `<p class="small muted" style="margin:10px 0 6px">${pool === 'Medic' ? 'Backup Medics' : 'Managers (Reserve)'}:</p><div class="chips">${freeMg.map(n => `<button class="chip" data-f="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}`
         : `<div class="note blue">${esc(st.name)} has no posting that day, so nothing needs covering.</div>`) : ''}
       <div class="acts"><button class="btn ghost" id="ab-x">Cancel</button><button class="btn" id="ab-ok" ${st.name ? '' : 'disabled'}>${o.requestId ? 'Approve and hand over' : 'Mark absent and hand over'}</button></div></div>`;
     $('#ab-x', bg).onclick = close;
