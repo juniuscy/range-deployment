@@ -3393,8 +3393,8 @@ const ATT_AWAY = ['UL','AL','NPL','MC','RS','MA','CL','ML','PPL','PSPL','HL','CC
 // attendance message lines, in this order (all shown, NIL when no one): [line label, status]; LIB Test / IPPT come from the weekly tab rows
 const ATT_MSG = [['AL','AL'],['UL','UL'],['HL','HL'],['CL','CL'],['ML','ML'],['RS','RS'],['MC','MC'],['MA','MA'],['OIL','OIL'],['CCL','CCL'],['ICT','ICT'],
   ['PPL','PPL'],['PSPL','PSPL'],['Course','Course'],['LIB Test','@LIB Test'],['IPPT / TRG etc','@IPPT / TRG etc'],['OTHERS','Others']];
-const ATT_RANGE = ['ML','PPL','PSPL'];             // picked with From / To dates (saved as a leave record)
-const ATT_LABEL = { RS:'Report Sick', MA:'Medical Appointment', CL:'Compassionate Leave', ML:'Maternity Leave', PPL:'Paid Paternity Leave', PSPL:'Paid Shared Parental Leave' };
+const ATT_RANGE = ['AL','NPL','MC','HL','ML','PPL','PSPL'];   // picked with From / To dates (saved as a leave record)
+const ATT_LABEL = { AL:'Annual Leave', NPL:'No Pay Leave', MC:'Medical Certificate', HL:'Hospitalisation Leave', RS:'Report Sick', MA:'Medical Appointment', CL:'Compassionate Leave', ML:'Maternity Leave', PPL:'Paid Paternity Leave', PSPL:'Paid Shared Parental Leave' };
 const ATT_REASON = ['MC','RS'];                   // statuses that carry a reason (shown in the attendance message)
 const MON_ATT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
 const DAYL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -3547,8 +3547,10 @@ function drawAtt(a){
   });
   A().querySelectorAll('[data-ats]').forEach(sel => sel.onchange = async () => {
     const r0 = a.rows.find(x => x.name === sel.dataset.ats);
-    if (ATT_RANGE.includes(sel.value)) {                // ML / PPL / PSPL: from which date to which date
-      const lv = await askRange(sel.value + ' - ' + ATT_LABEL[sel.value] + ': ' + sel.dataset.ats, a.date);
+    if (ATT_RANGE.includes(sel.value)) {                // AL / NPL / MC / HL / ML / PPL / PSPL: from which date to which date
+      const isMc = sel.value === 'MC';
+      const lv = await askRange(sel.value + ' - ' + ATT_LABEL[sel.value] + ': ' + sel.dataset.ats, a.date,
+        isMc ? (r0 && r0.reason) || '' : '', isMc ? 'Reason for MC (optional, shown in the attendance message)' : '');
       if (!lv) { sel.value = r0 && r0.override || ''; return; }
       sel.disabled = true;
       try {
@@ -4621,7 +4623,7 @@ const MOCK = (() => {
       if (day) day.absences.forEach(a => { if (a.people.includes(n) && a.label.toUpperCase().replace(/\s+/g, '') !== 'OFFDAYEARNED') { a.text = a.text.split(/\s*,\s*/).filter(p => !namesIn(p).includes(n)).join(', '); a.people = a.people.filter(x => x !== n); removed.push(a.label + ' row'); } });
       return Object.assign(mockAtt(d), { removed }); },
     adminRsToMc: (t, d, n, st, en, why) => { MOCK.adminClearAway(t, d, n, 'day'); const res = MOCK.adminAddLeave(t, { name:n, type:'MC', start:st, end:en, remark:why, date:d }); attRec(d, n).reason = why || ''; return Object.assign(mockAtt(d), { pulled: res.pulled }); },
-    adminAddLeave: (t, f) => { const ds = []; for (let d = f.start; d <= f.end; d = addD(d, 1)) { ds.push(d); attRec(d, f.name).status = f.type; }
+    adminAddLeave: (t, f) => { const ds = []; for (let d = f.start; d <= f.end; d = addD(d, 1)) { ds.push(d); attRec(d, f.name).status = f.type; if (f.type === 'MC' && f.remark) attRec(d, f.name).reason = f.remark; }
       reqs.push({ id:'R' + (reqs.length + 9), submitted: today + ' 12:30', name:f.name, type:f.type, typeLabel:({ ML:'Maternity leave', PPL:'Paid paternity leave', PSPL:'Paid shared parental leave', MC:'Medical leave (MC)' })[f.type] || f.type, start:f.start, end:f.end, session:'Full', days:ds.length, reason:f.remark || '', status:'Approved', warnings:[], othersAway:[] });
       return Object.assign(mockAtt(f.date || f.start), { pulled: mPull(f.name, ds), notWritten: [] }); },
     attReason: (t, d, n, why) => { const me = !canManage() || n === S.me.name; attRec(d, me ? S.me.name : n).reason = why || ''; return me ? mockMyAtt(S.me.name) : mockAtt(d); },
