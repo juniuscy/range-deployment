@@ -117,6 +117,7 @@ textarea{min-height:80px;resize:vertical}
 .note{border-left:4px solid var(--wait);background:var(--wait-soft);padding:10px 12px;border-radius:0 var(--r-sm) var(--r-sm) 0;margin:0 0 12px;font-size:15px}
 .note.red{border-color:var(--flag);background:var(--flag-soft)}
 .note.blue{border-color:var(--steel);background:var(--steel-soft)}
+.awr{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px;background:var(--card)}.awh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}.awp{background:#FEF3C7;color:#92400E}
 .pill{display:inline-block;white-space:nowrap;font:600 13px/1 var(--body);padding:5px 9px;border-radius:999px}
 .pill.Pending{background:var(--wait-soft);color:var(--wait)}
 .pill.Approved{background:var(--go-soft);color:var(--go)}
@@ -3180,7 +3181,7 @@ function viewAdmin(){
   const rows = [[['pending','Pending'],['att','Attendance'],['trn','Training'],['lib','LIB']],
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
     [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']],
-    [['duty','Duty Count']]];
+    [['duty','Duty Count'],['away','Away List']]];
   V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
@@ -3192,7 +3193,7 @@ const A = () => $('#adm');
 /* "Loading" placeholder for an Admin sub-tab; skipped on a background refresh so the page does not collapse and jump */
 const loadingA = () => { if (!S.quiet) A().innerHTML = '<div class="loading">Loading\u2026</div>'; };
 /* (re)load the open Admin sub-tab only */
-function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, duty:admDuty, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab](); }
+function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, duty:admDuty, away:admAway, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab](); }
 
 async function admPending(){
   loadingA();
@@ -3969,6 +3970,34 @@ async function openAutoFill(wk){
     } catch(x){ fail(x); busy(e.target, false); }
   };
 }
+/* Admin > Away List: who is away, from when to when (read from the weekly tabs' leave rows) */
+async function admAway(){
+  S.awayFrom = S.awayFrom || S.today; S.awayDays = S.awayDays || 28;
+  loadingA();
+  try { drawAway(await call('adminAwayList', S.token, S.awayFrom, S.awayDays)); } catch(e){ fail(e); }
+}
+function drawAway(d){
+  const rows = d.rows || [], t = d.today || S.today;
+  const cats = [...new Set(rows.map(r => r.cat))];
+  if (S.awayType && !cats.includes(S.awayType)) S.awayType = '';
+  const list = rows.filter(r => !S.awayType || r.cat === S.awayType);
+  const now = list.filter(r => r.start <= t && r.end >= t), next = list.filter(r => r.start > t), past = list.filter(r => r.end < t);
+  const card = r => {
+    const det = [r.detail && r.detail.toUpperCase() !== r.cat.toUpperCase() ? r.detail : '', r.reason ? 'Reason: ' + r.reason : ''].filter(Boolean).join('  |  ');
+    return `<div class="awr"><div class="awh"><b>${esc(titleCase(r.name))}</b><span class="pill awp">${esc(r.cat)}</span></div>
+      <div>${esc(span(r.start, r.end))}${r.half ? ' (' + esc(r.half) + ')' : ''} <span class="muted">&middot; ${r.days} day${r.days === 1 ? '' : 's'}</span></div>
+      ${(r.label && r.label !== r.cat) || det ? `<div class="small muted">${[r.label !== r.cat ? esc(r.label) : '', det ? esc(det) : ''].filter(Boolean).join(' &middot; ')}</div>` : ''}</div>`; };
+  const sec = (h, xs, none) => `<h3 style="margin:16px 0 8px">${h} <span class="muted" style="font-weight:500">(${xs.length})</span></h3>` + (xs.length ? xs.map(card).join('') : `<p class="small muted">${none}</p>`);
+  A().innerHTML = `<p class="small muted">Who is away and from when to when, read from the leave rows of the weekly tabs (plus leave marked in the app for weeks that have no tab yet).</p>
+    <div class="row2"><label class="f"><span>From</span><input type="date" id="aw-f" value="${esc(S.awayFrom)}"></label>
+      <label class="f"><span>Period</span><select id="aw-d">${[[14,'2 weeks'],[28,'4 weeks'],[56,'8 weeks'],[91,'3 months']].map(([v, l]) => `<option value="${v}"${v === S.awayDays ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    <p class="small muted" style="margin:-4px 0 8px">${esc(nice(d.from))} to ${esc(nice(d.to))}</p>
+    ${cats.length > 1 ? `<div class="chips" style="margin-bottom:6px"><button class="chip" data-awt="" aria-pressed="${!S.awayType}">All</button>${cats.map(c => `<button class="chip" data-awt="${esc(c)}" aria-pressed="${c === S.awayType}">${esc(c)}</button>`).join('')}</div>` : ''}
+    ${sec('Away today', now, 'Nobody is away today.')}${sec('Coming up', next, 'Nothing coming up in this period.')}${past.length ? sec('Earlier in this period', past, '') : ''}`;
+  $('#aw-f').onchange = e => { if (e.target.value) { S.awayFrom = e.target.value; admAway(); } };
+  $('#aw-d').onchange = e => { S.awayDays = +e.target.value; admAway(); };
+  A().querySelectorAll('[data-awt]').forEach(b => b.onclick = () => { S.awayType = b.dataset.awt; drawAway(d); });
+}
 /* Admin > Supervising: which APO goes with each supervising officer */
 /* Duty count for this year (also in the sheet: App Duty Count + App Duty Log, rebuilt every night) */
 async function admDuty(refresh, btn){
@@ -3979,11 +4008,12 @@ async function admDuty(refresh, btn){
 function drawDuty(d){
   const head = d.head || [], rows = d.rows || [];
   const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const cls = h => /^Wkend/.test(h) ? 'wk' : MONS.includes(h) ? 'mo' : '';
+  const isMon = h => /^[A-Z][a-z]{2}( \d{4})?$/.test(h) && MONS.includes(h.slice(0, 3));
+  const cls = h => /^Wkend/.test(h) ? 'wk' : isMon(h) ? 'mo' : '';
   // per role column: highest count red, lowest green, among APOs who did that role at least once (helps balancing)
-  const ext = head.map((h, i) => { if (!i || MONS.includes(h)) return null; const v = rows.map(r => r[i]).filter(x => x > 0);
+  const ext = head.map((h, i) => { if (!i || isMon(h)) return null; const v = rows.map(r => r[i]).filter(x => x > 0);
     return v.length > 1 ? { hi: Math.max.apply(null, v), lo: Math.min.apply(null, v) } : null; });
-  A().innerHTML = `<p class="small muted">This year, 1 Jan to ${esc(nice(d.to))}: days and roles per person, from the weekly tabs. Red = most in that column, green = fewest. Updated ${esc(d.updated || '')}.</p>
+  A().innerHTML = `<p class="small muted">Counted from ${esc(nice(d.from || '2026-10-01'))} ${esc(String(d.from || '2026').slice(0, 4))} to ${esc(nice(d.to))}: days and roles per person, from the weekly tabs. Red = most in that column, green = fewest. Updated ${esc(d.updated || '')}.</p>
     <div class="note blue small" style="margin:0 0 10px">Also in the sheet: <b>App Duty Count</b> (this table) and <b>App Duty Log</b> (every posting, one row per person per day, easy to filter). Both are rebuilt every night.</div>
     <div class="scroll" style="max-height:70vh;border:1px solid var(--line);border-radius:var(--r-md)"><table class="dct"><thead><tr>${head.map(h => `<th class="${cls(h)}">${esc(h)}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(r => `<tr>${r.map((v, i) => !i ? `<td><b>${esc(titleCase(v))}</b></td>` : `<td class="${!v ? 'z' : ext[i] && v === ext[i].hi && ext[i].hi !== ext[i].lo ? 'hi' : ext[i] && v === ext[i].lo && ext[i].hi !== ext[i].lo ? 'lo' : ''}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
@@ -4520,21 +4550,32 @@ const MOCK = (() => {
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
+    adminAwayList: (t, from, n) => { const to = addD(from, (n || 28) - 1), scan = addD(from, -35), hit = {}, LBL = { AL:'Annual Leave', MC:'Medical Certificate', OIL:'Off In Lieu', UL:'Urgent Leave', HL:'Hospitalisation Leave', NPL:'No Pay Leave', RS:'Report Sick', MA:'Medical Appointment', CCL:'Childcare Leave', COURSE:'Course', ICT:'ICT', CL:'Compassionate Leave' };
+      for (let ds = scan; ds <= to; ds = addD(ds, 1)) { const d = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)]; if (!d) continue;
+        (d.absences || []).forEach(a => { let c = String(a.label).toUpperCase().replace(/\s+/g, ''); if (['IPPT/TRGETC','LIBTEST','ORIENTATION','OFFDAYEARNED'].includes(c)) return;
+          a.people.forEach(nm => { let cc = c; if (c === 'OTHERS') { const w = ' ' + a.text.toUpperCase() + ' '; cc = / NPL /.test(w) ? 'NPL' : / RS /.test(w) ? 'RS' : / MA /.test(w) ? 'MA' : ''; if (!cc) return; }
+            ((hit[nm + '|' + cc] = hit[nm + '|' + cc] || {})[ds] = a.text); }); }); }
+      const rows = [];
+      Object.keys(hit).forEach(k => { const [nm, c] = k.split('|'); let run = null;
+        Object.keys(hit[k]).sort().forEach(x => { if (run) { let ok = true; for (let g = addD(run.end, 1); g < x; g = addD(g, 1)) if (dowIdx(g) < 5) ok = false; if (!ok) { rows.push(run); run = null; } }
+          if (!run) run = { name: nm, cat: c === 'COURSE' ? 'Course' : c, label: LBL[c] || c, start: x, end: x, days: 0, half: '', detail: '' }; run.end = x; run.days++; });
+        if (run) rows.push(run); });
+      return { from, to, today, rows: rows.filter(r => r.end >= from && r.start <= to).sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : a.name < b.name ? -1 : 1) }; },
     getDutyCount: () => { const yr = today.slice(0, 4), per = {}, MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], roles = ['Range'];
       const P = n => per[n] || (per[n] = { days:{}, wk:{}, r:{} }), hit = (n, k, d) => { (P(n).r[k] = P(n).r[k] || {})[d] = 1; if (!roles.includes(k) && !/^Wkend/.test(k)) roles.push(k); };
-      Object.keys(SNAP.weeks).sort().forEach(m => (getWk(m).days || []).forEach(d => { if (d.date > today || d.date.slice(0, 4) !== yr) return; const we = dowIdx(d.date) >= 5;
+      Object.keys(SNAP.weeks).sort().forEach(m => (getWk(m).days || []).forEach(d => { if (d.date > today || d.date < '2026-10-01') return; const we = dowIdx(d.date) >= 5;
         const on = n => { P(n).days[d.date] = 1; if (we) P(n).wk[d.date] = 1; P(n).r['m' + d.date.slice(5, 7)] = Object.assign(P(n).r['m' + d.date.slice(5, 7)] || {}, { [d.date]: 1 }); };
         d.ranges.forEach(r => r.active && r.people.forEach(n => { on(n); hit(n, 'Range', d.date); if (we) hit(n, 'Wkend Range', d.date); }));
         d.duties.forEach(x => { x.mainPeople.forEach(n => { on(n); hit(n, x.duty + ' Main', d.date); if (we && lettersKey(x.duty) === 'DAO') hit(n, 'Wkend DAO Main', d.date); if (we && lettersKey(x.duty) === 'AMMOADMIN') hit(n, 'Wkend Manager', d.date); });
           x.sparePeople.forEach(n => { on(n); hit(n, x.duty + ' Spare', d.date); if (we && lettersKey(x.duty) === 'DAO') hit(n, 'Wkend Reserved', d.date); }); });
         d.medics.forEach(md => md.people.forEach(n => { on(n); hit(n, md.role, d.date); })); }));
       const mons = Object.keys(per).reduce((a, n) => a.concat(Object.keys(per[n].r).filter(k => /^m\d\d$/.test(k)).map(k => +k.slice(1))), []);
-      const m0 = mons.length ? Math.min.apply(null, mons) : +today.slice(5, 7), ms = MONS.slice(m0 - 1, +today.slice(5, 7));
+      const ms = MONS.slice(9, +today.slice(5, 7)).map(m => m + ' 2026');
       const wkCols = ['Wkend Range', 'Wkend DAO Main', 'Wkend Reserved', 'Wkend Manager'], c = (n, k) => Object.keys((per[n] && per[n].r[k]) || {}).length;
       const head = ['Name', 'Days deployed', 'Weekend days', 'EXT / late report days'].concat(roles, wkCols, ms);
       const names = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic').map(p => p.name);
-      return { year: yr, from: yr + '-01-01', to: today, updated: today + ' 21:40', head,
-        rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(roles.map(k => c(n, k)), wkCols.map(k => c(n, k)), ms.map(m => c(n, 'm' + String(MONS.indexOf(m) + 1).padStart(2, '0'))))) }; },
+      return { year: yr, from: '2026-10-01', to: today, updated: today + ' 21:40', head,
+        rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(roles.map(k => c(n, k)), wkCols.map(k => c(n, k)), ms.map(m => c(n, 'm' + String(MONS.indexOf(m.slice(0, 3)) + 1).padStart(2, '0'))))) }; },
     draftGet: (t, k) => mDrafts[k] ? JSON.parse(JSON.stringify(mDrafts[k])) : null,
     draftSave: (t, k, text, vals) => { if (!String(text || '').trim()) { delete mDrafts[k]; return null; }
       mDrafts[k] = { text, vals: vals || undefined, by: S.me.name, at: today + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'), d: today }; return JSON.parse(JSON.stringify(mDrafts[k])); },
