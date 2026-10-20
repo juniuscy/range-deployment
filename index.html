@@ -1588,24 +1588,10 @@ function dmText(id, chk){
     const last = i === L.length - 1;
     out.push((i + 1) + ') ' + x + (last ? ' ' + (chk.t || 'XXXX') + 'hrs' : '') + (chk.c[i] ? ' \u2705' : ''));
   });
-  // End Range on an extension day: one Remarks heading; one shared reason line, or a bold reason on top of each range when they differ
+  // End Range on an extension day: a Remarks block per EXT range, with the reason as keyed in (Range Extension said once)
   const ex = id === 'dm-end' ? (chk.x || []) : [];
-  if (ex.length) {
-    // "Range Extension" said once, however the reason was typed (e.g. "Range Extension SLF", "EXT - SLF")
-    const why = e => { const t = String(e.reason || '').replace(/^(?:\s*(?:range\s+extension|range\s+ext|ext(?:ension)?)\b[\s:\-]*)+/i, '').replace(/\s+/g, ' ').trim(); return 'Range Extension' + (t ? ' ' + t : ''); };
-    const reasons = [];
-    ex.forEach(e => { const w = why(e), f = reasons.find(x => x.w.toLowerCase() === w.toLowerCase()); if (f) f.r.push(e.range); else reasons.push({ w, r: [e.range] }); });
-    const block = e => [e.range, 'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last || 'XXXX') + 'hrs', 'Outpro: ' + (e.out || 'XXXX') + 'hrs'];
-    out.push('', 'Remarks:');
-    if (reasons.length === 1) {
-      // same reason for every range: said once, then the range blocks
-      out.push('*' + reasons[0].w + '*');
-      ex.forEach(e => out.push('', ...block(e)));
-    } else {
-      // different reasons: each range gets its own bold reason line right on top of its block
-      ex.forEach((e, i) => { if (i) out.push(''); out.push('*' + why(e) + ' (' + e.range + ')*', ...block(e)); });
-    }
-  }
+  const why = e => { const t = String(e.reason || '').replace(/^(?:\s*(?:range\s+extension|range\s+ext|ext(?:ension)?)\b[\s:\-]*)+/i, '').replace(/\s+/g, ' ').trim(); return 'Range Extension' + (t ? ' ' + t : ''); };
+  ex.forEach(e => out.push('', 'Remarks:', '*' + why(e) + '*', e.range, 'Total Strength: ' + (e.strength || ''), 'Last Shot: ' + (e.last || 'XXXX') + 'hrs', 'Outpro: ' + (e.out || 'XXXX') + 'hrs'));
   return out.join('\n');
 }
 function openDmReport(r, st, redraw){
@@ -1665,19 +1651,11 @@ function openDmReport(r, st, redraw){
     const box = $('#dm-ext', bg); if (!box || !day) return;
     const ext = day.ranges.filter(x => x.active && (extOf(x.rmk) || splitOf(x.emp)));
     if (!ext.length) { if (chk.x && chk.x.length) { chk.x = []; render(); } return; }
-    // Reason comes straight from the range's TF in the weekly tab, unless you typed your own
-    chk.x = ext.map(x => {
-      const base = { range: x.range, reason: x.tf || x.note || '', strength: '', last: '', out: '' };
-      const sv = (chk.x || []).find(e => e.range === x.range);
-      if (!sv) return base;
-      const e = Object.assign({}, base, sv);
-      if (!sv.own || !String(sv.reason || '').trim()) { e.reason = base.reason; e.own = false; }
-      return e;
-    });
+    chk.x = ext.map(x => Object.assign({ range: x.range, reason: x.note || '', strength: '', last: '', out: '' }, (chk.x || []).find(e => e.range === x.range) || {}));
     const okT = v => /^([01][0-9]|2[0-3])[0-5][0-9]$/.test(v);
     box.innerHTML = `<div class="dmext"><b>Range Extension today</b><div class="small muted">Added under Remarks at the bottom of the message. Times in 24hrs.</div>${chk.x.map((e, i) => `
       <div class="dmx"><div class="dmxr">${esc(e.range)}</div>
-        <label class="f"><span>Reason (TF)</span><input type="text" data-ex="${i}|reason" maxlength="150" value="${esc(e.reason)}" placeholder="TF from the weekly tab"></label>
+        <label class="f"><span>Reason</span><input type="text" data-ex="${i}|reason" maxlength="150" value="${esc(e.reason)}" placeholder="e.g. SLF"></label>
         <div class="dmxg"><label class="f"><span>Total Strength</span><input type="text" data-ex="${i}|strength" inputmode="numeric" maxlength="4" value="${esc(e.strength)}"></label>
           <label class="f"><span>Last Shot</span><input type="text" data-ex="${i}|last" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(e.last)}"></label>
           <label class="f"><span>Outpro</span><input type="text" data-ex="${i}|out" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(e.out)}"></label></div></div>`).join('')}</div>`;
@@ -1687,7 +1665,6 @@ function openDmReport(r, st, redraw){
       const bad = (k === 'last' || k === 'out') && inp.value.length === 4 && !okT(inp.value);
       inp.classList.toggle('bad', bad);
       chk.x[+i][k] = (k === 'last' || k === 'out') && !okT(inp.value) ? '' : inp.value;
-      if (k === 'reason') chk.x[+i].own = !!inp.value.trim();
       render(); save();
     });
     render();
@@ -2628,7 +2605,13 @@ function openSlotEditor(wk, day, kind, label){
     // someone newly put in who is already posted elsewhere that day: pull them out of there, or keep them in both?
     const added = [];
     fields.filter(f => NAME_KEYS.includes(f[0])).forEach(([k, , v]) => namesIn($('#ed-' + k, bg).value).forEach(n => { if (!namesIn(v).includes(n) && !added.includes(n)) added.push(n); }));
-    const others = added.map(n => ({ n, posts: postingsOf(day, n).filter(p => !(p.slot.kind === kind && p.slot.label === label) && (canManage() || p.slot.kind === 'medic')) }))
+    // a report time in OTHERS (e.g. "JAMES TOH 1200HRS") counts as a posting too, so it is asked about and pulled out with the rest
+    const pmOf = t => (splitOf(t) || { pmNames: [] }).pmNames;
+    const othersTime = n => { const t = (day.report || {})[n]; if (!t) return '';
+      const viaSlot = day.ranges.some(r => r.people.includes(n) && (extOf(r.rmk) || pmOf(r.emp).includes(n))) || day.duties.some(x => pmOf(x.main).includes(n));
+      return viaSlot ? '' : t; };
+    const others = added.map(n => ({ n, posts: postingsOf(day, n).concat(othersTime(n) ? [{ slot: { kind: 'others', label: 'OTHERS', field: 'report' }, text: '', title: 'OTHERS (report ' + hrs(othersTime(n)) + ')' }] : [])
+      .filter(p => !(p.slot.kind === kind && p.slot.label === label) && (canManage() || p.slot.kind === 'medic')) }))
       .filter(x => x.posts.length);
     let pulls = [];
     if (others.length) { pulls = await askPull(others, label, day); if (!pulls) return; }
@@ -2643,11 +2626,16 @@ function openSlotEditor(wk, day, kind, label){
       }
       // then take the pulled-out people off their other slots (several people from one slot: one write)
       const bySlot = {};
-      pulls.forEach(p => { const key = p.slot.kind + '|' + p.slot.label + '|' + p.slot.field;
+      pulls.filter(p => p.slot.kind !== 'others').forEach(p => { const key = p.slot.kind + '|' + p.slot.label + '|' + p.slot.field;
         (bySlot[key] = bySlot[key] || { slot: p.slot, text: p.text, names: [] }).names.push(p.n); });
       for (const key of Object.keys(bySlot)) {
         const g = bySlot[key], left = g.names.reduce((t, n) => dropNameTxt(t, n), g.text);
         const res = await call(canManage() ? 'adminSetSlot' : 'medicSetSlot', S.token, day.date, g.slot, left.toUpperCase());
+        week = res.week;
+      }
+      // their report time in OTHERS went with the old posting ("JAMES TOH 1200HRS"), so take it out too
+      if (canManage()) for (const n of pulls.map(p => p.n).filter((n, i, a) => a.indexOf(n) === i)) {
+        const res = await call('adminDropReport', S.token, day.date, n);
         week = res.week;
       }
       if (pulls.length) warnings = warnings.filter(w => !pulls.some(p => w.indexOf(p.n) >= 0));
@@ -4646,6 +4634,9 @@ const MOCK = (() => {
     dmSet: (t, ds, n) => { if (n) mDm[ds] = n; else delete mDm[ds]; return MOCK.getDm(t, ds.slice(0, 7)); },
     getMySchedule: (t, from, to) => mockSched(from, nDays(from, to)),
     medicSetSlot: (t, date, slot, v) => MOCK.adminSetSlot(t, date, slot, v),
+    adminDropReport: (t, date, n) => { const wk = getWk(mondayOf(date)); const d = wk.days[dowIdx(date)]; let done = '';
+      if (d && d.report && d.report[n] && !d.ranges.some(r => r.people.includes(n) && (extOf(r.rmk) || (splitOf(r.emp) || { pmNames: [] }).pmNames.includes(n)))) { delete d.report[n]; done = 'OTHERS report time'; }
+      return { week: JSON.parse(JSON.stringify(wk)), done }; },
     adminSetSlot: (t, date, slot, v) => {
       const wk = getWk(mondayOf(date)); const d = wk.days[dowIdx(date)];
       const warnings = ['rmk','loc','note'].includes(slot.field) ? [] : clashes(d, v, slot.kind, slot.label, slot.field);
