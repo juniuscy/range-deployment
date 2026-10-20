@@ -2523,8 +2523,11 @@ function openSlotEditor(wk, day, kind, label){
     <h3 id="ed-t">${esc(label)}, ${nice(day.date)}</h3>
     <div class="src">${src}</div>
     ${spHtml ? `<div class="sptop">${spHtml}</div>` : ''}
-    ${fields.map(([k, l, v]) => `<label class="f"${NAME_KEYS.includes(k) ? ' style="margin-bottom:4px"' : ''}><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${NAME_KEYS.includes(k) ? 'data-nk="' + k + '"' : ''} autocomplete="off"></label>` +
-      (NAME_KEYS.includes(k) ? `<div class="tags" data-tags="${k}"></div><label class="f addto" data-addwrap="${k}" style="margin-top:2px"${k === who && sp0 ? ' hidden' : ''}><select data-addto="${k}" aria-label="Add a name to ${esc(l)}"><option value="">Add a name to ${esc(l)}</option>${pickerOptions(day, pool)}</select></label>` : '')).join('')}
+    ${fields.map(([k, l, v]) => NAME_KEYS.includes(k)
+      // name boxes: the drop-down itself (grouped list); the names picked show as tags under it, tap x to take one out
+      ? `<div data-addwrap="${k}"${k === who && sp0 ? ' hidden' : ''}><label class="f" style="margin-bottom:4px"><span>${esc(l)}</span><select data-addto="${k}" aria-label="${esc(l)}"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>
+          <input type="hidden" id="ed-${k}" value="${esc(v)}" data-nk="${k}"><div class="tags" data-tags="${k}"></div></div>`
+      : `<label class="f"><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" autocomplete="off"></label>`).join('')}
     ${fields.filter(f => NAME_KEYS.includes(f[0])).length > 1 ? `<div class="tgt" id="ed-tgt">Names you tap go to: ${fields.filter(f => NAME_KEYS.includes(f[0])).map(f => `<button class="chip" data-tg="${f[0]}" aria-pressed="${f[0] === who}">${esc(f[1])}</button>`).join('')}</div>` : ''}
     <div id="ed-warn"></div>
     ${free.length ? `<p class="small muted" style="margin:0 0 6px">Undeployed that day. Tap to add:</p><div class="chips">${free.map(n => `<button class="chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
@@ -2590,7 +2593,7 @@ function openSlotEditor(wk, day, kind, label){
   const setTarget = k => { target = k; bg.querySelectorAll('[data-tg]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tg === k)); };
   bg.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => setTarget(b.dataset.tg));
   bg.querySelectorAll('[data-nk]').forEach(el => { el.addEventListener('input', () => drawTags(el.dataset.nk)); el.addEventListener('focus', () => setTarget(el.dataset.nk)); drawTags(el.dataset.nk); });
-  bg.querySelectorAll('[data-addto]').forEach(sel => sel.onchange = () => { if (sel.value) addName(sel.value, sel.dataset.addto); sel.value = ''; });
+  bg.querySelectorAll('[data-addto]').forEach(sel => sel.onchange = () => { setTarget(sel.dataset.addto); if (sel.value) addName(sel.value, sel.dataset.addto); sel.value = ''; });
   bg.querySelectorAll('[data-n]').forEach(c => c.onclick = () => addName(c.dataset.n));
   const close = () => bg.remove();
   $('#ed-x', bg).onclick = close;
