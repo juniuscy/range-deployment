@@ -504,6 +504,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .tag button{border:0;background:none;font:700 17px/1 inherit;color:#64748B;cursor:pointer;padding:2px 6px;min-height:0}
 .tgt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin:2px 0 10px}
 .shf{display:inline-block;font:700 11px/1.6 inherit;padding:0 6px;border-radius:6px;background:#E0E7FF;color:#3730A3;margin-right:4px;vertical-align:1px}.shf.pm{background:#FDE68A;color:#92400E;margin-left:8px}
+.sptop{border:1.5px solid var(--line);border-radius:var(--r-md);padding:10px 12px 2px;margin:0 0 14px;background:var(--bg)}.sptop .spbox{border:0;padding:4px 0 0;margin:0;background:none}
 .spbox{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 12px;background:var(--card)}
 .spbox .row2 select{min-width:0}
 .extag{display:inline-block;background:var(--ext);color:#fff;font:600 11px/1.6 inherit;font-style:normal;padding:0 7px;border-radius:9px;letter-spacing:.3px;vertical-align:1px}
@@ -2502,7 +2503,7 @@ function openSlotEditor(wk, day, kind, label){
   const freeMg = freeOn(day, pool === 'Medic' ? 'Backup Medic' : 'Manager');   // the reserve for this kind of slot
   const names = namesFor(pool);
   const spOk = kind === 'range' || (kind === 'duty' && SHIFT_DUTIES.includes(label));
-  const spHtml = spOk ? `<label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="sp-on" style="width:20px;height:20px" ${sp0 ? 'checked' : ''}><span><b>Extension: AM and PM shifts</b></span></label>
+  const spHtml = spOk ? `<label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="sp-on" style="width:20px;height:20px" ${sp0 ? 'checked' : ''}><span><b>Extension: ${kind === 'duty' ? esc(label) + ' Main ' : ''}AM and PM shifts</b></span></label>
       <div class="spbox" id="sp-box" ${sp0 ? '' : 'hidden'}>
         <label class="f" style="margin-bottom:4px"><span>AM (add one or more)</span><select id="sp-am"><option value="">Add a name</option><option value="NA">NA (no AM shift)</option>${pickerOptions(day, pool)}</select></label>
         <div class="tags" id="sp-amt"></div>
@@ -2515,9 +2516,10 @@ function openSlotEditor(wk, day, kind, label){
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-t">
     <h3 id="ed-t">${esc(label)}, ${nice(day.date)}</h3>
     <div class="src">${src}</div>
+    ${spHtml ? `<div class="sptop">${spHtml}</div>` : ''}
     ${fields.map(([k, l, v]) => `<label class="f"${NAME_KEYS.includes(k) ? ' style="margin-bottom:4px"' : ''}><span>${esc(l)}</span><input type="text" id="ed-${k}" value="${esc(v)}" ${NAME_KEYS.includes(k) ? 'list="ed-names" data-nk="' + k + '"' : ''} autocomplete="off"></label>` +
       (NAME_KEYS.includes(k) ? `<div class="tags" data-tags="${k}"></div>` : '') +
-      (k === who ? `<label class="f" style="margin-top:2px"><span class="small muted" style="font-weight:600">Add a name from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '') + (k === who ? spHtml : '')).join('')}
+      (k === who ? `<label class="f" style="margin-top:2px"><span class="small muted" style="font-weight:600">Add a name from the list</span><select id="ed-pick"><option value="">Choose a name</option>${pickerOptions(day, pool)}</select></label>` : '')).join('')}
     ${fields.filter(f => NAME_KEYS.includes(f[0])).length > 1 ? `<div class="tgt" id="ed-tgt">Names you tap go to: ${fields.filter(f => NAME_KEYS.includes(f[0])).map(f => `<button class="chip" data-tg="${f[0]}" aria-pressed="${f[0] === who}">${esc(f[1])}</button>`).join('')}</div>` : ''}
     <datalist id="ed-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     <div id="ed-warn"></div>
