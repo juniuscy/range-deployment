@@ -448,8 +448,12 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .mtr.ts-late,.mtr.ts-missed,.mtr.ts-fail{border-color:var(--flag)}.mtr.ts-na,.mtr.ts-locked,.mtr.ts-soon2{border-color:#B8C1C8}
 .mtr.ask{display:block}.mtr{flex-wrap:wrap}.mtr .rmk{flex-basis:100%;display:block;font-size:12.5px;color:var(--muted);text-align:left;margin-top:-4px}.mtr.ask .q{font-weight:700;margin:4px 0 0;font-size:13px}
 /* greeting row with clock-in, birthday */
-.hirow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.hirow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.hirow > .upd{flex:none}
 .hiright{display:flex;gap:8px;align-items:stretch;margin-left:auto}
+/* DM today (left) and Clock in (right): two equal halves under the greeting, so the DM name has room */
+.hirow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch;margin:0 0 14px}
+.hirow2 .dmbox{max-width:none;min-width:0;padding:8px 10px}.hirow2 .dmbox b{font-size:17px}
+.hirow2 .clock.cm{min-width:0;display:flex;flex-direction:column;justify-content:center}.hirow2 .clock.cm.todo span{text-align:center}
 .dmbox{border:1px solid var(--steel);background:var(--steel-soft);border-radius:var(--r-md);padding:6px 10px;min-width:104px;max-width:150px;display:flex;flex-direction:column;justify-content:center;text-align:center}
 .dmbox span{font:700 11px/1.2 var(--body);letter-spacing:.06em;color:var(--steel);text-transform:uppercase}
 .dmbox b{font:700 15px/1.2 var(--cond);margin-top:2px;overflow-wrap:anywhere}
@@ -871,8 +875,9 @@ function drawHome(h, stale){
     const dmMine = isMeDm(dmToday);
     S.dmMine = dmMine; S.dmToday = dmToday || ''; if (h.reports) S.rep = h.reports;
     V().innerHTML = `<div id="inst-slot">${stale ? '' : installBanner()}</div>
-      <div class="hirow"><div><h2>Hi ${esc(h.me.name)}${stale ? ' <span class="upd">Updating\u2026</span>' : ''}</h2>
-        <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div><div class="hiright">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div></div>
+      <div class="hirow"><div><h2>Hi ${esc(h.me.name)}</h2>
+        <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div>${stale ? '<span class="upd">Updating\u2026</span>' : ''}</div>
+      <div class="hirow2">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div>
       ${h.attendance ? clockNotes(h.attendance) + sickBox(h.attendance) : ''}
       ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
