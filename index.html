@@ -123,7 +123,7 @@ textarea{min-height:80px;resize:vertical}
 .lynm{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lytr{display:flex;align-items:center;gap:2px;min-height:24px}
 .lyseg{height:20px;display:inline-flex;align-items:center;justify-content:center;font:700 12.5px/1 var(--body);min-width:22px}.lytr .lyseg:nth-last-child(2){border-radius:0 4px 4px 0}
 .lyval{margin-left:6px;font-size:13px;white-space:nowrap}.lyz{color:#9AA5AE;font-size:13px}
-.lyd{margin:0 0 8px 94px;font-size:13px;display:flex;flex-direction:column;gap:3px}.lyd[hidden]{display:none}.lydot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.lyd{margin:0 0 8px 94px;font-size:13px;display:flex;flex-direction:column;gap:3px}.lyd[hidden]{display:none}.lyasg{display:block;color:var(--muted);font-size:12.5px;margin:1px 0 2px 14px}.lydot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
 .lyt td,.lyt th{text-align:right}.lyt td:first-child,.lyt th:first-child{text-align:left}
 .actr{display:flex;gap:10px;justify-content:space-between;align-items:center;border:1.5px solid #F59E0B;background:#FFFBEB;border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px}.actr .tx{display:flex;flex-direction:column;gap:2px;min-width:0}.acts2{display:flex;flex-direction:column;gap:6px;flex:none}
 .algadm{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
@@ -1315,7 +1315,7 @@ async function admAllergo(){
   try { drawAdmAllergo(await call('getAllergo', S.token)); } catch(e){ fail(e); }
 }
 /* Away List has two views: the list (from when to when) and MC, UL & NPL by year */
-const awaySwitch = () => `<div class="chips" style="margin:0 0 12px"><button class="chip" data-awv="list" aria-pressed="${S.awayView !== 'year'}">Who is away</button><button class="chip" data-awv="year" aria-pressed="${S.awayView === 'year'}">MC, UL &amp; NPL by year</button></div>`;
+const awaySwitch = () => `<div class="chips" style="margin:0 0 12px"><button class="chip" data-awv="list" aria-pressed="${S.awayView !== 'year'}">Who is away</button><button class="chip" data-awv="year" aria-pressed="${S.awayView === 'year'}">LATE, MC, UL &amp; NPL</button></div>`;
 const wireAwaySwitch = () => A().querySelectorAll('[data-awv]').forEach(b => b.onclick = () => { S.awayView = b.dataset.awv; admAway(); });
 /* MC (red), UL (yellow) and NPL (blue) per person, 1 Jan to 31 Dec. Everyone except backup medics. */
 const LY_COL = { MC: '#d93a32', UL: '#eda100', NPL: '#2a78d6', LATE: '#e87ba4' }, LY_INK = { MC: '#fff', UL: '#17212B', NPL: '#fff', LATE: '#17212B' };
@@ -1332,7 +1332,7 @@ function drawLeaveYear(d){
   (d.rows || []).forEach(r => {
     r.LATE = r.LATE || { days: 0, times: 0 }; r.lateList = r.lateList || [];
     r.all = cats.reduce((a, c) => a + r[c].days, 0);
-    r.items = r.list.concat(r.lateList.map(x => ({ cat: 'LATE', start: x.date, end: x.date, days: 1, at: x.at }))).sort((a, b) => a.start < b.start ? -1 : 1);
+    r.items = r.list.concat(r.lateList.map(x => ({ cat: 'LATE', start: x.date, end: x.date, days: 1, at: x.at, where: x.where || '' }))).sort((a, b) => a.start < b.start ? -1 : 1);
   });
   const rows = (d.rows || []).slice().sort((a, b) => b.all - a.all || (a.name < b.name ? -1 : 1));
   const mx = Math.max(1, ...rows.map(r => r.all));
@@ -1341,12 +1341,14 @@ function drawLeaveYear(d){
       `<span class="lyseg" style="width:calc(${r[c].days / mx * 100}% - 2px);background:${LY_COL[c]};color:${LY_INK[c]}" title="${lbl(c)}: ${fmtD(r[c].days)} day${r[c].days === 1 ? '' : 's'}">${fmtD(r[c].days)}</span>`).join('')
     + `<span class="lyval"><b>${fmtD(r.all)}</b> day${r.all === 1 ? '' : 's'}</span>`;
   const item = x => x.cat === 'LATE'
-    ? `<div><span class="lydot" style="background:${LY_COL.LATE}"></span><b>Late</b> ${esc(nice(x.start))}${x.at ? ' &middot; in at ' + esc(hrs(x.at)) : ' &middot; marked Present (Late)'}</div>`
-    : `<div><span class="lydot" style="background:${LY_COL[x.cat]}"></span><b>${esc(x.cat)}</b> ${esc(span(x.start, x.end))}${x.half ? ' (' + esc(x.half) + ')' : ''} &middot; ${fmtD(x.days)} day${x.days === 1 ? '' : 's'}${x.reason ? ' &middot; ' + esc(x.reason) : ''}</div>`;
+    ? `<div><span class="lydot" style="background:${LY_COL.LATE}"></span><b>Late</b> ${esc(nice(x.start))}${x.at ? ' &middot; in at ' + esc(hrs(x.at)) : ' &middot; marked Present (Late)'}${asg(x)}</div>`
+    : `<div><span class="lydot" style="background:${LY_COL[x.cat]}"></span><b>${esc(x.cat)}</b> ${esc(span(x.start, x.end))}${x.half ? ' (' + esc(x.half) + ')' : ''} &middot; ${fmtD(x.days)} day${x.days === 1 ? '' : 's'}${x.reason ? ' &middot; ' + esc(x.reason) : ''}${asg(x)}</div>`;
+  // the TF package / role they were assigned that day (for leave: the slot they were taken off)
+  function asg(x){ return x.where ? `<span class="lyasg">Assigned: ${esc(x.where)}</span>` : ''; }
   const note = !d.firstTab ? `No weekly tabs found for ${esc(d.year)} yet.` : d.firstTab > d.from ? `Counted from the weekly tabs: the first one for ${esc(d.year)} starts ${esc(nice(d.firstTab))}, so days before that are not in the count.` : '';
   A().innerHTML = awaySwitch() + `<div class="wkbar"><button class="btn ghost" id="ly-pv">&lsaquo; ${+d.year - 1}</button><h2>${esc(d.year)}</h2><button class="btn ghost" id="ly-nx">${+d.year + 1} &rsaquo;</button></div>
     <div class="ttiles" style="grid-template-columns:repeat(4,1fr)">${cats.map(c => `<div class="ts-na"><b>${fmtD(tot(c))}</b>${lbl(c)} days</div>`).join('')}</div>
-    <div class="sec lyc"><h3 style="margin:0">MC, UL, NPL and Late days per person</h3>
+    <div class="sec lyc"><h3 style="margin:0">LATE, MC, UL &amp; NPL days per person</h3>
       <p class="small muted" style="margin:2px 0 8px">1 Jan to 31 Dec ${esc(d.year)} &middot; most first &middot; the number in each colour is that type's days. Tap a name for the dates.</p>
       <div class="lylg">${cats.map(c => `<span><i style="background:${LY_COL[c]}"></i>${lbl(c)}</span>`).join('')}</div>
       ${rows.map((r, i) => `<button type="button" class="lyr" data-ly="${i}"><span class="lynm">${esc(titleCase(r.name))}</span><span class="lytr">${bar(r)}</span></button><div class="lyd" id="lyd-${i}" hidden>${r.items.length ? r.items.map(item).join('') : '<div class="muted">No MC, UL, NPL or late this year.</div>'}</div>`).join('')}</div>
@@ -1355,12 +1357,101 @@ function drawLeaveYear(d){
       ${rows.map(r => `<tr><td>${esc(titleCase(r.name))}</td>${cats.map(c => c === 'LATE' ? `<td>${r.LATE.days}</td>` : `<td>${fmtD(r[c].days)}</td><td>${r[c].times}</td>`).join('')}</tr>`).join('')}</table></div></div>
     ${note ? `<p class="small muted">${note}</p>` : ''}
     <p class="small muted">MC, UL and NPL from the weekly tabs (MC, UL and OTHERS rows), plus leave marked in the app for weeks with no tab yet; half days count as 0.5. Late = marked Present (Late) in Attendance, or clocked in after ${esc(hrs(d.lateAfter || '07:45'))} (after their report time on EXT / PM days). Updated ${esc(d.updated || '')}.</p>
-    <button class="btn ghost" id="ly-r">Update now</button>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn go" id="ly-pdf">Share as PDF</button><button class="btn ghost" id="ly-r">Update now</button></div>
+    <p class="small muted" style="margin-top:6px">Share as PDF opens your phone's share list: pick WhatsApp or Email (on a computer the PDF is saved instead).</p>`;
   wireAwaySwitch();
+  loadPdfLib().catch(() => {});                       // fetch the PDF maker now, so the share opens straight away on tap
+  $('#ly-pdf').onclick = e => shareLeavePdf(d, rows, cats, e.target);
   $('#ly-pv').onclick = () => { S.lyYear = String(+d.year - 1); admLeaveYear(); };
   $('#ly-nx').onclick = () => { S.lyYear = String(+d.year + 1); admLeaveYear(); };
   $('#ly-r').onclick = e => admLeaveYear(true, e.target);
   A().querySelectorAll('[data-ly]').forEach(b => b.onclick = () => { const x = $('#lyd-' + b.dataset.ly); x.hidden = !x.hidden; });
+}
+/* ---------- PDF of the MC / UL / NPL / Late chart (jsPDF, loaded when needed) ---------- */
+let PDF_LIB = null;
+function loadPdfLib(){
+  if (window.jspdf) return Promise.resolve(window.jspdf);
+  if (PDF_LIB) return PDF_LIB;
+  PDF_LIB = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    sc.onload = () => window.jspdf ? res(window.jspdf) : rej(new Error('PDF maker did not load'));
+    sc.onerror = () => { PDF_LIB = null; rej(new Error('Could not load the PDF maker. Check the internet connection and try again.')); };
+    document.head.appendChild(sc);
+  });
+  return PDF_LIB;
+}
+function leavePdf(d, rows, cats){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, M = 14, rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const lbl = c => c === 'LATE' ? 'Late' : c, f1 = v => (Math.round(v * 10) / 10).toString();
+  const ink = () => doc.setTextColor(23, 33, 43), muted = () => doc.setTextColor(94, 107, 118);
+  let y = M;
+  const head = cont => {
+    ink(); doc.setFont('helvetica', 'bold'); doc.setFontSize(cont ? 12 : 16);
+    doc.text('LATE, MC, UL & NPL days per person ' + d.year + (cont ? ' (continued)' : ''), M, y + 5); y += cont ? 9 : 11;
+    if (!cont) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); muted();
+      doc.text('1 Jan to 31 Dec ' + d.year + '. Made ' + nice(S.today) + ' ' + S.today.slice(0, 4) + ' by ' + titleCase(S.me.name) + '. Most first; the number in each colour is that type\'s days.', M, y); y += 6;
+      doc.setFontSize(10.5); ink(); doc.setFont('helvetica', 'bold');
+      doc.text(cats.map(c => lbl(c) + ' ' + f1(rows.reduce((a, r) => a + r[c].days, 0)) + ' days').join('    '), M, y); y += 6;
+    }
+    let lx = M; doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+    cats.forEach(c => { doc.setFillColor(...rgb(LY_COL[c])); doc.roundedRect(lx, y - 3, 4, 4, 0.8, 0.8, 'F'); ink(); doc.text(lbl(c), lx + 5.5, y); lx += 22; });
+    y += 6;
+  };
+  head(false);
+  const nameW = 40, barX = M + nameW, barW = W - M - barX - 18, mx = Math.max(1, ...rows.map(r => r.all)), rowH = 7.2;
+  rows.forEach(r => {
+    if (y + rowH > 297 - M) { doc.addPage(); y = M; head(true); }
+    ink(); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    doc.text(titleCase(r.name), M, y + 3.6, { maxWidth: nameW - 2 });
+    let x = barX;
+    if (!r.all) { muted(); doc.setFont('helvetica', 'normal'); doc.text('none', x, y + 3.6); }
+    cats.filter(c => r[c].days).forEach(c => {
+      const w = Math.max(5, r[c].days / mx * barW);
+      doc.setFillColor(...rgb(LY_COL[c])); doc.rect(x, y, w - 0.6, 5, 'F');
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+      if (LY_INK[c] === '#fff') doc.setTextColor(255, 255, 255); else ink();
+      doc.text(f1(r[c].days), x + (w - 0.6) / 2, y + 3.6, { align: 'center' });
+      x += w;
+    });
+    if (r.all) { ink(); doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.text(f1(r.all) + (r.all === 1 ? ' day' : ' days'), x + 1.5, y + 3.6); }
+    y += rowH;
+  });
+  // table on a new page
+  doc.addPage(); y = M;
+  ink(); doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text('Table ' + d.year + ': days, and separate times', M, y + 5); y += 11;
+  const cols = ['Name'].concat(...cats.map(c => c === 'LATE' ? ['Late days'] : [c + ' days', c + ' times']));
+  const cw = [44].concat(cols.slice(1).map(() => (W - 2 * M - 44) / (cols.length - 1)));
+  const rowT = (vals, bold) => {
+    if (y + 7 > 297 - M) { doc.addPage(); y = M; }
+    let x = M; doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(9.5); ink();
+    vals.forEach((v, i) => { doc.text(String(v), i ? x + cw[i] - 2 : x, y + 4.5, i ? { align: 'right' } : {}); x += cw[i]; });
+    doc.setDrawColor(217, 222, 227); doc.line(M, y + 6.5, W - M, y + 6.5); y += 7;
+  };
+  rowT(cols, true);
+  rows.forEach(r => rowT([titleCase(r.name)].concat(...cats.map(c => c === 'LATE' ? [r.LATE.days] : [f1(r[c].days), r[c].times])), false));
+  y += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); muted();
+  doc.text(doc.splitTextToSize('MC, UL and NPL from the weekly tabs (MC, UL and OTHERS rows), plus leave marked in the app for weeks with no tab yet; half days count as 0.5. Late = marked Present (Late) in Attendance, or clocked in after the late time (after their report time on EXT / PM days).', W - 2 * M), M, y + 3);
+  return doc.output('blob');
+}
+async function shareLeavePdf(d, rows, cats, btn){
+  busy(btn, true);
+  try {
+    await loadPdfLib();
+    const name = 'LATE_MC_UL_NPL_' + d.year + '.pdf';
+    const file = new File([leavePdf(d, rows, cats)], name, { type: 'application/pdf' });
+    busy(btn, false);
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'LATE, MC, UL & NPL ' + d.year, text: 'LATE, MC, UL & NPL days per person, ' + d.year + '.' }); return; }
+      catch (x) { if (x && x.name === 'AbortError') return; }  // closed the share list; anything else: save the PDF instead
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    toast('PDF saved (' + name + '). Attach it in WhatsApp or your email.');
+  } catch(x){ busy(btn, false); fail(x); }
 }
 function drawAdmAllergo(d){
   const open = d.items.filter(x => !x.ticked), late = open.filter(x => x.state === 'late'), done = d.items.filter(x => x.ticked);
@@ -4677,10 +4768,11 @@ const MOCK = (() => {
         .forEach(([n, c, a, b, why]) => { let k = 0; for (let d = a; d <= b; d = addD(d, 1)) if (dowIdx(d) < 5) k++; st.push({ name: n, cat: c, start: a, end: b, days: k, reason: why }); });
       const rows = ppl.map(p => { const o = { name: p.name, role: p.role }; const mine = st.filter(r => r.name === p.name);
         cats.forEach(c => { const m = mine.filter(r => r.cat === c); o[c] = { days: m.reduce((a, r) => a + r.days, 0), times: m.length }; });
-        o.list = mine.sort((a, b) => a.start < b.start ? -1 : 1).map(r => ({ cat: r.cat, start: r.start, end: r.end, days: r.days, half: '', reason: r.reason || '' }));
+        const wh = (n, ds) => { const dd = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)]; return dd ? postingsOf(dd, n).map(x => x.slot.kind === 'range' ? x.title + ((dd.ranges.find(q => q.range === x.title) || {}).tf ? ' (' + dd.ranges.find(q => q.range === x.title).tf + ')' : '') : x.title.replace(' main', ' Main').replace(' spare', ' Spare')).join(', ') : ''; };
+        o.list = mine.sort((a, b) => a.start < b.start ? -1 : 1).map(r => ({ cat: r.cat, start: r.start, end: r.end, days: r.days, half: '', reason: r.reason || '', where: wh(p.name, r.start) || (r.cat === 'MC' ? '100M2 (TF P226 FAM SHOOT)' : '') }));
         o.total = cats.reduce((a, c) => a + o[c].days, 0);
         const lt = { ARIF: ['2026-02-10','2026-06-03','2026-10-06'], WONG: ['2026-10-06'], ONG: ['2026-03-17','2026-09-29'], TOH: ['2026-08-11'] }[p.name] || [];
-        o.LATE = { days: y === '2026' ? lt.length : 0, times: y === '2026' ? lt.length : 0 }; o.lateList = y === '2026' ? lt.map(dd => ({ date: dd, at: '07:5' + (dd.length % 9) })) : []; return o; });
+        o.LATE = { days: y === '2026' ? lt.length : 0, times: y === '2026' ? lt.length : 0 }; o.lateList = y === '2026' ? lt.map(dd => ({ date: dd, at: '07:5' + (dd.length % 9), where: wh(p.name, dd) || 'DAO Main' })) : []; return o; });
       return { year: y, from: y + '-01-01', to: y + '-12-31', cats, lateAfter: '07:45', rows, firstTab: y === '2026' ? '2026-01-05' : '', lastTab: '', updated: today + ' 16:40' }; },
     adminActions: () => { const rs = [];
       Object.keys(attStore).forEach(k => { const [d, n] = k.split('|'); if (attStore[k].status === 'RS' && d <= today && d >= addD(today, -30)) rs.push({ kind: 'rs', name: n, start: d, end: d, days: 1, reason: attStore[k].reason || '' }); });
