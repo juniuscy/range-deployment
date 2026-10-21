@@ -4366,7 +4366,14 @@ function drawClearance(){
   $('#cl-add').onclick = () => { c.rows.push({ date: c.to || S.today, name: '', nric: '', vehicle: '', on: true }); drawClearance(); };
   $('#cl-from').onchange = e => { c.from = e.target.value; c.datesEdited = true; drawClearance(); };
   $('#cl-to').onchange = e => { c.to = e.target.value; c.datesEdited = true; drawClearance(); };
-  A().querySelectorAll('[data-cf]').forEach(inp => inp.onchange = () => { c[inp.dataset.cf] = inp.value.trim(); drawClearance(); });
+  // detail boxes: kept as you type (no redraw, so tapping Send / Download straight after typing still works);
+  // the subject and message follow along unless you edited them
+  A().querySelectorAll('[data-cf]').forEach(inp => inp.oninput = () => {
+    c[inp.dataset.cf] = inp.value.trim();
+    clrSync();
+    if (!c.subEdited && $('#cl-sub')) $('#cl-sub').value = c.subject;
+    if (!c.bodyEdited && $('#cl-body')) $('#cl-body').value = c.body;
+  });
   A().querySelectorAll('[data-cu],[data-cd]').forEach(b => b.onclick = () => { const i = +(b.dataset.cu ?? b.dataset.cd), j = b.dataset.cu != null ? i - 1 : i + 1;
     if (j < 0 || j >= c.rows.length) return; [c.rows[i], c.rows[j]] = [c.rows[j], c.rows[i]]; drawClearance(); });
   A().querySelectorAll('[data-crm]').forEach(b => b.onclick = () => { const l = clrMails(c); l.splice(+b.dataset.crm, 1); c.mailTo = l.join(', '); drawClearance(); });
@@ -4406,7 +4413,8 @@ function drawClearance(){
     if (!ok) return;
     busy(e.target, true);
     try { const r = await call('clearanceSend', S.token, payload(), true); busy(e.target, false); c.lastTo = c.to;
-      $('#cl-res').innerHTML = `<div class="note small" style="margin:10px 0 0">Sent to <b>${esc(r.sent)}</b> with <b>${esc(r.name)}</b>.${r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">Open the Excel in Drive</a>` : ''}</div>`;
+      $('#cl-res').innerHTML = `<div class="note small" style="margin:10px 0 0">Sent to <b>${esc(r.sent)}</b> with <b>${esc(r.name)}</b>.${r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">Open the Excel in Drive</a>` : ''}
+        <br>${r.poc ? 'Receiver / POC on the form: <b>' + esc(r.poc) + '</b>' : '<b style="color:var(--flag)">Receiver / POC not on the form: ' + (c.pocName || c.pocMobile ? 'the server script is an older version. Paste the latest Code.gs and deploy a new version.' : 'the POC Name and Mobile No boxes are empty.') + '</b>'}</div>`;
       toast('Sent to ' + r.sent);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -4994,7 +5002,7 @@ const MOCK = (() => {
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
     getClearance: () => ({ settings: { mailTo: 'Yang_CHAN@certisgroup.com', greet: 'HI FCC, Mr. Ramesh,', time: '0700HRS', loc: 'ARMOURY', purpose: 'WEAPONS MAINTENANCE', formPurpose: 'ARMSKOTE' }, lastTo: '2026-10-22', today, template: 'MMRC Clearance Template.xlsx' }),
-    clearanceSend: (t, f, send) => ({ name: 'CCA_' + today.slice(8, 10) + today.slice(5, 7) + today.slice(2, 4) + '_MMRC_Clerance_Form.xlsx', url: send ? 'https://drive.google.com/' : '', sent: send ? f.mailTo : '', b64: '' }),
+    clearanceSend: (t, f, send) => ({ poc: [String(f.pocName || '').toUpperCase(), f.pocMobile].filter(Boolean).join(' / '), name: 'CCA_' + today.slice(8, 10) + today.slice(5, 7) + today.slice(2, 4) + '_MMRC_Clerance_Form.xlsx', url: send ? 'https://drive.google.com/' : '', sent: send ? f.mailTo : '', b64: '' }),
     getLeaveYear: (t, y) => { y = String(y || today.slice(0, 4)); const cats = ['MC','UL','NPL'];
       const ppl = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic');
       const st = MOCK.adminAwayList(t, y + '-01-01', 366).rows.filter(r => cats.includes(r.cat));
