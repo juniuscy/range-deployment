@@ -126,7 +126,8 @@ textarea{min-height:80px;resize:vertical}
 .lyd{margin:0 0 8px 94px;font-size:13px;display:flex;flex-direction:column;gap:3px}.lyd[hidden]{display:none}.lyasg{display:block;color:var(--muted);font-size:12.5px;margin:1px 0 2px 14px}.lydot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
 .lyt td,.lyt th{text-align:right}.lyt td:first-child,.lyt th:first-child{text-align:left}
 .clr{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r-md);padding:8px;margin:0 0 8px;background:var(--card)}.clr.off{opacity:.55}.clon{padding-top:8px}.clon input{width:20px;height:20px}
-.clg{flex:1;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:6px;min-width:0}.clg input{min-width:0;min-height:40px;font-size:15px;padding:6px 8px}.clg input[data-cr$='|name'],.clg input[data-cr$='|date']{grid-column:1 / -1}.clnr{display:flex;align-items:center;gap:4px;min-width:0}.clnr input{flex:1;font-family:ui-monospace,monospace;font-size:14px;padding:6px}.clr .ib[data-cx]{min-height:34px;padding:2px 10px;flex:none}
+.clg{flex:1;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:6px;min-width:0}.clg input{min-width:0;min-height:40px;font-size:15px;padding:6px 8px}.clg input[data-cr$='|name'],.clg .cldt{grid-column:1 / -1}.cldt{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}.cldt span{font-size:13px;color:var(--muted)}.cldt input{padding:6px}.clnr{display:flex;align-items:center;gap:4px;min-width:0}.clnr input{flex:1;font-family:ui-monospace,monospace;font-size:14px;padding:6px}.clr .ib[data-cx]{min-height:34px;padding:2px 10px;flex:none}
+.clmv{display:flex;flex-direction:column;gap:4px;flex:none}.clmv .ib{min-height:30px;padding:0 9px;font-size:12px}.clmv .ib[disabled]{opacity:.3}
 .clok{color:#15803D;font-weight:800}.clbad{color:var(--flag);font-weight:800;font-size:12px}
 .actr{display:flex;gap:10px;justify-content:space-between;align-items:center;border:1.5px solid #F59E0B;background:#FFFBEB;border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px}.actr .tx{display:flex;flex-direction:column;gap:2px;min-width:0}.acts2{display:flex;flex-direction:column;gap:6px;flex:none}
 .algadm{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
@@ -4206,9 +4207,33 @@ function parseClearance(text, today){
   const dateRe1 = new RegExp('^(?:date\\s*:?\\s*)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\\s+)?(\\d{1,2})(?:st|nd|rd|th)?[\\s\\-\\/\\.]*' + MON_RE + '(?:[\\s\\-\\/,]+(\\d{2,4}))?\\s*(?:\\([^)]*\\))?\\s*[:\\-]?\\s*', 'i');
   const dateRe2 = /^(?:date\s*:?\s*)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+)?(\d{1,2})[\/\.\-](\d{1,2})(?:[\/\.\-](\d{2,4}))?\s*(?:\([^)]*\))?\s*[:\-]?\s*/i;
   const NRIC = /\b[STFGM]\d{7}[A-Z]\b/i, PLATE = /^(?:[A-Z]{1,3}\d{1,4}[A-Z]{1,2}|MID\s?\d{4,5})$/i;
-  const out = []; let date = '', cur = null, seen = false;
+  // a header with several days: "24 Oct and 25 Oct", "24 & 25 Oct", "24-26 Oct", "24/10 - 25/10", "Oct 24, 25"
+  const multiDates = line => {
+    const t = line.toLowerCase().replace(/^date\s*:?\s*/, '').replace(/\([^)]*\)/g, ' ').replace(/\b(mon|tue|wed|thu|fri|sat|sun)[a-z]*\b\.?,?/g, ' ').replace(/:\s*$/, '');
+    const re = /(\d{1,2})[\/\.](\d{1,2})(?:[\/\.](\d{2,4}))?|(\d{4})|(\d{1,2})(?:st|nd|rd|th)?|(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?|(to|until|till|through|thru|-|\u2013)|(and|&|,|\+)/g;
+    if (t.replace(re, ' ').replace(/\s+/g, '').length) return null;      // anything else on the line: not a date header
+    const it = []; let mm, yr = '';
+    while ((mm = re.exec(t))) {
+      if (mm[1]) it.push({ d: +mm[1], m: +mm[2], y: mm[3] || '' });
+      else if (mm[4]) yr = mm[4];
+      else if (mm[5]) it.push({ d: +mm[5], m: 0, y: '' });
+      else if (mm[6]) { const mo = CLR_MON.indexOf(mm[6].slice(0, 3)) + 1; it.filter(x => !x.m && !x.r).forEach(x => { x.m = mo; }); it.push({ mon: mo }); }
+      else if (mm[7]) it.push({ r: 1 });
+    }
+    let lastMon = 0; it.forEach(x => { if (x.mon) lastMon = x.mon; else if (x.d && !x.m) x.m = lastMon; });
+    const out2 = []; let range = false;
+    it.forEach(x => {
+      if (x.r) { range = true; return; }
+      if (!x.d) return;
+      const v = ymd(x.d, x.m, x.y || yr); if (!v) return;
+      if (range && out2.length) { for (let g = addD(out2[out2.length - 1], 1); g < v && out2.length < 40; g = addD(g, 1)) out2.push(g); }
+      if (out2.indexOf(v) < 0) out2.push(v); range = false;
+    });
+    return out2.length >= 2 ? out2.sort() : null;
+  };
+  const out = []; let date = '', until = '', cur = null, seen = false;
   const flush = () => { if (cur && (cur.name || cur.nric || cur.vehicle)) out.push(cur); cur = null; };
-  const newP = () => { flush(); cur = { date, name: '', nric: '', vehicle: '' }; seen = true; };
+  const newP = () => { flush(); cur = { date, until, name: '', nric: '', vehicle: '' }; seen = true; };
   const P = () => cur || (newP(), cur);
   const blocks = [];                                   // dates seen, to add "pending" days with nothing under them
   // "Name: A, NRIC: B, Vehicle: C" on one line: one item per line
@@ -4219,8 +4244,10 @@ function parseClearance(text, today){
     let m = dateRe1.exec(ln), d = '';
     if (m && m[0].trim()) d = ymd(+m[1], CLR_MON.indexOf(m[2].toLowerCase().slice(0, 3)) + 1, m[3]);
     else if ((m = dateRe2.exec(ln)) && m[0].trim() && +m[2] <= 12) d = ymd(+m[1], +m[2], m[3]);
-    if (d) { flush(); date = d; blocks.push(d); seen = false; ln = ln.slice(m[0].length).trim(); if (!ln) return; }
-    if (/^(pending|tbc|tba|tbd|to be confirmed|nil)\b/i.test(ln) && !(cur && cur.name)) { if (date) out.push({ date, name: '', nric: '', vehicle: '', pending: true }); seen = true; return; }
+    const many = (!d || ln.slice(m[0].length).trim()) ? multiDates(ln) : null;
+    if (many) { flush(); date = many[0]; until = many[many.length - 1]; blocks.push(date); seen = false; return; }   // same people for several days
+    if (d) { flush(); date = d; until = ''; blocks.push(d); seen = false; ln = ln.slice(m[0].length).trim(); if (!ln) return; }
+    if (/^(pending|tbc|tba|tbd|to be confirmed|nil)\b/i.test(ln) && !(cur && cur.name)) { if (date) out.push({ date, until, name: '', nric: '', vehicle: '', pending: true }); seen = true; return; }
     // labelled lines: "Name: ...", "NRIC: ...", "Vehicle: ..."
     const lab = /^(rank\s*(?:&|and)?\s*name|name|nric|ic|fin|vehicle(?:\s*no\.?)?|veh|car\s*plate|car|plate)\s*[:\-]\s*/i.exec(ln);
     const kind = lab ? (/^(nric|ic|fin)$/i.test(lab[1]) ? 'nric' : /^(veh|car|plate)/i.test(lab[1]) ? 'veh' : 'name') : '';
@@ -4247,16 +4274,19 @@ function parseClearance(text, today){
     });
   });
   flush();
-  blocks.forEach(b => { if (!out.some(x => x.date === b)) out.push({ date: b, name: '', nric: '', vehicle: '', pending: true }); });
+  blocks.forEach(b => { if (!out.some(x => x.date === b)) out.push({ date: b, until: '', name: '', nric: '', vehicle: '', pending: true }); });
   return out.sort((a, b) => (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0);
 }
 const clrDmy = v => v ? v.slice(8, 10) + '/' + v.slice(5, 7) + '/' + v.slice(2, 4) : '';
+/* a person's day(s) for the email: "24/10/26", "24/10/26 & 25/10/26" (2 days), "24/10/26 to 26/10/26" */
+const clrDays = r => !r.until || r.until <= r.date ? clrDmy(r.date) : addD(r.date, 1) === r.until ? clrDmy(r.date) + ' & ' + clrDmy(r.until) : clrDmy(r.date) + ' to ' + clrDmy(r.until);
 function clrMail(c){
   const on = c.rows.filter(r => r.on);
   return [c.greet, 'Please facilitate the entry of the following personnel:', '',
     'Date: ' + clrDmy(c.from) + (c.to && c.to !== c.from ? ' to ' + clrDmy(c.to) : ''), 'Time: ' + c.time, 'Location: ' + c.loc, 'Purpose: ' + c.purpose, ' ',
-    on.map(r => 'Name: ' + (r.name ? r.name.toUpperCase() + (r.date ? ' (' + clrDmy(r.date) + ')' : '') : '') + '\nNRIC: ' + (r.nric || '').toUpperCase() + '\nVehicle: ' + (r.vehicle || '').toUpperCase()).join('\n\n')].join('\n');
+    on.map(r => 'Name: ' + (r.name ? r.name.toUpperCase() + (r.date ? ' (' + clrDays(r) + ')' : '') : '') + '\nNRIC: ' + (r.nric || '').toUpperCase() + '\nVehicle: ' + (r.vehicle || '').toUpperCase()).join('\n\n')].join('\n');
 }
+const clrMails = c => String(c.mailTo || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
 const clrSubject = c => 'OPS SUP ' + String(c.loc || '').toUpperCase() + ' FOR ' + clrDmy(c.from) + (c.to && c.to !== c.from ? ' TO ' + clrDmy(c.to) : '');
 async function admClearance(){
   loadingA();
@@ -4265,18 +4295,18 @@ async function admClearance(){
     const st = g.settings || {};
     S.clr = S.clr || { text: '', rows: [], from: '', to: '', datesEdited: false, subEdited: false, bodyEdited: false };
     Object.assign(S.clr, { lastTo: g.lastTo || '', template: g.template || '' });
-    ['mailTo','greet','time','loc','purpose','formPurpose'].forEach(k => { if (S.clr[k] == null) S.clr[k] = st[k] || ''; });
+    ['mailTo','greet','time','loc','purpose','formPurpose','pocName','pocMobile'].forEach(k => { if (S.clr[k] == null) S.clr[k] = st[k] || ''; });
     drawClearance();
   } catch(e){ fail(e); }
 }
 function clrDefaults(){
   const c = S.clr, start = c.lastTo ? addD(c.lastTo, 1) : addD(S.today, 1);
-  c.rows.forEach(r => { r.on = !!r.date && r.date >= start; });
-  if (!c.rows.some(r => r.on)) c.rows.forEach(r => { r.on = !!r.date && r.date >= S.today; });
+  c.rows.forEach(r => { r.on = !!r.date && (r.until || r.date) >= start; });
+  if (!c.rows.some(r => r.on)) c.rows.forEach(r => { r.on = !!r.date && (r.until || r.date) >= S.today; });
   c.datesEdited = false; c.subEdited = false; c.bodyEdited = false;
 }
 function clrSync(){
-  const c = S.clr, on = c.rows.filter(r => r.on && r.date).map(r => r.date).sort();
+  const c = S.clr, on = [].concat(...c.rows.filter(r => r.on && r.date).map(r => [r.date, r.until || r.date])).sort();
   if (!c.datesEdited) { c.from = on[0] || ''; c.to = on[on.length - 1] || ''; }
   if (!c.subEdited) c.subject = clrSubject(c);
   if (!c.bodyEdited) c.body = clrMail(c);
@@ -4292,19 +4322,22 @@ function drawClearance(){
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="cl-read">Read details</button>${c.rows.length ? '<button class="btn ghost" id="cl-new">Start again</button>' : ''}</div>
       ${c.template ? '' : '<div class="note red small" style="margin:10px 0 0">The form "MMRC Clearance Template.xlsx" is not in Google Drive yet. See SETUP.md: Clearance.</div>'}</div>
     ${c.rows.length ? `<div class="sec"><h3 style="margin-top:0">2. Check the people</h3>
-      <p class="small muted" style="margin:0 0 8px">Tick who goes on this form. A row left empty is a day still pending (blank in the email, purpose only on the form). NRIC check: <span class="clok">&#10003;</span> correct, <span class="clbad">check</span> the last letter does not match.</p>
+      <p class="small muted" style="margin:0 0 8px">Tick who goes on this form; &#9650; &#9660; change the order (the form and the email follow it). Someone coming on more than one day: fill the second date ("to"); they stay one row on the form. A row left empty is a day still pending (blank in the email, purpose only on the form). NRIC check: <span class="clok">&#10003;</span> correct, <span class="clbad">check</span> the last letter does not match.</p>
       ${c.rows.map((r, i) => `<div class="clr${r.on ? '' : ' off'}"><label class="clon"><input type="checkbox" data-ci="${i}" ${r.on ? 'checked' : ''}></label>
-        <div class="clg"><input type="date" data-cr="${i}|date" value="${esc(r.date || '')}">
+        <div class="clg"><div class="cldt"><input type="date" data-cr="${i}|date" value="${esc(r.date || '')}" aria-label="Date"><span>to</span><input type="date" data-cr="${i}|until" value="${esc(r.until || '')}" aria-label="Last day, if more than one day"></div>
           <input type="text" data-cr="${i}|name" value="${esc(r.name || '')}" placeholder="Rank and name (empty = pending)">
           <span class="clnr"><input type="text" data-cr="${i}|nric" value="${esc(r.nric || '')}" placeholder="NRIC" maxlength="9">${r.nric ? (nricOk(r.nric) === true ? '<span class="clok">&#10003;</span>' : nricOk(r.nric) === false ? '<span class="clbad">check</span>' : '') : ''}</span>
           <input type="text" data-cr="${i}|vehicle" value="${esc(r.vehicle || '')}" placeholder="Vehicle"></div>
-        <button class="btn ghost ib" data-cx="${i}" aria-label="Remove">&times;</button></div>`).join('')}
+        <div class="clmv"><button class="btn ghost ib" data-cu="${i}" aria-label="Move up"${i ? '' : ' disabled'}>&#9650;</button><button class="btn ghost ib" data-cd="${i}" aria-label="Move down"${i < c.rows.length - 1 ? '' : ' disabled'}>&#9660;</button><button class="btn ghost ib" data-cx="${i}" aria-label="Remove">&times;</button></div></div>`).join('')}
       <button class="btn ghost" id="cl-add" style="margin-top:6px">Add person</button></div>
     <div class="sec"><h3 style="margin-top:0">3. Details</h3>
       <div class="row2"><label class="f"><span>From</span><input type="date" id="cl-from" value="${esc(c.from)}"></label><label class="f"><span>To</span><input type="date" id="cl-to" value="${esc(c.to)}"></label></div>
       <div class="row2">${fld('time', 'Time', '0700HRS')}${fld('loc', 'Location', 'ARMOURY')}</div>
       <div class="row2">${fld('purpose', 'Purpose (email)', 'WEAPONS MAINTENANCE')}${fld('formPurpose', 'Purpose (form)', 'ARMSKOTE')}</div>
-      ${fld('greet', 'Greeting', 'HI FCC, Mr. Ramesh,')}${fld('mailTo', 'Send to (your email)', 'name@certisgroup.com')}</div>
+      ${fld('greet', 'Greeting', 'HI FCC, Mr. Ramesh,')}
+      <div class="row2">${fld('pocName', 'MMRC Receiver / POC: Name', 'e.g. CHAN YANG')}${fld('pocMobile', 'POC Mobile No', 'e.g. 9123 4567')}</div>
+      <div class="f"><span>Send to</span><div class="chips" style="margin:2px 0 6px">${clrMails(c).map((m, i) => `<span class="tag">${esc(m)}<button type="button" data-crm="${i}" aria-label="Remove ${esc(m)}">&times;</button></span>`).join('') || '<span class="small muted">No address yet</span>'}</div>
+        <div style="display:flex;gap:6px"><input type="email" id="cl-addm" placeholder="Add an email address" style="flex:1;min-width:0"><button class="btn ghost" id="cl-addb">Add</button></div></div></div>
     <div class="sec"><h3 style="margin-top:0">4. Email</h3>
       <label class="f"><span>Subject</span><input type="text" id="cl-sub" value="${esc(c.subject)}"></label>
       <label class="f"><span>Message${c.bodyEdited ? ' (edited)' : ''}</span><textarea id="cl-body" rows="14" style="width:100%;font:14px/1.45 ui-monospace,monospace">${esc(c.body)}</textarea></label>
@@ -4326,20 +4359,34 @@ function drawClearance(){
   A().querySelectorAll('[data-ci]').forEach(b => b.onchange = () => { c.rows[+b.dataset.ci].on = b.checked; drawClearance(); });
   A().querySelectorAll('[data-cx]').forEach(b => b.onclick = () => { c.rows.splice(+b.dataset.cx, 1); drawClearance(); });
   A().querySelectorAll('[data-cr]').forEach(inp => inp.onchange = () => { const [i, k] = inp.dataset.cr.split('|'); let v = inp.value.trim();
-    if (k !== 'date') v = v.toUpperCase(); c.rows[+i][k] = v; drawClearance(); });
+    if (k !== 'date' && k !== 'until') v = v.toUpperCase(); c.rows[+i][k] = v;
+    if (k === 'until' && v && v <= c.rows[+i].date) c.rows[+i].until = '';       // one day only
+    if (k === 'date' && c.rows[+i].until && c.rows[+i].until <= v) c.rows[+i].until = '';
+    drawClearance(); });
   $('#cl-add').onclick = () => { c.rows.push({ date: c.to || S.today, name: '', nric: '', vehicle: '', on: true }); drawClearance(); };
   $('#cl-from').onchange = e => { c.from = e.target.value; c.datesEdited = true; drawClearance(); };
   $('#cl-to').onchange = e => { c.to = e.target.value; c.datesEdited = true; drawClearance(); };
   A().querySelectorAll('[data-cf]').forEach(inp => inp.onchange = () => { c[inp.dataset.cf] = inp.value.trim(); drawClearance(); });
+  A().querySelectorAll('[data-cu],[data-cd]').forEach(b => b.onclick = () => { const i = +(b.dataset.cu ?? b.dataset.cd), j = b.dataset.cu != null ? i - 1 : i + 1;
+    if (j < 0 || j >= c.rows.length) return; [c.rows[i], c.rows[j]] = [c.rows[j], c.rows[i]]; drawClearance(); });
+  A().querySelectorAll('[data-crm]').forEach(b => b.onclick = () => { const l = clrMails(c); l.splice(+b.dataset.crm, 1); c.mailTo = l.join(', '); drawClearance(); });
+  const addMail = () => { const v = $('#cl-addm').value.trim(); if (!v) return;
+    const bad = v.split(/[\s,;]+/).filter(Boolean).filter(x => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+    if (bad.length) { toast('Check the email address: ' + bad.join(', '), true); return; }
+    c.mailTo = clrMails(c).concat(v.split(/[\s,;]+/).filter(Boolean)).filter((x, i, a) => a.indexOf(x) === i).join(', '); drawClearance(); };
+  $('#cl-addb').onclick = addMail;
+  $('#cl-addm').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addMail(); } };
   $('#cl-sub').oninput = e => { c.subject = e.target.value; c.subEdited = true; };
   $('#cl-body').oninput = e => { c.body = e.target.value; c.bodyEdited = true; };
   if ($('#cl-rb')) $('#cl-rb').onclick = () => { c.subEdited = c.bodyEdited = false; drawClearance(); };
   $('#cl-cp').onclick = async () => { try { await navigator.clipboard.writeText(c.subject + '\n\n' + c.body); toast('Subject and message copied'); } catch(e){ toast('Copy did not work here: select the text and copy it.', true); } };
   const payload = () => ({ from: c.from, to: c.to, time: c.time, loc: c.loc, purpose: c.purpose, formPurpose: c.formPurpose, greet: c.greet, mailTo: c.mailTo,
-    subject: c.subject, body: c.body, entries: c.rows.filter(r => r.on).sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1).map(r => ({ date: r.date, name: r.name, nric: r.nric, vehicle: r.vehicle, pending: !r.name && !r.nric && !r.vehicle })) });
+    pocName: c.pocName, pocMobile: c.pocMobile,
+    subject: c.subject, body: c.body, entries: c.rows.filter(r => r.on).map(r => ({ date: r.date, name: r.name, nric: r.nric, vehicle: r.vehicle, pending: !r.name && !r.nric && !r.vehicle })) });
   const check = () => {
     if (!c.from || !c.to) { toast('Pick the From and To dates.', true); return false; }
     if (!c.rows.some(r => r.on)) { toast('Tick at least one row.', true); return false; }
+    if (!clrMails(c).length) { toast('Add the email address to send to.', true); return false; }
     if (c.rows.filter(r => r.on).length > 12) { toast('The form has 12 rows. Untick some, or send two forms.', true); return false; }
     return true; };
   $('#cl-dl').onclick = async e => {
@@ -4355,7 +4402,7 @@ function drawClearance(){
   $('#cl-send').onclick = async e => {
     if (!check()) return;
     const n = c.rows.filter(r => r.on && r.name).length;
-    const ok = await askBox('Send the clearance?', `To <b>${esc(c.mailTo)}</b><br>${esc(c.subject)}<br>${n} named${c.rows.some(r => r.on && !r.name) ? ', with pending day(s) left blank' : ''}<br><span class="muted">The Excel form is attached. Forward it to FCC from your email.</span>${bad ? '<br><b style="color:var(--flag)">' + bad + ' NRIC(s) marked "check".</b>' : ''}`, 'Confirm and send');
+    const ok = await askBox('Send the clearance?', `To <b>${esc(clrMails(c).join(', '))}</b><br>${esc(c.subject)}<br>${n} named${c.rows.some(r => r.on && !r.name) ? ', with pending day(s) left blank' : ''}<br><span class="muted">The Excel form is attached. Forward it to FCC from your email.</span>${bad ? '<br><b style="color:var(--flag)">' + bad + ' NRIC(s) marked "check".</b>' : ''}`, 'Confirm and send');
     if (!ok) return;
     busy(e.target, true);
     try { const r = await call('clearanceSend', S.token, payload(), true); busy(e.target, false); c.lastTo = c.to;
