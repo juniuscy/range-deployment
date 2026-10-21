@@ -129,6 +129,8 @@ textarea{min-height:80px;resize:vertical}
 .clg{flex:1;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:6px;min-width:0}.clg input{min-width:0;min-height:40px;font-size:15px;padding:6px 8px}.clg input[data-cr$='|name'],.clg .cldt{grid-column:1 / -1}.cldt{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}.cldt span{font-size:13px;color:var(--muted)}.cldt input{padding:6px}.clnr{display:flex;align-items:center;gap:4px;min-width:0}.clnr input{flex:1;font-family:ui-monospace,monospace;font-size:14px;padding:6px}.clr .ib[data-cx]{min-height:34px;padding:2px 10px;flex:none}
 .clmv{display:flex;flex-direction:column;gap:4px;flex:none}.clmv .ib{min-height:30px;padding:0 9px;font-size:12px}.clmv .ib[disabled]{opacity:.3}
 .clok{color:#15803D;font-weight:800}.clbad{color:var(--flag);font-weight:800;font-size:12px}
+.oiltot{border:1.5px solid var(--steel);background:var(--steel-soft);border-radius:var(--r-md);padding:12px;margin:16px 0 4px}.oilt-h{display:flex;gap:12px;align-items:center}.oilt-h b{font:800 34px/1 var(--cond);color:var(--steel)}.oilt-h span{font-weight:700}.oilt-h small{font-weight:500;color:var(--muted)}
+.oilt-n{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.oilt-n .chip{min-height:32px;padding:4px 10px;font-size:14px;background:var(--card)}
 .actr{display:flex;gap:10px;justify-content:space-between;align-items:center;border:1.5px solid #F59E0B;background:#FFFBEB;border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px}.actr .tx{display:flex;flex-direction:column;gap:2px;min-width:0}.acts2{display:flex;flex-direction:column;gap:6px;flex:none}
 .algadm{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .pill{display:inline-block;white-space:nowrap;font:600 13px/1 var(--body);padding:5px 9px;border-radius:999px}
@@ -3485,6 +3487,11 @@ async function admOil(){
       : '<span class="pill Cancelled">Taken</span>';
     const totals = {};
     list.forEach(o => { totals[o.name] = (totals[o.name] || 0) + o.available; });
+    // total OIL earned but not used yet, everyone (also when one person is picked in Show)
+    const allOil = S.oilFilter && S.oilFilter !== '*' ? await call('adminOil', S.token, '').catch(() => list) : list;
+    const left = {}; let leftAll = 0, held = 0;
+    allOil.forEach(o => { const r = Number(o.remaining) || 0; if (!r) return; left[o.name] = (left[o.name] || 0) + r; leftAll += r; held += Math.max(0, r - (Number(o.available) || 0)); });
+    const leftNames = Object.keys(left).sort((a, b) => left[b] - left[a] || (a < b ? -1 : 1));
     const noTts = list.filter(o => o.needsTts).length;
     const small = 'min-height:32px;padding:3px 9px;font-size:14px';
     A().innerHTML = `
@@ -3500,6 +3507,8 @@ async function admOil(){
         <label class="f"><span>Remark</span><input type="text" id="o-r" placeholder="e.g. RANGE EXTENSION"></label>
         <label class="f"><span>No date? What it's for instead</span><input type="text" id="o-o" placeholder="e.g. COHESION OIL 2026 (leave the date blank)"></label>
         <button class="btn" id="o-go">Add off day</button></div>
+      <div class="oiltot"><div class="oilt-h"><b>${fmtN(leftAll)}</b><span>OIL not used yet, as at ${esc(nice(S.today))}<br><small>${leftNames.length} ${leftNames.length === 1 ? 'person' : 'people'}${held ? ' &middot; ' + fmtN(held) + ' on hold for requests waiting' : ''}</small></span></div>
+        ${leftNames.length ? `<div class="oilt-n">${leftNames.map(n => `<button type="button" class="chip" data-oiln="${esc(n)}">${esc(titleCase(n))} <b>${fmtN(left[n])}</b></button>`).join('')}</div>` : ''}</div>
       <h3>Ledger</h3>
       <label class="f"><span>Show</span><select id="o-flt"><option value="">Select option</option><option value="*" ${S.oilFilter === '*' ? 'selected' : ''}>Everyone</option>${names.map(n => `<option ${n===S.oilFilter?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
       ${S.oilFilter !== '*' ? '' : `<div class="sec small">${Object.keys(totals).map(n => `<b>${esc(n)}</b> ${fmtN(totals[n])}`).join('<br>')}</div>`}
@@ -3516,6 +3525,7 @@ async function admOil(){
         <label class="f"><span>To</span><input type="date" id="s-t" value="${to}"></label></div>
         <button class="btn" id="s-go">Scan and add</button></div>`;
     $('#o-flt').onchange = e => { S.oilFilter = e.target.value; admOil(); };
+    A().querySelectorAll('[data-oiln]').forEach(b => b.onclick = () => { S.oilFilter = b.dataset.oiln; admOil(); });   // tap a name: their ledger
     $('#o-d').oninput = () => { if ($('#o-d').value) $('#o-o').value = ''; loadPostings(); };
     $('#o-o').oninput = () => { if ($('#o-o').value) { $('#o-d').value = ''; loadPostings(); } };
     $('#s-go').onclick = async e => {
