@@ -5019,10 +5019,11 @@ const MOCK = (() => {
     adminActions: () => { const rs = [];
       Object.keys(attStore).forEach(k => { const [d, n] = k.split('|'); if (attStore[k].status === 'RS' && d <= today && d >= addD(today, -30)) rs.push({ kind: 'rs', name: n, start: d, end: d, days: 1, reason: attStore[k].reason || '' }); });
       return { today, rs, allergo: mAlg.filter(x => !x.ticked && today > x.due).map(x => ({ name: x.name, type: x.type, start: x.start, end: x.end, due: x.due })) }; },
-    adminAwayList: (t, from, n) => { const to = addD(from, (n || 28) - 1), scan = addD(from, -35), hit = {}, LBL = { AL:'Annual Leave', MC:'Medical Certificate', OIL:'Off In Lieu', UL:'Urgent Leave', HL:'Hospitalisation Leave', NPL:'No Pay Leave', RS:'Report Sick', MA:'Medical Appointment', CCL:'Childcare Leave', COURSE:'Course', ICT:'ICT', CL:'Compassionate Leave' };
+    adminAwayList: (t, from, n) => { const to = addD(from, (n || 28) - 1), scan = addD(from, -35), hit = {}, LBL = { LIB:'LIB Test', TRG:'IPPT / Training', Others:'Others', AL:'Annual Leave', MC:'Medical Certificate', OIL:'Off In Lieu', UL:'Urgent Leave', HL:'Hospitalisation Leave', NPL:'No Pay Leave', RS:'Report Sick', MA:'Medical Appointment', CCL:'Childcare Leave', COURSE:'Course', ICT:'ICT', CL:'Compassionate Leave' };
       for (let ds = scan; ds <= to; ds = addD(ds, 1)) { const d = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)]; if (!d) continue;
-        (d.absences || []).forEach(a => { let c = String(a.label).toUpperCase().replace(/\s+/g, ''); if (['IPPT/TRGETC','LIBTEST','ORIENTATION','OFFDAYEARNED'].includes(c)) return;
-          a.people.forEach(nm => { let cc = c; if (c === 'OTHERS') { const w = ' ' + a.text.toUpperCase() + ' '; cc = / NPL /.test(w) ? 'NPL' : / RS /.test(w) ? 'RS' : / MA /.test(w) ? 'MA' : ''; if (!cc) return; }
+        (d.absences || []).forEach(a => { let c = String(a.label).toUpperCase().replace(/\s+/g, ''); if (['ORIENTATION','OFFDAYEARNED'].includes(c)) return;
+          if (c === 'LIBTEST') c = 'LIB'; else if (/^IPPT/.test(c)) c = 'TRG';
+          a.people.forEach(nm => { let cc = c; if (c === 'OTHERS') { const w = ' ' + a.text.toUpperCase() + ' '; cc = / NPL /.test(w) ? 'NPL' : / RS /.test(w) ? 'RS' : / MA /.test(w) ? 'MA' : 'Others'; }
             ((hit[nm + '|' + cc] = hit[nm + '|' + cc] || {})[ds] = a.text); }); }); }
       const rows = [];
       Object.keys(hit).forEach(k => { const [nm, c] = k.split('|'); let run = null;
