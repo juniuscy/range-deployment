@@ -331,6 +331,29 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .sheet .chips .chip{padding:6px 11px;font-size:14px}
 .sheet .acts{display:flex;gap:8px;margin-top:16px}
 .sheet .acts .btn{flex:1}
+/* Sticky notes */
+#nlay{position:absolute;left:0;top:0;width:0;height:0;z-index:4}
+.npin{position:absolute;width:34px;height:34px;margin:0;padding:0;border:0;border-radius:3px 3px 10px 3px;cursor:pointer;transform:rotate(-5deg);box-shadow:0 2px 6px rgba(23,33,43,.35);
+  background-image:repeating-linear-gradient(to bottom,transparent 0 9px,rgba(23,33,43,.28) 9px 10.5px);background-size:22px 30px;background-repeat:no-repeat;background-position:6px 4px;transition:transform .15s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
+.npin::after{content:"";position:absolute;right:0;bottom:0;width:10px;height:10px;background:linear-gradient(135deg,rgba(0,0,0,.18) 50%,rgba(255,255,255,.55) 50%);border-radius:0 0 10px 0}
+.npin.new::before{content:"";position:absolute;right:-5px;top:-5px;width:12px;height:12px;border-radius:50%;background:#d93a32;border:2px solid #fff}
+#nlay .npin.own{touch-action:none}
+.npin.drag{transform:rotate(0deg) scale(1.35);box-shadow:0 10px 22px rgba(23,33,43,.45);z-index:2;transition:none}
+.n-yellow{background-color:#ffe066}.n-pink{background-color:#ffb8cb}.n-blue{background-color:#a9d8ff}.n-green{background-color:#b9e8a8}
+.nring{position:absolute;width:64px;height:64px;margin:-32px 0 0 -32px;pointer-events:none;z-index:5}
+.nring circle{fill:rgba(255,224,102,.25);stroke:#d6a800;stroke-width:5;stroke-dasharray:176;stroke-dashoffset:176;transform:rotate(-90deg);transform-origin:50% 50%;animation:nring var(--nd,2.25s) linear forwards}
+@keyframes nring{to{stroke-dashoffset:0}}
+.nhold #view{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.sheet-bg.nz{align-items:center;padding:16px}
+.nzoom{position:relative;width:100%;max-width:440px;max-height:84vh;overflow:auto;color:#17212b;border-radius:4px 4px 22px 4px;padding:22px 20px 16px;box-shadow:0 18px 40px rgba(0,0,0,.35);transform:rotate(-1deg);transition:transform .28s cubic-bezier(.2,.8,.25,1),opacity .28s}
+.nzoom .nt{font-size:21px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;min-height:110px;margin:0 0 14px}
+.nzoom .nm{font-size:13px;line-height:1.5;color:rgba(23,33,43,.75);border-top:1px dashed rgba(23,33,43,.3);padding-top:8px}
+.nzoom .nm b{color:#17212b}
+.nzoom .nx{position:absolute;right:6px;top:4px;border:0;background:none;font-size:28px;line-height:1;color:#17212b;width:40px;height:40px;cursor:pointer}
+.nzoom .nacts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.nzoom .nacts .btn{flex:1;min-height:40px;background:rgba(255,255,255,.7);color:#17212b;border-color:rgba(23,33,43,.35)}
+.nzoom .nacts .btn.bad{color:#b3261e}
+.ncols{display:flex;gap:10px;margin:6px 0 12px}.ncols button{width:40px;height:40px;border-radius:6px;border:2px solid transparent;cursor:pointer}.ncols button[aria-pressed=true]{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+#nt-t{width:100%;min-height:110px;font:inherit;font-size:17px;padding:10px;border-radius:6px;border:1px solid var(--line);color:#17212b;resize:vertical}
 /* My OIL: one colour per state */
 .oilsum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
 .oilsum div{border-radius:var(--r-md);padding:10px 8px;text-align:center}
@@ -814,6 +837,7 @@ function signedIn(r){
   setStaff(r.staff || []);
   S.monday = mondayOf(r.today); S.dayIdx = dowIdx(r.today);
   renderShell(); go(S.me.role === 'Admin' ? 'board' : 'home');
+  loadNotes();
 }
 
 /* ============================================================
@@ -4882,6 +4906,8 @@ async function admChanges(){
 const SNAP = { weeks:{}, staff:[], oil:[], lib:{} }   /* preview data lives in Preview.html only */;
 const MOCK = (() => {
   const today = ymd(new Date());
+  const mNotes = [{ id:'NT1', page:'board', dated:true, start:today, end:addD(today, 2), anchor:JSON.stringify({ p:[], s:'Duties', t:'H3' }), x:0.6, y:0.5,
+    text:'Draw key 59 and 194 by 0715.\nSign the key log before handing over.', colour:'pink', len:'3d', by:'JAMES LAI', created:today + ' 07:45', updated:'', seen:[{ n:'ARIF', t:today + ' 08:02' }] }];
   const mon = mondayOf(today);
   const R = (range, sup, emp, tf, unit, rmk, dur) => ({ range, sup, emp, tf, unit, rmk, dur:dur||'', active:!!(sup||emp), people: emp ? emp.split(/\s*\/\s*/).map(x => x === 'IVAN' ? 'IVAN LIM' : x).filter(x => x !== 'JAMES') : [] });
   const idle = r => R(r, '', '', '', '', '');
@@ -5168,6 +5194,17 @@ const MOCK = (() => {
     grabIssue: (t, d, f, n, undo) => { const k = d + '|' + f + '|' + n; if (undo) delete mGcDone[k]; else mGcDone[k] = { by:S.me.name, at:today + ' 17:58' }; return mockGrab(); },
     getReports: () => mRep,
     getNews: () => mNewsList(),
+    getNotes: () => mNotes.filter(n => !n.removed),
+    noteSave: (t, f) => { if (!String(f.text || '').trim()) throw new Error('Type the note first.');
+      const hm = today + ' ' + String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0');
+      const n = f.id ? mNotes.find(x => x.id === f.id) : null;
+      if (n) Object.assign(n, { text:f.text.trim(), colour:f.colour, len:f.len, end:noteEnd(n.start, f.len), updated:hm });
+      else { const dated = !!f.date, start = f.date || today;
+        mNotes.push({ id:'NT' + Date.now(), page:f.page, dated, start, end:noteEnd(start, f.len), anchor:f.anchor, x:f.x, y:f.y, text:f.text.trim(), colour:f.colour, len:f.len, by:S.me.name, created:hm, updated:'', seen:[] }); }
+      return mNotes.filter(x => !x.removed); },
+    noteMove: (t, id, p) => { const n = mNotes.find(x => x.id === id); Object.assign(n, { anchor:p.anchor, x:p.x, y:p.y }); return mNotes.filter(x => !x.removed); },
+    noteRemove: (t, id) => { mNotes.find(x => x.id === id).removed = true; return mNotes.filter(x => !x.removed); },
+    noteSeen: (t, id) => { const n = mNotes.find(x => x.id === id); if (n.by !== S.me.name && !n.seen.some(z => z.n === S.me.name)) n.seen.push({ n:S.me.name, t:today + ' 16:30' }); return n.seen; },
     monthSummary: (t, ym) => mMonth(ym),
     newsSave: (t, f) => { if (!String(f.title || '').trim()) throw new Error('Give the update a title.');
       const hm = String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0');
@@ -5368,6 +5405,249 @@ function uiBusy(){
   const a = document.activeElement;
   return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest('#view'));
 }
+/* ============================================================
+   Sticky notes
+   - Managers, DY Managers and Admin: hold anywhere on a page for 2.5 seconds to paste a note there.
+     Only the person who pasted a note can move (hold it, then drag), edit or remove it.
+   - Everyone: tap a note to zoom in. A red dot means you have not opened it yet.
+   - A note is saved against the box under the finger (and where in that box), not a screen
+     position, so it lands in the same place on every phone size.
+   ============================================================ */
+const NOTE_HOLD = 2500;
+const NOTE_COLS = ['yellow','pink','blue','green'];
+const NOTE_LENS = [['1d','1 day'],['2d','2 days'],['3d','3 days'],['1w','1 week'],['2w','2 weeks'],['3w','3 weeks'],['1m','1 month']];
+S.notes = [];
+function notePage(){
+  if (S.view === 'admin') return { page: 'admin:' + S.adminTab, date: S.adminTab === 'att' ? (S.attDate || S.today) : '' };
+  if (S.view === 'board') return { page: 'board', date: S.monday ? addD(S.monday, S.dayIdx || 0) : '' };
+  return { page: S.view, date: '' };
+}
+function noteEnd(start, len){
+  const d = pd(start);
+  if (len === '1m') { const e = new Date(d.getFullYear(), d.getMonth() + 1, d.getDate(), 12); e.setDate(e.getDate() - 1); return ymd(e); }
+  return addD(start, (({ '1d':1, '2d':2, '3d':3, '1w':7, '2w':14, '3w':21 })[len] || 1) - 1);
+}
+const noteShown = (n, pk) => n.page === pk.page && (n.dated ? !!pk.date && n.start <= pk.date && pk.date <= n.end : S.today <= n.end);
+const noteSig = el => (el.tagName === 'TR' && el.cells && el.cells.length ? el.cells[0].textContent : el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+/* the box a point belongs to: a table row, a list item, or the nearest block at least 24px tall */
+function noteBox(el){
+  const root = V();
+  let a = el;
+  while (a && a !== root && root.contains(a)) {
+    if (a.tagName === 'TR' || a.tagName === 'LI') break;
+    const d = getComputedStyle(a).display;
+    if (!/^(inline|contents|table-cell|table-row-group|inline-block|inline-flex)$/.test(d) && a.offsetHeight >= 24) break;
+    a = a.parentElement;
+  }
+  return a && root.contains(a) ? a : root;
+}
+function notePath(a){
+  const root = V(), p = [];
+  while (a && a !== root) { p.unshift(Array.prototype.indexOf.call(a.parentElement.children, a)); a = a.parentElement; }
+  return p;
+}
+/* client point -> { anchor, x, y } */
+function noteSpot(cx, cy){
+  const lay = $('#nlay'); if (lay) lay.style.visibility = 'hidden';
+  let el = document.elementFromPoint(cx, cy);
+  if (lay) lay.style.visibility = '';
+  if (!el || !V().contains(el)) return null;
+  const a = noteBox(el), r = a.getBoundingClientRect();
+  return { anchor: JSON.stringify({ p: notePath(a), s: noteSig(a), t: a.tagName }), x: r.width ? (cx - r.left) / r.width : 0, y: r.height ? (cy - r.top) / r.height : 0 };
+}
+function noteFind(anchor){
+  const root = V();
+  let A = null; try { A = JSON.parse(anchor || 'null'); } catch(e) {}
+  if (!A || !A.t) return root;
+  let el = root;
+  for (const i of (A.p || [])) { el = el && el.children[i]; if (!el) break; }
+  if (el && el.tagName === A.t && noteSig(el) === A.s) return el;
+  if (A.s) { const all = root.getElementsByTagName(A.t); for (let i = 0; i < all.length; i++) if (noteSig(all[i]) === A.s) return all[i]; }
+  if (el && el.tagName === A.t) return el;
+  return root;
+}
+function noteLayer(){
+  let l = $('#nlay');
+  if (!l) { l = document.createElement('div'); l.id = 'nlay'; document.body.appendChild(l); }
+  l.classList.toggle('mgr', !!canManage());
+  return l;
+}
+let noteDragging = null, notePress = false;
+function placeNotes(){
+  if (noteDragging || notePress) return;
+  const lay = noteLayer(), v = V();
+  if (!S.token || !S.me || !v) { lay.innerHTML = ''; return; }
+  const pk = notePage();
+  const adm = S.view === 'admin' && $('#adm');
+  const busy = (v.children.length === 1 && v.firstElementChild.classList.contains('loading')) || (adm && adm.children.length === 1 && adm.firstElementChild.classList.contains('loading'));
+  const list = busy ? [] : (S.notes || []).filter(n => noteShown(n, pk));
+  const W = document.documentElement.clientWidth;
+  lay.innerHTML = list.map(n => {
+    const r = noteFind(n.anchor).getBoundingClientRect();
+    if (!r.width && !r.height) return '';
+    const x = Math.max(4, Math.min(W - 38, r.left + window.scrollX + n.x * r.width - 17)), y = r.top + window.scrollY + n.y * r.height - 17;
+    const mine = n.by === S.me.name, seen = mine || (n.seen || []).some(z => z.n === S.me.name);
+    return `<button class="npin n-${esc(n.colour)}${seen ? '' : ' new'}${mine ? ' own' : ''}" data-note="${esc(n.id)}" style="left:${Math.round(x)}px;top:${Math.round(y)}px" aria-label="Sticky note"></button>`;
+  }).join('');
+  lay.querySelectorAll('.npin').forEach(b => notePinEvents(b));
+}
+let notePlaceT = 0;
+function notePlaceSoon(){ clearTimeout(notePlaceT); notePlaceT = setTimeout(placeNotes, 80); }
+async function loadNotes(){
+  try { const l = await call('getNotes', S.token); S.notes = Array.isArray(l) ? l : []; } catch(e) { return; }
+  placeNotes();
+}
+/* ---- tap a note to read it; managers hold it and drag to move it ---- */
+function notePinEvents(b){
+  b.onpointerdown = e => {
+    if (e.button > 0) return;
+    e.stopPropagation();
+    const n = S.notes.find(x => x.id === b.dataset.note); if (!n) return;
+    const st = { x: e.clientX, y: e.clientY, moved: false, drag: false, t: null };
+    notePress = true;
+    try { b.setPointerCapture(e.pointerId); } catch(x) {}
+    if (n.by === S.me.name) st.t = setTimeout(() => { st.drag = true; noteDragging = n; b.classList.add('drag'); if (navigator.vibrate) navigator.vibrate(20); }, 450);
+    b.onpointermove = m => {
+      if (st.drag) {
+        b.style.left = (m.pageX - 17) + 'px'; b.style.top = (m.pageY - 17) + 'px';
+        if (m.clientY < 90) window.scrollBy(0, -14); else if (m.clientY > window.innerHeight - 110) window.scrollBy(0, 14);
+      } else if (Math.abs(m.clientX - st.x) + Math.abs(m.clientY - st.y) > 10) { st.moved = true; clearTimeout(st.t); }
+    };
+    const end = async u => {
+      clearTimeout(st.t); b.onpointermove = b.onpointerup = b.onpointercancel = null; notePress = false;
+      if (st.drag) {
+        noteDragging = null;
+        const sp = u.type === 'pointerup' ? noteSpot(u.clientX, u.clientY) : null;
+        if (!sp) { placeNotes(); if (u.type === 'pointerup') toast('Drop the note on the page.', true); return; }
+        Object.assign(n, sp); placeNotes();
+        try { S.notes = await call('noteMove', S.token, n.id, sp); placeNotes(); toast('Note moved'); } catch(x) { fail(x); loadNotes(); }
+      } else if (!st.moved && u.type === 'pointerup') noteOpen(n, b);
+    };
+    b.onpointerup = end; b.onpointercancel = end;
+  };
+  b.onclick = e => e.preventDefault();
+  b.oncontextmenu = e => e.preventDefault();
+}
+const noteWhen = t => t ? nice(t.slice(0, 10)) + (t.length > 10 ? ' ' + t.slice(11, 16) : '') : '';
+function noteOpen(n, pin){
+  const mine = n.by === S.me.name, mgr = mine;
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg nz';
+  const span = n.dated ? (n.start === n.end ? 'On ' + nice(n.start) : nice(n.start) + ' to ' + nice(n.end)) : 'Showing till ' + nice(n.end);
+  const seen = (n.seen || []);
+  bg.innerHTML = `<div class="nzoom n-${esc(n.colour)}" role="dialog" aria-modal="true"><button class="nx" aria-label="Close">\u00d7</button>
+    <p class="nt">${esc(n.text)}</p>
+    <div class="nm">By <b>${esc(titleCase(n.by || ''))}</b> &middot; ${esc(noteWhen(n.created))}${n.updated ? ' &middot; edited' : ''}<br>${esc(span)}
+      ${mgr ? `<br>Seen by ${seen.length ? '(' + seen.length + '): ' + seen.map(z => '<b>' + esc(titleCase(z.n)) + '</b> ' + esc(z.t.slice(11, 16) ? nice(z.t.slice(0, 10)).replace(/^\w+ /, '') + ' ' + z.t.slice(11, 16) : '')).join(', ') : 'no one yet'}` : ''}</div>
+    ${mgr ? `<div class="nacts"><button class="btn" id="nz-e">Edit</button><button class="btn bad" id="nz-r">Remove</button></div><p class="small" style="margin:8px 0 0;color:rgba(23,33,43,.7)">To move it: close this, hold the note, then drag.</p>` : ''}</div>`;
+  document.body.appendChild(bg);
+  const card = $('.nzoom', bg);
+  const pr = pin && pin.getBoundingClientRect(), cr = card.getBoundingClientRect();
+  const from = pr ? `translate(${Math.round(pr.left + pr.width / 2 - (cr.left + cr.width / 2))}px,${Math.round(pr.top + pr.height / 2 - (cr.top + cr.height / 2))}px) scale(.08)` : 'scale(.6)';
+  card.style.transition = 'none'; card.style.transform = from; card.style.opacity = '.4';
+  requestAnimationFrame(() => requestAnimationFrame(() => { card.style.transition = ''; card.style.transform = ''; card.style.opacity = ''; }));
+  const close = () => { card.style.transform = from; card.style.opacity = '0'; setTimeout(() => bg.remove(), 230); };
+  $('.nx', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  if (!mine && !seen.some(z => z.n === S.me.name)) {
+    n.seen = seen.concat([{ n: S.me.name, t: '' }]); placeNotes();
+    call('noteSeen', S.token, n.id).then(l => { if (Array.isArray(l) && l.length) n.seen = l; }).catch(() => {});
+  }
+  if (mgr) {
+    $('#nz-e', bg).onclick = () => { bg.remove(); noteEdit(n); };
+    $('#nz-r', bg).onclick = async () => {
+      bg.remove();
+      const ok = await askBox('Remove this note?', `<i>${esc(n.text.length > 120 ? n.text.slice(0, 120) + '\u2026' : n.text)}</i><br><span class="muted">It comes off the page for everyone. It stays in the App Notes tab as a record.</span>`, 'Yes, remove');
+      if (!ok) return;
+      S.notes = S.notes.filter(x => x.id !== n.id); placeNotes();
+      try { S.notes = await call('noteRemove', S.token, n.id); placeNotes(); toast('Note removed'); } catch(x) { fail(x); loadNotes(); }
+    };
+  }
+}
+/* new note at a spot, or edit an existing one */
+function noteEdit(n, spot){
+  const pk = notePage();
+  const isNew = !n;
+  const f = { text: n ? n.text : '', colour: n ? n.colour : (S.noteCol || 'yellow'), len: n ? n.len : (S.noteLen || '1d') };
+  const start = n ? n.start : (pk.date || S.today), dated = n ? n.dated : !!pk.date;
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${isNew ? 'Sticky note' : 'Edit note'}</h3>
+    <div class="src">${dated ? 'On this page for ' + esc(nice(start)) + ' onwards' : 'On this page'}. Everyone can see it.</div>
+    <textarea id="nt-t" maxlength="1000" placeholder="Type your note"></textarea>
+    <div class="f" style="margin-top:10px"><span>Colour</span></div><div class="ncols">${NOTE_COLS.map(c => `<button class="n-${c}" data-nc="${c}" aria-label="${c}" aria-pressed="${c === f.colour}"></button>`).join('')}</div>
+    <div class="f"><span>How long to show it</span></div><div class="chips" style="flex-wrap:wrap">${NOTE_LENS.map(([k, l]) => `<button class="chip" data-nl="${k}" aria-pressed="${k === f.len}">${l}</button>`).join('')}</div>
+    <p class="small muted" id="nt-span" style="margin:8px 0 0"></p>
+    <div class="acts"><button class="btn ghost" id="nt-n">Cancel</button><button class="btn go" id="nt-y">${isNew ? 'Paste' : 'Save'}</button></div></div>`;
+  document.body.appendChild(bg);
+  const ta = $('#nt-t', bg); ta.value = f.text; setTimeout(() => ta.focus(), 50);
+  const span = () => { const e = noteEnd(start, f.len); $('#nt-span', bg).textContent = dated ? (start === e ? 'Shows on ' + nice(start) + ' only.' : 'Shows on ' + nice(start) + ' to ' + nice(e) + '.') : 'Shows till ' + nice(e) + ', then hides by itself.'; };
+  span();
+  bg.querySelectorAll('[data-nc]').forEach(b => b.onclick = () => { f.colour = b.dataset.nc; bg.querySelectorAll('[data-nc]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  bg.querySelectorAll('[data-nl]').forEach(b => b.onclick = () => { f.len = b.dataset.nl; bg.querySelectorAll('[data-nl]').forEach(x => x.setAttribute('aria-pressed', x === b)); span(); });
+  const done = () => bg.remove();
+  $('#nt-n', bg).onclick = done;
+  bg.onclick = e => { if (e.target === bg) done(); };
+  $('#nt-y', bg).onclick = async e => {
+    f.text = ta.value.trim();
+    if (!f.text) { toast('Type the note first.', true); return; }
+    busy(e.target, true);
+    try {
+      const body = isNew ? Object.assign({ page: pk.page, date: pk.date, text: f.text, colour: f.colour, len: f.len }, spot) : { id: n.id, text: f.text, colour: f.colour, len: f.len };
+      S.notes = await call('noteSave', S.token, body);
+      S.noteCol = f.colour; S.noteLen = f.len;
+      done(); placeNotes(); toast(isNew ? 'Note pasted' : 'Note saved');
+    } catch(x) { busy(e.target, false); fail(x); }
+  };
+}
+/* ---- hold 2.5 seconds anywhere on the page to paste (managers / admin) ---- */
+let noteHold = null, noteNoClick = 0;
+function noteHoldStop(){
+  if (!noteHold) return;
+  clearTimeout(noteHold.t1); clearTimeout(noteHold.t2);
+  if (noteHold.ring) noteHold.ring.remove();
+  document.body.classList.remove('nhold');
+  noteHold = null;
+}
+document.addEventListener('pointerdown', e => {
+  noteHoldStop();
+  if (!S.token || !S.me || !canManage() || e.button > 0 || e.isPrimary === false) return;
+  const v = V();
+  if (!v || !v.contains(e.target) || document.querySelector('.sheet-bg')) return;
+  if (e.target.closest('input,textarea,select,[contenteditable],.npin')) return;
+  const h = noteHold = { x: e.clientX, y: e.clientY, px: e.pageX, py: e.pageY };
+  document.body.classList.add('nhold');
+  h.t1 = setTimeout(() => {
+    const r = document.createElement('div'); r.className = 'nring';
+    r.style.left = h.px + 'px'; r.style.top = h.py + 'px'; r.style.setProperty('--nd', (NOTE_HOLD - 300) + 'ms');
+    r.innerHTML = '<svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28"></circle></svg>';
+    document.body.appendChild(r); h.ring = r;
+  }, 300);
+  h.t2 = setTimeout(() => {
+    const sp = noteSpot(h.x, h.y);
+    noteHoldStop();
+    noteNoClick = Date.now() + 60000;               // swallow the click when the finger lifts
+    if (navigator.vibrate) navigator.vibrate(35);
+    if (sp) noteEdit(null, sp);
+  }, NOTE_HOLD);
+}, true);
+document.addEventListener('pointermove', e => { if (noteHold && Math.abs(e.clientX - noteHold.x) + Math.abs(e.clientY - noteHold.y) > 10) noteHoldStop(); }, true);
+['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => {
+  noteHoldStop();
+  if (noteNoClick > Date.now()) noteNoClick = Date.now() + 400;
+}, true));
+document.addEventListener('click', e => { if (noteNoClick > Date.now()) { noteNoClick = 0; e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener('contextmenu', e => { if (noteHold) e.preventDefault(); }, true);
+document.addEventListener('selectstart', e => { if (noteHold) e.preventDefault(); }, true);
+window.addEventListener('scroll', () => { if (noteHold) noteHoldStop(); }, { passive: true });
+/* keep notes in place when the page redraws, resizes or a table scrolls sideways */
+(function(){
+  const app = $('#app');
+  if (app && window.MutationObserver) new MutationObserver(notePlaceSoon).observe(app, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'open'] });
+  window.addEventListener('resize', notePlaceSoon);
+  document.addEventListener('scroll', e => { if (e.target !== document && !noteDragging) notePlaceSoon(); }, true);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(notePlaceSoon);
+})();
 /* Background refresh without jumping:
    - nothing is redrawn if the data on screen did not change
    - it waits until the finger is off the screen (no scroll / touch for 1s)
@@ -5387,6 +5667,7 @@ async function calmRender(view, fn){
 async function liveRefresh(){
   if (uiBusy()) { liveWant = true; return; }
   liveWant = false;
+  loadNotes();
   try {
     if (S.view === 'home') {
       const h = await call('getHome', S.token);
