@@ -4264,7 +4264,7 @@ function parseClearance(text, today){
     const kind = lab ? (/^(nric|ic|fin)$/i.test(lab[1]) ? 'nric' : /^(veh|car|plate)/i.test(lab[1]) ? 'veh' : 'name') : '';
     if (lab) ln = ln.slice(lab[0].length).trim();
     if (kind === 'veh' && /^(nil|na|n\.a\.|none|no( vehicle| car)?|-)$/i.test(ln)) { const p = P(); if (p.vehicle) { newP(); } cur.vehicle = 'NIL'; return; }
-    // several people on one line ("CPT A S1234567D SNX1A, LTA B S7654321C Nil"): one person per part
+    // several people on one line ("CPT A <NRIC> <plate>, LTA B <NRIC> Nil"): one person per part
     const segs = (ln.match(new RegExp(NRIC.source, 'gi')) || []).length >= 2 ? ln.split(/\s*[,;]\s*/) : [ln];
     segs.forEach(seg => {
       let rest = seg;
@@ -4329,9 +4329,10 @@ function drawClearance(){
   const bad = on.filter(r => r.nric && nricOk(r.nric) === false).length;
   const fld = (k, l, ph) => `<label class="f"><span>${l}</span><input type="text" data-cf="${k}" value="${esc(c[k] || '')}" placeholder="${esc(ph || '')}"></label>`;
   A().innerHTML = `<div class="sec"><h3 style="margin-top:0">1. Paste the WhatsApp message</h3>
-      <textarea id="cl-t" rows="7" style="width:100%" placeholder="24 Oct&#10;- MAJ Aaron Goh Shu Feng&#10;- S9035847B&#10;- SNH41Z">${esc(c.text)}</textarea>
+      <textarea id="cl-t" rows="7" style="width:100%" placeholder="Date of Entry&#10;&#10;- RANK and Full Name&#10;- Full NRIC&#10;- Vehicle Number if any">${esc(c.text)}</textarea>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="cl-read">Read details</button>${c.rows.length ? '<button class="btn ghost" id="cl-new">Start again</button>' : ''}</div>
-      ${c.template ? '' : '<div class="note red small" style="margin:10px 0 0">The form "MMRC Clearance Template.xlsx" is not in Google Drive yet. See SETUP.md: Clearance.</div>'}</div>
+      ${c.template ? '' : '<div class="note red small" style="margin:10px 0 0">The form "MMRC Clearance Template.xlsx" is not in Google Drive yet. See SETUP.md: Clearance.</div>'}
+      <p class="small muted" style="margin:8px 0 0">PDPA: what you paste stays on this screen only. It is not saved in the app, and it is cleared once the clearance is sent.</p><div id="cl-res2"></div></div>
     ${c.rows.length ? `<div class="sec"><h3 style="margin-top:0">2. Check the people</h3>
       <p class="small muted" style="margin:0 0 8px">Tick who goes on this form; &#9650; &#9660; change the order (the form and the email follow it). Someone coming on more than one day: fill the second date ("to"); they stay one row on the form. A row left empty is a day still pending (blank in the email, purpose only on the form). NRIC check: <span class="clok">&#10003;</span> correct, <span class="clbad">check</span> the last letter does not match.</p>
       ${c.rows.map((r, i) => `<div class="clr${r.on ? '' : ' off'}"><label class="clon"><input type="checkbox" data-ci="${i}" ${r.on ? 'checked' : ''}></label>
@@ -4424,7 +4425,9 @@ function drawClearance(){
     if (!ok) return;
     busy(e.target, true);
     try { const r = await call('clearanceSend', S.token, payload(), true); busy(e.target, false); c.lastTo = c.to;
-      $('#cl-res').innerHTML = `<div class="note small" style="margin:10px 0 0">Sent to <b>${esc(r.sent)}</b> with <b>${esc(r.name)}</b>.${r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">Open the Excel in Drive</a>` : ''}
+      // PDPA: names and NRICs are not kept in the app after sending (the sent form is in your email and the Drive folder)
+      c.text = ''; c.rows = []; c.datesEdited = c.subEdited = c.bodyEdited = false; drawClearance();
+      $('#cl-res2').innerHTML = `<div class="note small" style="margin:10px 0 0">Sent to <b>${esc(r.sent)}</b> with <b>${esc(r.name)}</b>.${r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">Open the Excel in Drive</a>` : ''}
         <br>${r.poc ? 'Receiver / POC on the form: <b>' + esc(r.poc) + '</b>' : '<b style="color:var(--flag)">Receiver / POC not on the form: ' + (c.pocName || c.pocMobile ? 'the server script is an older version. Paste the latest Code.gs and deploy a new version.' : 'the POC Name and Mobile No boxes are empty.') + '</b>'}</div>`;
       toast('Sent to ' + r.sent);
     } catch(x){ fail(x); busy(e.target, false); }
