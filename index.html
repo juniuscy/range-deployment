@@ -117,7 +117,8 @@ textarea{min-height:80px;resize:vertical}
 .note{border-left:4px solid var(--wait);background:var(--wait-soft);padding:10px 12px;border-radius:0 var(--r-sm) var(--r-sm) 0;margin:0 0 12px;font-size:15px}
 .note.red{border-color:var(--flag);background:var(--flag-soft)}
 .note.blue{border-color:var(--steel);background:var(--steel-soft)}
-.awr{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px;background:var(--card)}.awh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}.awp{background:#FEF3C7;color:#92400E}
+.awr{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px;background:var(--card)}.awh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}.awp{background:#FEF3C7;color:#92400E}.awh2{display:flex;align-items:center;gap:10px}.awx{color:var(--flag);font-weight:700;font-size:14px;padding:4px 2px}
+.awdays{display:flex;flex-direction:column;gap:6px;margin:4px 0 6px}.awd{display:flex;gap:10px;align-items:center;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r-sm)}.awd input{width:20px;height:20px}.awall{font-weight:700;background:var(--steel-soft)}
 .lyc .lylg{display:flex;gap:14px;font-size:13px;color:var(--muted);margin:0 0 10px}.lylg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .lyr{display:grid;grid-template-columns:86px 1fr;align-items:center;gap:8px;width:100%;background:none;border:0;padding:3px 0;margin:0;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
 .lynm{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lytr{display:flex;align-items:center;gap:2px;min-height:24px}
@@ -4444,7 +4445,7 @@ function drawAway(d){
   const now = list.filter(r => r.start <= t && r.end >= t), next = list.filter(r => r.start > t), past = list.filter(r => r.end < t);
   const card = r => {
     const det = [r.detail && r.detail.toUpperCase() !== r.cat.toUpperCase() ? r.detail : '', r.reason ? 'Reason: ' + r.reason : ''].filter(Boolean).join('  |  ');
-    return `<div class="awr"><div class="awh"><b>${esc(titleCase(r.name))}</b><span class="pill awp">${esc(r.cat)}</span></div>
+    return `<div class="awr"><div class="awh"><b>${esc(titleCase(r.name))}</b><span class="awh2"><span class="pill awp">${esc(r.cat)}</span><button type="button" class="lnk awx" data-awrm="${rows.indexOf(r)}">Remove</button></span></div>
       <div>${esc(span(r.start, r.end))}${r.half ? ' (' + esc(r.half) + ')' : ''} <span class="muted">&middot; ${r.days} day${r.days === 1 ? '' : 's'}</span></div>
       ${(r.label && r.label !== r.cat) || det ? `<div class="small muted">${[r.label !== r.cat ? esc(r.label) : '', det ? esc(det) : ''].filter(Boolean).join(' &middot; ')}</div>` : ''}</div>`; };
   const sec = (h, xs, none) => `<h3 style="margin:16px 0 8px">${h} <span class="muted" style="font-weight:500">(${xs.length})</span></h3>` + (xs.length ? xs.map(card).join('') : `<p class="small muted">${none}</p>`);
@@ -4458,6 +4459,40 @@ function drawAway(d){
   $('#aw-f').onchange = e => { if (e.target.value) { S.awayFrom = e.target.value; admAway(); } };
   $('#aw-d').onchange = e => { S.awayDays = +e.target.value; admAway(); };
   A().querySelectorAll('[data-awt]').forEach(b => b.onclick = () => { S.awayType = b.dataset.awt; drawAway(d); });
+  A().querySelectorAll('[data-awrm]').forEach(b => b.onclick = () => awayRemove(rows[+b.dataset.awrm], b));
+}
+/* Remove an away type (OIL, AL, MC, LIB ...) for one person on the days you tick, after a confirm pop-up */
+function awayRemove(r, btn){
+  const dates = (r.dates && r.dates.length ? r.dates : [r.start]).slice();
+  const one = dates.length === 1;
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Remove ${esc(r.cat)}: ${esc(titleCase(r.name))}?</h3>
+    <div class="src">${esc(r.label || r.cat)}${r.detail && r.detail.toUpperCase() !== r.cat.toUpperCase() ? ' (' + esc(r.detail) + ')' : ''}. ${one ? '' : 'Tick the day(s) to remove.'}</div>
+    ${one ? `<p style="font-size:17px;margin:0 0 10px"><b>${esc(nice(dates[0]))}</b></p>`
+      : `<div class="awdays"><label class="awd awall"><input type="checkbox" id="aw-all"> All ${dates.length} days</label>${dates.map(x => `<label class="awd"><input type="checkbox" data-awd="${x}"> ${esc(nice(x))}</label>`).join('')}</div>`}
+    <div class="note small" style="margin:8px 0 10px">Taken off the weekly tab and Attendance${r.cat === 'OIL' ? ', and the OIL it used in <b>AMO OILs</b> goes back to Not taken (the date is cleared from OIL TAKEN)' : ''}. An approved request is shortened, or cancelled if no days are left. ${esc(titleCase(r.name))} is not put back on the Deployment Plan by itself.</div>
+    <div class="acts"><button class="btn ghost" id="aw-n">Cancel</button><button class="btn" id="aw-y" style="background:var(--flag);border-color:var(--flag)"${one ? '' : ' disabled'}>Yes, remove</button></div></div>`;
+  document.body.appendChild(bg);
+  const picked = () => one ? dates : [...bg.querySelectorAll('[data-awd]:checked')].map(x => x.dataset.awd);
+  const upd = () => { const n = picked().length; $('#aw-y', bg).disabled = !n; $('#aw-y', bg).textContent = n ? 'Yes, remove ' + (one ? '' : n + ' day' + (n === 1 ? '' : 's')) : 'Tick a day';
+    if ($('#aw-all', bg)) $('#aw-all', bg).checked = n === dates.length; };
+  bg.querySelectorAll('[data-awd]').forEach(x => x.onchange = upd);
+  if ($('#aw-all', bg)) $('#aw-all', bg).onchange = e => { bg.querySelectorAll('[data-awd]').forEach(x => { x.checked = e.target.checked; }); upd(); };
+  upd();
+  const close = () => bg.remove();
+  $('#aw-n', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  $('#aw-y', bg).onclick = async e => {
+    const ds = picked(); if (!ds.length) return;
+    busy(e.target, true);
+    try {
+      const res = await call('adminAwayRemove', S.token, r.name, r.cat, ds, S.awayFrom, S.awayDays);
+      close(); S.cache = {};
+      drawAway(res);
+      toast(titleCase(r.name) + ': ' + r.cat + ' removed on ' + ds.map(x => nice(x)).join(', ') + ((res.removed || []).some(x => /AMO OILs: OIL/.test(x)) ? '. AMO OILs updated.' : '.'));
+    } catch(x){ fail(x); busy(e.target, false); }
+  };
 }
 /* Admin > Supervising: which APO goes with each supervising officer */
 /* Duty count for this year (also in the sheet: App Duty Count + App Duty Log, rebuilt every night) */
@@ -4934,6 +4969,7 @@ const MOCK = (() => {
     });
   }
   const attStore = {};
+  const mAwayRm = {};
   const attRec = (d, n) => { const k = d + '|' + n; return attStore[k] || (attStore[k] = { clockIn:'', status:'' }); };
   const ATT_ROWS = { AL:'AL', UL:'UL', MC:'MC', OIL:'OIL', HL:'HL', CCL:'CCL', ICT:'ICT', COURSE:'Course', RS:'RS', MA:'MA', CL:'CL', ML:'ML', PPL:'PPL', PSPL:'PSPL', COMPASSIONATELEAVE:'CL', OTHERS:'Others' };
   function mockLeave(d){
@@ -5029,16 +5065,18 @@ const MOCK = (() => {
     adminActions: () => { const rs = [];
       Object.keys(attStore).forEach(k => { const [d, n] = k.split('|'); if (attStore[k].status === 'RS' && d <= today && d >= addD(today, -30)) rs.push({ kind: 'rs', name: n, start: d, end: d, days: 1, reason: attStore[k].reason || '' }); });
       return { today, rs, allergo: mAlg.filter(x => !x.ticked && today > x.due).map(x => ({ name: x.name, type: x.type, start: x.start, end: x.end, due: x.due })) }; },
+    adminAwayRemove: (t, nm, cat, ds, from, n) => { ds.forEach(x => { mAwayRm[nm + '|' + cat + '|' + x] = 1; }); return Object.assign(MOCK.adminAwayList(t, from, n), { removed: [cat + ' removed'] }); },
     adminAwayList: (t, from, n) => { const to = addD(from, (n || 28) - 1), scan = addD(from, -35), hit = {}, LBL = { LIB:'LIB Test', TRG:'IPPT / Training', Others:'Others', AL:'Annual Leave', MC:'Medical Certificate', OIL:'Off In Lieu', UL:'Urgent Leave', HL:'Hospitalisation Leave', NPL:'No Pay Leave', RS:'Report Sick', MA:'Medical Appointment', CCL:'Childcare Leave', COURSE:'Course', ICT:'ICT', CL:'Compassionate Leave' };
       for (let ds = scan; ds <= to; ds = addD(ds, 1)) { const d = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)]; if (!d) continue;
         (d.absences || []).forEach(a => { let c = String(a.label).toUpperCase().replace(/\s+/g, ''); if (['ORIENTATION','OFFDAYEARNED'].includes(c)) return;
           if (c === 'LIBTEST') c = 'LIB'; else if (/^IPPT/.test(c)) c = 'TRG';
           a.people.forEach(nm => { let cc = c; if (c === 'OTHERS') { const w = ' ' + a.text.toUpperCase() + ' '; cc = / NPL /.test(w) ? 'NPL' : / RS /.test(w) ? 'RS' : / MA /.test(w) ? 'MA' : 'Others'; }
+            if (mAwayRm[nm + '|' + (cc === 'COURSE' ? 'Course' : cc) + '|' + ds]) return;
             ((hit[nm + '|' + cc] = hit[nm + '|' + cc] || {})[ds] = a.text); }); }); }
       const rows = [];
       Object.keys(hit).forEach(k => { const [nm, c] = k.split('|'); let run = null;
         Object.keys(hit[k]).sort().forEach(x => { if (run) { let ok = true; for (let g = addD(run.end, 1); g < x; g = addD(g, 1)) if (dowIdx(g) < 5) ok = false; if (!ok) { rows.push(run); run = null; } }
-          if (!run) run = { name: nm, cat: c === 'COURSE' ? 'Course' : c, label: LBL[c] || c, start: x, end: x, days: 0, half: '', detail: '' }; run.end = x; run.days++; });
+          if (!run) run = { name: nm, cat: c === 'COURSE' ? 'Course' : c, label: LBL[c] || c, start: x, end: x, days: 0, half: '', detail: '', dates: [] }; run.end = x; run.days++; run.dates.push(x); });
         if (run) rows.push(run); });
       return { from, to, today, rows: rows.filter(r => r.end >= from && r.start <= to).sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : a.name < b.name ? -1 : 1) }; },
     getDutyCount: () => { const yr = today.slice(0, 4), per = {}, MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], roles = ['Range'];
