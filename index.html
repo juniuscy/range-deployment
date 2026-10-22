@@ -130,6 +130,9 @@ textarea{min-height:80px;resize:vertical}
 .clg{flex:1;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:6px;min-width:0}.clg input{min-width:0;min-height:40px;font-size:15px;padding:6px 8px}.clg input[data-cr$='|name'],.clg .cldt{grid-column:1 / -1}.cldt{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}.cldt span{font-size:13px;color:var(--muted)}.cldt input{padding:6px}.clnr{display:flex;align-items:center;gap:4px;min-width:0}.clnr input{flex:1;font-family:ui-monospace,monospace;font-size:14px;padding:6px}.clr .ib[data-cx]{min-height:34px;padding:2px 10px;flex:none}
 .clmv{display:flex;flex-direction:column;gap:4px;flex:none}.clmv .ib{min-height:30px;padding:0 9px;font-size:12px}.clmv .ib[disabled]{opacity:.3}
 .clok{color:#15803D;font-weight:800}.clbad{color:var(--flag);font-weight:800;font-size:12px}
+.oscan{display:flex;flex-direction:column;gap:6px}.osr{display:grid;grid-template-columns:auto 92px 1fr;gap:6px 8px;align-items:center;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px;background:var(--card)}.osr input[type=checkbox]{width:20px;height:20px}
+.osr .osa{grid-column:2 / -1;min-height:36px;font-size:14px;padding:4px 8px}.osr.off{opacity:.55}.osr.done{opacity:.5;background:var(--bg)}.osd{font-size:14px;color:var(--muted)}.osn small{display:block;color:var(--muted);font-size:12px}
+.osadd{border:1px dashed var(--line);border-radius:var(--r-md);padding:10px;margin-top:10px}
 .oiltot{border:1.5px solid var(--steel);background:var(--steel-soft);border-radius:var(--r-md);padding:12px;margin:16px 0 4px}.oilt-h{display:flex;gap:12px;align-items:center}.oilt-h b{font:800 34px/1 var(--cond);color:var(--steel)}.oilt-h span{font-weight:700}.oilt-h small{font-weight:500;color:var(--muted)}
 .oilt-n{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.oilt-n .chip{min-height:32px;padding:4px 10px;font-size:14px;background:var(--card)}
 .actr{display:flex;gap:10px;justify-content:space-between;align-items:center;border:1.5px solid #F59E0B;background:#FFFBEB;border-radius:var(--r-md);padding:10px 12px;margin:0 0 8px}.actr .tx{display:flex;flex-direction:column;gap:2px;min-width:0}.acts2{display:flex;flex-direction:column;gap:6px;flex:none}
@@ -3492,7 +3495,9 @@ async function admOil(){
     const allOil = S.oilFilter && S.oilFilter !== '*' ? await call('adminOil', S.token, '').catch(() => list) : list;
     const left = {}; let leftAll = 0, held = 0;
     allOil.forEach(o => { const r = Number(o.remaining) || 0; if (!r) return; left[o.name] = (left[o.name] || 0) + r; leftAll += r; held += Math.max(0, r - (Number(o.available) || 0)); });
-    const leftNames = Object.keys(left).sort((a, b) => left[b] - left[a] || (a < b ? -1 : 1));
+    // order: Manager, DY Manager, APO Supervisor, APO, Non-APO, medics (A to Z within each)
+    const rankOf = n => STR_RANK[((S.staff || []).find(p => p.name === n) || {}).role] ?? 7;
+    const leftNames = Object.keys(left).sort((a, b) => rankOf(a) - rankOf(b) || (a < b ? -1 : 1));
     const noTts = list.filter(o => o.needsTts).length;
     const small = 'min-height:32px;padding:3px 9px;font-size:14px';
     A().innerHTML = `
@@ -3524,16 +3529,20 @@ async function admOil(){
       <div class="sec"><h3 style="margin-top:0">Scan for any missed out OIL</h3>
         <div class="row2"><label class="f"><span>From</span><input type="date" id="s-f" value="${from}"></label>
         <label class="f"><span>To</span><input type="date" id="s-t" value="${to}"></label></div>
-        <button class="btn" id="s-go">Scan and add</button></div>`;
+        <p class="small muted" style="margin:-4px 0 8px">Scan only shows who should have got an OIL. Nothing is added until you tick and tap "Add ticked to AMO OILs".</p>
+        <button class="btn" id="s-go">Scan</button><div id="s-res"></div></div>`;
     $('#o-flt').onchange = e => { S.oilFilter = e.target.value; admOil(); };
     A().querySelectorAll('[data-oiln]').forEach(b => b.onclick = () => { S.oilFilter = b.dataset.oiln; admOil(); });   // tap a name: their ledger
     $('#o-d').oninput = () => { if ($('#o-d').value) $('#o-o').value = ''; loadPostings(); };
     $('#o-o').oninput = () => { if ($('#o-o').value) { $('#o-d').value = ''; loadPostings(); } };
     $('#s-go').onclick = async e => {
       busy(e.target, true);
-      try { const r = await call('adminScanOil', S.token, $('#s-f').value, $('#s-t').value); toast(r.length ? r.length + ' off days added to AMO OILs' : 'Nothing new to add'); admOil(); }
+      try { const r = await call('adminScanOil', S.token, $('#s-f').value, $('#s-t').value); busy(e.target, false);
+        r.items.forEach(x => { x.on = !x.already; });
+        S.oilScan = r; drawOilScan(); }
       catch(x){ fail(x); busy(e.target, false); }
     };
+    if (S.oilScan) drawOilScan();
     const picked = () => [...A().querySelectorAll('[data-pk][aria-pressed="true"]')].map(b => b.dataset.pk);
     // where each person was posted on the chosen date (range, duty or medic slot)
     const OIL_ACT = { 'AMMO ADMIN':'ADMIN', 'PLAD-DRIVER':'PLAD', 'RAI PARTY':'RAI' };
@@ -3603,6 +3612,44 @@ async function admOil(){
 /* Medics who earn OIL (the other medics are from partner companies). Add names here as needed. */
 const OIL_MEDICS = ['FAHMI'];
 const earnsOil = p => !MEDIC_ROLES.includes(p.role) || OIL_MEDICS.some(n => p.name.indexOf(n) === 0 || (p.aliases || []).includes(n));
+/* Scan results: tick who gets the OIL, add anyone missing by hand, then add the ticked ones to AMO OILs */
+function drawOilScan(){
+  const sc = S.oilScan, box = $('#s-res'); if (!sc || !box) return;
+  const rank = n => STR_RANK[((S.staff || []).find(p => p.name === n) || {}).role] ?? 7;
+  sc.items.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : rank(a.name) - rank(b.name) || (a.name < b.name ? -1 : 1));
+  const on = sc.items.filter(x => x.on && !x.already);
+  const names = (S.staff || []).filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic').sort((a, b) => (STR_RANK[a.role] ?? 7) - (STR_RANK[b.role] ?? 7) || (a.name < b.name ? -1 : 1));
+  box.innerHTML = `<h3 style="margin:14px 0 6px">${esc(nice(sc.from))} to ${esc(nice(sc.to))}: ${sc.items.length ? sc.items.length + ' found' : 'nothing found'}</h3>
+    ${sc.items.length ? `<div class="oscan">${sc.items.map((x, i) => `<label class="osr${x.already ? ' done' : x.on ? '' : ' off'}">
+        <input type="checkbox" data-osc="${i}" ${x.already ? 'disabled' : x.on ? 'checked' : ''}>
+        <span class="osd">${esc(nice(x.date))}</span><span class="osn"><b>${esc(titleCase(x.name))}</b>${x.already ? '<small>Already in AMO OILs</small>' : ''}${x.manual ? '<small>Added by hand</small>' : ''}</span>
+        <input type="text" class="osa" data-osa="${i}" value="${esc(x.activity || '')}" placeholder="Activity" ${x.already ? 'disabled' : ''}></label>`).join('')}</div>` : ''}
+    <div class="osadd"><b>Add someone the scan missed</b>
+      <div class="row2"><label class="f"><span>Date</span><input type="date" id="os-d" value="${esc(sc.to)}"></label>
+        <label class="f"><span>Name</span><select id="os-n"><option value="">Choose a name</option>${names.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('')}</select></label></div>
+      <label class="f"><span>Activity</span><input type="text" id="os-a" placeholder="e.g. RANGE EXTENSION"></label>
+      <button class="btn ghost" id="os-add">Add to the list</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn go" id="os-go"${on.length ? '' : ' disabled'}>Add ticked to AMO OILs (${on.length})</button><button class="btn ghost" id="os-x">Clear</button></div>`;
+  box.querySelectorAll('[data-osc]').forEach(c => c.onchange = () => { sc.items[+c.dataset.osc].on = c.checked; drawOilScan(); });
+  box.querySelectorAll('[data-osa]').forEach(c => c.oninput = () => { sc.items[+c.dataset.osa].activity = c.value; });
+  $('#os-x', box).onclick = () => { S.oilScan = null; box.innerHTML = ''; };
+  $('#os-add', box).onclick = () => {
+    const d = $('#os-d', box).value, n = $('#os-n', box).value, a = $('#os-a', box).value.trim().toUpperCase();
+    if (!d || !n) { toast('Pick the date and the name.', true); return; }
+    if (sc.items.some(x => x.name === n && x.date === d)) { toast(titleCase(n) + ' on ' + nice(d) + ' is already in the list.', true); return; }
+    sc.items.push({ name: n, date: d, activity: a, remark: '', on: true, manual: true }); drawOilScan();
+  };
+  $('#os-go', box).onclick = async e => {
+    const list = sc.items.filter(x => x.on && !x.already);
+    if (!list.length) return;
+    const ok = await askBox('Add to AMO OILs?', `<b>${list.length}</b> off day${list.length === 1 ? '' : 's'} earned:<br>${list.map(x => esc(titleCase(x.name)) + ' &middot; ' + esc(nice(x.date)) + (x.activity ? ' &middot; ' + esc(x.activity) : '')).join('<br>')}<br><span class="muted">Each gets a row at the end of their block in AMO OILs.</span>`, 'Yes, add');
+    if (!ok) return;
+    busy(e.target, true);
+    try { const r = await call('adminOilAddList', S.token, list.map(x => ({ name: x.name, date: x.date, activity: (x.activity || '').toUpperCase(), remark: x.remark || '' })));
+      S.oilScan = null; toast(r.added.length + ' added to AMO OILs' + (r.skipped.length ? '. Not added: ' + r.skipped.join('; ') : ''), !!r.skipped.length); admOil(); }
+    catch(x){ fail(x); busy(e.target, false); }
+  };
+}
 function pickGroups(){
   const sorted = role => (S.staff || []).filter(p => (p.role === role || (role === 'Medic' && MEDIC_ROLES.includes(p.role))) && earnsOil(p)).map(p => p.name)
     .sort((a, b) => ((b === 'JAMES LAI') - (a === 'JAMES LAI')) || a.localeCompare(b));
@@ -5294,7 +5341,8 @@ const MOCK = (() => {
     adminLibAttended: (t, name) => { const x = libList.find(y => y.name === name); x.date = addMonths(x.arranged, LIB_MONTHS); SNAP.lib[name] = x.date; x.arranged = ''; x.time = ''; return libList.filter(y => y.label); },
     adminRemoveLib: (t, row, name) => { const i = libList.findIndex(y => y.name === name); if (i >= 0) libList.splice(i, 1); delete SNAP.lib[name]; return libList; },
     adminVoidOil: (t, id) => { oil.splice(oil.findIndex(o => o.id === id), 1); return true; },
-    adminScanOil: () => [],
+    adminScanOil: (t, f, to) => ({ from: f, to, items: [{ name: 'ARIF', date: addD(to, -4), activity: '50M1', remark: '', already: false }, { name: 'WONG', date: addD(to, -4), activity: 'DAO', remark: '', already: false }, { name: 'LIM', date: addD(to, -3), activity: 'DAO RESERVED (ACTIVATED)', remark: '', already: true }, { name: 'TOH', date: addD(to, -1), activity: '100M2 EXT', remark: '', already: false }] }),
+    adminOilAddList: (t, list) => ({ added: list, skipped: [] }),
     adminRefresh: () => 152
   };
 })();
