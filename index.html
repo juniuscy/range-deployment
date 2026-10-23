@@ -3721,6 +3721,16 @@ function attText(a){
     if (c === 'Others') out.push.apply(out, laterTxt());
     return n ? n + ' - ' + out.join(', ') : 'NIL';
   };
+  /* AL, UL, HL ... OTHERS lines (all shown, NIL when no one) */
+  const awayLines = () => ATT_MSG.map(([lb, c]) => {
+    if (c[0] === '@') { const ns = ((a.plan || {})[c.slice(1)] || []); return lb + ': ' + (ns.length ? ns.length + ' - ' + ns.map(titleCase).join(', ') : 'NIL'); }
+    let v = leaveList(c);
+    if (c === 'Others') {                              // NPL (no-pay leave) goes under OTHERS
+      const npl = rows.filter(r => r.status === 'NPL').map(r => titleCase(r.name) + ' (NPL)');
+      if (npl.length) { const m = /^(\d+) - (.*)$/.exec(v); v = m ? (+m[1] + npl.length) + ' - ' + m[2] + ', ' + npl.join(', ') : npl.length + ' - ' + npl.join(', '); }
+    }
+    return lb + ': ' + v;
+  });
   const present = rows.filter(r => r.status === 'Present' || r.status === 'Present (Late)');
   const head2 = ['*OPS SUPPORT*',
     '*Date: ' + d.getDate() + ' ' + MON_ATT[d.getMonth()] + ' ' + d.getFullYear() + ' (' + DAYL[dowIdx(a.date)] + ')*',
@@ -3730,7 +3740,13 @@ function attText(a){
     const ORD = { Manager:0, 'DY Manager':0.5, 'APO Supervisor':1, APO:1, 'Non-APO':1, Medic:2, 'Medic Certis':2 };
     const ppl = present.slice().sort((x, y) => ((ORD[x.role] ?? 3) - (ORD[y.role] ?? 3)) ||
       ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
-    return head2.concat(['Present: ' + ppl.length], ppl.map(r => titleCase(r.name))).join('\n');
+    // all present names in one line, then the same AL / MC / ... lines as on weekdays,
+    // then (after a blank line) who is not deployed: no status (or marked Off) and not reporting later
+    const sorted = arr => arr.slice().sort((x, y) => ((ORD[x.role] ?? 3) - (ORD[y.role] ?? 3)) ||
+      ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
+    const notDep = sorted(a.rows.filter(r => (!r.status || r.status === 'Off') && !r.ext));
+    return head2.concat(['Present: ' + (ppl.length ? ppl.length + ' - ' + ppl.map(r => titleCase(r.name)).join(', ') : 'NIL'), ''], awayLines(),
+      ['', 'Not Deployed: ' + list(notDep)]).join('\n');
   }
   const L = [
     '*OPS SUPPORT*',
@@ -3740,15 +3756,7 @@ function attText(a){
     'Present (Late): ' + (by('Present (Late)').length ? by('Present (Late)').length + ' - ' + by('Present (Late)').map(r => titleCase(r.name) + (r.ext ? ' (Report ' + hrs(r.ext) + ')' : '')).join(', ') : 'NIL')].concat(laterLines(), [
     ''
   ]);
-  ATT_MSG.forEach(([lb, c]) => {
-    if (c[0] === '@') { const ns = ((a.plan || {})[c.slice(1)] || []); L.push(lb + ': ' + (ns.length ? ns.length + ' - ' + ns.map(titleCase).join(', ') : 'NIL')); return; }
-    let v = leaveList(c);
-    if (c === 'Others') {                              // NPL (no-pay leave) goes under OTHERS
-      const npl = rows.filter(r => r.status === 'NPL').map(r => titleCase(r.name) + ' (NPL)');
-      if (npl.length) { const m = /^(\d+) - (.*)$/.exec(v); v = m ? (+m[1] + npl.length) + ' - ' + m[2] + ', ' + npl.join(', ') : npl.length + ' - ' + npl.join(', '); }
-    }
-    L.push(lb + ': ' + v);
-  });
+  L.push.apply(L, awayLines());
   const none = rows.filter(r => !r.status && !r.ext);
   if (none.length) L.push('Not accounted: ' + list(none));
   return L.join('\n');
