@@ -5178,7 +5178,7 @@ const MOCK = (() => {
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: NOSTAFF(S.me.role) ? null : mockMyAtt(S.me.name), inspections: canView() ? mockInsp() : null, grab: canView() ? mockGrab() : null, reports: canView() || isMeDm(mDm[today]) ? mRep : null, allergo: NOSTAFF(S.me.role) ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
+      news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: isPD() ? { date: today, lateAfter, clockIn: '', status: '', viewOnly: true } : NOSTAFF(S.me.role) ? null : mockMyAtt(S.me.name), inspections: canView() ? mockInsp() : null, grab: canView() ? mockGrab() : null, reports: canView() || isMeDm(mDm[today]) ? mRep : null, allergo: NOSTAFF(S.me.role) ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
