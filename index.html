@@ -442,6 +442,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .gce .gr{font-size:14px;margin:2px 0 6px}
 .gcp{display:flex;align-items:center;gap:10px;padding:6px 8px;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer}
 .gcp input{width:22px;height:22px;flex:none;margin:0}.gcp .gn{flex:1;min-width:0}.gcp .gn small{display:block;color:var(--muted);font-size:12px}
+.oilu{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.oilu:last-child{border-bottom:0}.oilu .oilk{flex:none;width:44px;font-size:12px;font-weight:700;text-align:center;border-radius:999px;padding:2px 0}.oilu.on .oilk{background:var(--go-soft);color:#15803D}.oilu:not(.on){opacity:.6}
 .gcp.ok .gn b{text-decoration:line-through;text-decoration-color:#22C55E}
 .gcp.na .gn b{text-decoration-color:var(--muted);color:var(--muted)}
 .gcp .gcnb{flex:none;min-height:34px;padding:4px 10px;font-size:13px}
@@ -3309,21 +3310,22 @@ async function viewApply(){
   let oil = [];
   if (F.type === 'OIL') { loading(); try { oil = await call('getMyOil', S.token); } catch(e){ return fail(e); } }
   const t = S.types.find(x => x.code === F.type) || S.types[0];
+  if (t && t.code !== F.type) F.type = t.code;
+  if (t && t.oneDay) F.end = F.start;                     // UL / MA: one day
   const single = F.start === F.end;
+  if (!(single && t && t.halfOk)) F.session = 'Full';
   const days = !F.start || !F.end || F.end < F.start ? 0 : (single && F.session !== 'Full' ? 0.5 : nDays(F.start, F.end));
   V().innerHTML = `
     <h2>Apply</h2>
     <div class="sec">
-      <label class="f"><span>What for</span></label>
-      <div class="chips" role="group" aria-label="Request type" style="margin:-8px 0 16px">
-        ${S.types.map(x => `<button class="chip" data-t="${x.code}" aria-pressed="${x.code===F.type}">${esc(x.label)}</button>`).join('')}
-      </div>
-      <div class="row2">
+      <label class="f"><span>Type of leave</span><select id="a-t">
+        ${S.types.map(x => `<option value="${x.code}" ${x.code===F.type?'selected':''}>${esc(x.code)} - ${esc(x.label)}</option>`).join('')}</select></label>
+      ${t && t.oneDay ? `<label class="f"><span>${F.type === 'UL' ? 'When' : 'Date'}</span><input type="date" id="a-s" value="${F.start}"></label>` : `<div class="row2">
         <label class="f"><span>From</span><input type="date" id="a-s" value="${F.start}"></label>
         <label class="f"><span>To</span><input type="date" id="a-e" value="${F.end}" min="${F.start}"></label>
-      </div>
-      ${single ? `<label class="f"><span>Part of day</span><select id="a-ses">
-        ${['Full','AM','PM'].map(s => `<option value="${s}" ${s===F.session?'selected':''}>${s === 'Full' ? 'Full day' : s + ' only'}</option>`).join('')}</select></label>` : ''}
+      </div>`}
+      ${single && t && t.halfOk ? `<label class="f"><span>Full day / AM / PM</span><select id="a-ses">
+        ${['Full','AM','PM'].map(s => `<option value="${s}" ${s===F.session?'selected':''}>${s === 'Full' ? 'Full Day' : s}</option>`).join('')}</select></label>` : ''}
       ${['MA','TRG','COURSE'].indexOf(F.type) >= 0 ? `<label class="f"><span>Time (optional)</span><input type="text" id="a-time" value="${esc(F.time)}" placeholder="e.g. 1400hrs"></label>` : ''}
       ${F.type === 'OIL' ? oilPicker(oil, days) : ''}
       <label class="f"><span>${t.needsReason ? 'Reason' : 'Reason (optional)'}</span>
@@ -3332,23 +3334,27 @@ async function viewApply(){
       <p class="muted">${days ? `${fmtN(days)} day${days===1?'':'s'}: ${span(F.start, F.end)}` : 'Check the dates.'}</p>
       <button class="btn block" id="a-go">Send request</button>
     </div>`;
-  document.querySelectorAll('.chip').forEach(c => c.onclick = () => { F.type = c.dataset.t; F.oilIds = []; viewApply(); });
-  $('#a-s').onchange = e => { F.start = e.target.value; if (!F.end || F.end < F.start) F.end = F.start; viewApply(); };
-  $('#a-e').onchange = e => { F.end = e.target.value; viewApply(); };
+  $('#a-t').onchange = e => { F.type = e.target.value; F.oilIds = []; viewApply(); };
+  $('#a-s').onchange = e => { F.start = e.target.value; if (!F.end || F.end < F.start || (t && t.oneDay)) F.end = F.start; viewApply(); };
+  if ($('#a-e')) $('#a-e').onchange = e => { F.end = e.target.value; viewApply(); };
   if ($('#a-ses')) $('#a-ses').onchange = e => { F.session = e.target.value; viewApply(); };
   if ($('#a-time')) $('#a-time').oninput = e => F.time = e.target.value;
   $('#a-r').oninput = e => F.reason = e.target.value;
-  document.querySelectorAll('.oilpick input').forEach(cb => cb.onchange = () => {
-    F.oilIds = [...document.querySelectorAll('.oilpick input:checked')].map(x => x.value);
-  });
   if ($('#a-f')) $('#a-f').onchange = e => readFile(e.target.files[0]);
   $('#a-go').onclick = submitApply;
 }
+/* Off days are always used oldest first (Cohesion last): the list shows which ones this request will use */
 function oilPicker(oil, days){
   if (!oil.length) return `<div class="note">You have no off days left to take. If you worked a Saturday or range extension that isn't listed, ask your admin to add it.</div>`;
-  return `<label class="f"><span>Which earned off day${days > 1 ? 's' : ''} to use</span></label>
-    <div class="sec oilpick" style="margin-top:-8px">${oil.map(o => `<label><input type="checkbox" value="${esc(o.id)}" ${F.oilIds.indexOf(o.id)>=0?'checked':''}>
-      <span><b>${o.date ? nice(o.date) : esc(o.label)}</b> <span class="muted small">${esc(o.activity)}${o.days === 0.5 ? ', half day left (AM or PM off only)' : ''}</span></span></label>`).join('')}</div>`;
+  const half = days === 0.5, need = half ? 1 : Math.round(days);
+  const use = half ? oil.slice(0, 1) : oil.filter(o => o.days >= 1).slice(0, need);
+  const short = !half && use.length < need;
+  return `<label class="f"><span>Off day${need > 1 ? 's' : ''} to be used (oldest first)</span></label>
+    <div class="sec oilpick" style="margin-top:-8px">${oil.map(o => { const on = use.includes(o);
+      return `<div class="oilu${on ? ' on' : ''}"><span class="oilk">${on ? 'Used' : ''}</span>
+      <span><b>${o.date ? nice(o.date) + ' ' + pd(o.date).getFullYear() : esc(o.label)}</b> <span class="muted small">${esc(o.activity)}${o.days === 0.5 ? ', half day left (AM or PM off only)' : ''}</span></span></div>`; }).join('')}</div>
+    ${short ? `<div class="note red">You need ${need} full off day${need === 1 ? '' : 's'} but have ${use.length}.</div>` : ''}
+    <p class="small muted" style="margin:-6px 0 12px">Your oldest off days are always used first. Cohesion OIL is used last.</p>`;
 }
 function readFile(file){
   F.file = null;
@@ -3730,7 +3736,7 @@ const ATT_AWAY = ['UL','AL','NPL','MC','RS','MA','CL','ML','PPL','PSPL','HL','CC
 const ATT_MSG = [['AL','AL'],['UL','UL'],['HL','HL'],['CL','CL'],['ML','ML'],['RS','RS'],['MC','MC'],['MA','MA'],['OIL','OIL'],['CCL','CCL'],['ICT','ICT'],
   ['PPL','PPL'],['PSPL','PSPL'],['Course','Course'],['LIB Test','@LIB Test'],['IPPT / TRG etc','@IPPT / TRG etc'],['OTHERS','Others']];
 const ATT_RANGE = ['AL','NPL','MC','HL','ML','PPL','PSPL'];   // picked with From / To dates (saved as a leave record)
-const ATT_LABEL = { AL:'Annual Leave', NPL:'No Pay Leave', MC:'Medical Certificate', HL:'Hospitalisation Leave', RS:'Report Sick', MA:'Medical Appointment', CL:'Compassionate Leave', ML:'Maternity Leave', PPL:'Paid Paternity Leave', PSPL:'Paid Shared Parental Leave' };
+const ATT_LABEL = { AL:'Annual Leave', NPL:'No Pay Leave', MC:'Medical Certificate', HL:'Hospitalization Leave', RS:'Report Sick', MA:'Medical Appointment', CL:'Compassionate Leave', ML:'Maternity Leave', PPL:'Paid Parental Leave', PSPL:'Paid Shared Parental Leave', UL:'Urgent Leave', OIL:'Off-In-Lieu', ICT:'In Camp Training', CCL:'Child Care Leave' };
 const ATT_RNA = 'Reserve Not Activated';          // weekend / PH reserve (duty spare) not called in: goes under Not Deployed
 const ATT_REASON = ['MC','RS'];                   // statuses that carry a reason (shown in the attendance message)
 const MON_ATT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
@@ -5161,9 +5167,9 @@ const MOCK = (() => {
   }
   const libList = Object.keys(SNAP.lib).map((n, i) => ({ row: i + 2, label: n, name: n, date: SNAP.lib[n] }));
   const reqs = [{ id:'R1', submitted:today+' 09:10', name:'LEONARD', type:'AL', typeLabel:'Annual leave', start:addD(today, 9), end:addD(today, 10), session:'Full', days:2, reason:'Family trip', status:'Pending', warnings:[addD(today, 9)+': rostered 100M1 (with Teo BL)'], othersAway:['FAIRUZ AL '+addD(today,10)] }];
-  const types = [['AL','Annual leave'],['OIL','Off day (OIL)'],['MA','Medical appointment'],['MC','Medical leave (MC)'],['HL','Hospitalisation leave'],['UL','Urgent leave'],['CL','Compassionate leave'],['COURSE','Course'],['TRG','IPPT / training / test'],['OTHERS','Others']]
-    .filter(([code]) => ['AL','OIL','MA'].includes(code))
-    .map(([code, label]) => ({ code, label, needsReason:['COURSE','TRG','OTHERS','CL'].includes(code), attach:['MC','MA','HL','CL'].includes(code) }));
+  const types = [['AL','Annual Leave'],['MA','Medical Appointment'],['CL','Compassionate Leave'],['ML','Maternity Leave'],['PPL','Paid Parental Leave'],['PSPL','Paid Shared Parental Leave'],
+    ['UL','Urgent Leave'],['MC','Medical Certificate'],['OIL','Off-In-Lieu'],['ICT','In Camp Training'],['CCL','Child Care Leave'],['HL','Hospitalization Leave']]
+    .map(([code, label]) => ({ code, label, needsReason:['COURSE','TRG','OTHERS','CL'].includes(code), attach:['MC','MA','HL','CL'].includes(code), oneDay:['UL','MA'].includes(code), halfOk:['MA','OIL'].includes(code) }));
   const O = (name, label, no, date, activity, taken, tts, notes, remaining, dateText) => ({ id:name+'#'+no, name, label, no:String(no), date:date||'', dateText:dateText||'', activity, taken:taken||'', tts:tts||'', notes:notes||'', remaining, reserved:0, available:remaining, needsTts: !!taken && !tts });
   const oil = JSON.parse(JSON.stringify(SNAP.oil));
   return {
@@ -5203,7 +5209,7 @@ const MOCK = (() => {
       Object.keys(attStore).forEach(k => { const [d, n] = k.split('|'); if (attStore[k].status === 'RS' && d <= today && d >= addD(today, -30)) rs.push({ kind: 'rs', name: n, start: d, end: d, days: 1, reason: attStore[k].reason || '' }); });
       return { today, rs, allergo: mAlg.filter(x => !x.ticked && today > x.due).map(x => ({ name: x.name, type: x.type, start: x.start, end: x.end, due: x.due })) }; },
     adminAwayRemove: (t, nm, cat, ds, from, n) => { ds.forEach(x => { mAwayRm[nm + '|' + cat + '|' + x] = 1; }); return Object.assign(MOCK.adminAwayList(t, from, n), { removed: [cat + ' removed'] }); },
-    adminAwayList: (t, from, n) => { const to = addD(from, (n || 28) - 1), scan = addD(from, -35), hit = {}, LBL = { LIB:'LIB Test', TRG:'IPPT / Training', Others:'Others', AL:'Annual Leave', MC:'Medical Certificate', OIL:'Off In Lieu', UL:'Urgent Leave', HL:'Hospitalisation Leave', NPL:'No Pay Leave', RS:'Report Sick', MA:'Medical Appointment', CCL:'Childcare Leave', COURSE:'Course', ICT:'ICT', CL:'Compassionate Leave' };
+    adminAwayList: (t, from, n) => { const to = addD(from, (n || 28) - 1), scan = addD(from, -35), hit = {}, LBL = { LIB:'LIB Test', TRG:'IPPT / Training', Others:'Others', AL:'Annual Leave', MC:'Medical Certificate', OIL:'Off In Lieu', UL:'Urgent Leave', HL:'Hospitalization Leave', NPL:'No Pay Leave', RS:'Report Sick', MA:'Medical Appointment', CCL:'Childcare Leave', COURSE:'Course', ICT:'ICT', CL:'Compassionate Leave' };
       for (let ds = scan; ds <= to; ds = addD(ds, 1)) { const d = (getWk(mondayOf(ds)).days || [])[dowIdx(ds)]; if (!d) continue;
         (d.absences || []).forEach(a => { let c = String(a.label).toUpperCase().replace(/\s+/g, ''); if (['ORIENTATION','OFFDAYEARNED'].includes(c)) return;
           if (c === 'LIBTEST') c = 'LIB'; else if (/^IPPT/.test(c)) c = 'TRG';
@@ -5401,8 +5407,9 @@ const MOCK = (() => {
     adminSetPin: (t, n, pin) => { if (!/^\d{4,6}$/.test(pin)) throw new Error('The PIN must be 4 to 6 digits.'); const x = staffList.find(y => y.name === n); x.hasPin = true; x.tempPin = true; x.locked = false; return staffList; },
     adminUnlock: (t, n) => { staffList.find(y => y.name === n).locked = false; return staffList; },
     getMyOilHistory: () => oil.filter(o => o.name === S.me.name),
-    getMyOil: () => oil.filter(o => o.name === S.me.name && o.available > 0).map(o => ({ id:o.id, date:o.date, label:o.dateText, activity:o.activity, days:o.available })),
-    submitRequest: (t, f) => { if (f.type === 'OIL' && !f.oilIds.length) throw new Error('Tick enough earned off days to cover the request.');
+    getMyOil: () => oil.filter(o => o.name === S.me.name && o.available > 0).map(o => ({ id:o.id, date:o.date, label:o.dateText, activity:o.activity, days:o.available }))
+      .sort((a, b) => (/COHESION/i.test(a.activity + a.label) - /COHESION/i.test(b.activity + b.label)) || (!a.date - !b.date) || (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+    submitRequest: (t, f) => { if (f.type === 'OIL' && !MOCK.getMyOil().length) throw new Error('No off day left to use.');
       reqs.unshift({ id:'R'+Date.now(), submitted:today, name:S.me.name, type:f.type, typeLabel:types.find(x=>x.code===f.type).label, start:f.start, end:f.end, session:f.session, days:f.start===f.end && f.session!=='Full' ? .5 : nDays(f.start,f.end), reason:f.reason, status:'Pending', warnings:[], othersAway:[] });
       return { id:'R', warnings:[f.start+': rostered 100M1 (with Teo BL)'] }; },
     getMyRequests: () => reqs.filter(r => r.name === S.me.name).concat([{ id:'R0', name:S.me.name, typeLabel:'Medical appointment', start:addD(today,-6), end:addD(today,-6), session:'PM', days:.5, reason:'Polyclinic', status:'Approved', remark:'OK' }]),
