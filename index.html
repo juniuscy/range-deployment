@@ -442,6 +442,9 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .gcp{display:flex;align-items:center;gap:10px;padding:6px 8px;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer}
 .gcp input{width:22px;height:22px;flex:none;margin:0}.gcp .gn{flex:1;min-width:0}.gcp .gn small{display:block;color:var(--muted);font-size:12px}
 .gcp.ok .gn b{text-decoration:line-through;text-decoration-color:#22C55E}
+.gcp.na .gn b{text-decoration-color:var(--muted);color:var(--muted)}
+.gcp .gcnb{flex:none;min-height:34px;padding:4px 10px;font-size:13px}
+.gcp .gcna{flex:none;font-size:12px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
 .algc{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin:0 0 14px}
 .algc h3{margin:0 0 4px;font-size:17px}
 .algr{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;margin-top:6px;border:1px solid}
@@ -2307,7 +2310,7 @@ function openStrength(focus){
 
 /* ---------- Grab Code for Transport (Admin and Managers): 2 days before trainings and weekend ranges ---------- */
 function gcWhen(e){
-  if (e.state === 'done') return 'All issued';
+  if (e.state === 'done') return e.people.some(p => p.done && p.done.na) ? 'All done' : 'All issued';
   return e.days <= 0 ? 'Today' : e.days === 1 ? 'Tomorrow' : 'In ' + e.days + ' days';
 }
 function gcAt(t){ const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):?(\d{2})/.exec(String(t)); return m ? nice(m[1]) + ' ' + m[2] + m[3] + 'hrs' : String(t); }
@@ -2318,16 +2321,18 @@ function gcCard(list){
     return `<div class="gce ${e.state}"><div class="gh"><b>${esc(nice(e.date))}</b><span>${esc(gcWhen(e))}${left && e.state !== 'done' ? ' \u2022 ' + left + ' to issue' : ''}</span></div>
       <div class="gr">Reason: ${esc(e.reason)}</div>
       <div class="small muted">Personnel required (${e.people.length})</div>
-      ${e.people.map(p => `<label class="gcp${p.done ? ' ok' : ''}"><input type="checkbox" data-gc="${i}|${esc(p.name)}"${p.done ? ' checked' : ''}>
-        <span class="gn"><b>${esc(p.name)}</b>${p.what ? `<small>${esc(p.what)}</small>` : ''}${p.done ? `<small>Issued by ${esc(p.done.by)}${p.done.at ? ', ' + esc(gcAt(p.done.at)) : ''}</small>` : ''}</span></label>`).join('')}
+      ${e.people.map(p => `<label class="gcp${p.done ? (p.done.na ? ' ok na' : ' ok') : ''}"><input type="checkbox" data-gc="${i}|${esc(p.name)}"${p.done ? ' checked' : ''}>
+        <span class="gn"><b>${esc(p.name)}</b>${p.what ? `<small>${esc(p.what)}</small>` : ''}${p.done ? `<small>${p.done.na ? 'Not applicable, marked' : 'Issued'} by ${esc(p.done.by)}${p.done.at ? ', ' + esc(gcAt(p.done.at)) : ''}</small>` : ''}</span>
+        ${p.done ? (p.done.na ? '<span class="gcna">N/A</span>' : '') : `<button type="button" class="btn ghost gcnb" data-gcna="${i}|${esc(p.name)}">Not Applicable</button>`}</label>`).join('')}
     </div>`; }).join('')}</div>`;
 }
 function wireGc(list){
   const box = $('#gcb'); if (!box) return;
   box.querySelectorAll('[data-gc]').forEach(cb => cb.onchange = async () => {
     const [i, name] = cb.dataset.gc.split('|'), e = list[+i], on = cb.checked;
+    const wasNa = !on && (e.people.find(p => p.name === name) || {}).done && e.people.find(p => p.name === name).done.na;
     const q = on ? 'Confirmed issued grab code to ' + name + ' for ' + e.reason + ' on ' + nice(e.date) + '?'
-                 : 'Undo: grab code NOT issued to ' + name + ' yet?';
+                 : wasNa ? 'Undo: ' + name + ' does need a grab code after all?' : 'Undo: grab code NOT issued to ' + name + ' yet?';
     if (!confirm(q)) { cb.checked = !on; return; }
     cb.disabled = true;
     try {
@@ -2336,6 +2341,20 @@ function wireGc(list){
       const old = $('#gcb'); if (old) { old.outerHTML = gcCard(r); wireGc(r); }
       toast(on ? 'Issued' : 'Undone');
     } catch(err){ cb.checked = !on; cb.disabled = false; fail(err); }
+  });
+  // Not Applicable: this person does not need a grab code; confirm, then struck off like an issued one
+  box.querySelectorAll('[data-gcna]').forEach(b => b.onclick = async ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    const [i, name] = b.dataset.gcna.split('|'), e = list[+i];
+    const ok = await askBox('Not applicable?', `<b>${esc(name)}</b> does not need a grab code for ${esc(e.reason)} on ${esc(nice(e.date))}.<br><span class="muted">It is struck off the list. Untick it to undo.</span>`, 'Yes, not applicable');
+    if (!ok) return;
+    busy(b, true);
+    try {
+      const r = await call('grabIssue', S.token, e.date, e.for, name, false, true);
+      S.gc = r;
+      const old = $('#gcb'); if (old) { old.outerHTML = gcCard(r); wireGc(r); }
+      toast(name + ': not applicable');
+    } catch(err){ busy(b, false); fail(err); }
   });
 }
 
@@ -5211,7 +5230,7 @@ const MOCK = (() => {
         return { name:r.name, role:r.role, group, note, marked: !!mk, late: !!ext && now > lateAt, status:r.status, clockIn:r.clockIn, by:r.by, where:ps.join(', '), due: ext || a.lateAfter, ext, half: r.leave && r.leave.half && !r.clockIn ? r.leave.half : '' }; }) }; },
     getInspections: () => mockInsp(),
     getGrabCodes: () => mockGrab(),
-    grabIssue: (t, d, f, n, undo) => { const k = d + '|' + f + '|' + n; if (undo) delete mGcDone[k]; else mGcDone[k] = { by:S.me.name, at:today + ' 17:58' }; return mockGrab(); },
+    grabIssue: (t, d, f, n, undo, na) => { const k = d + '|' + f + '|' + n; if (undo) delete mGcDone[k]; else mGcDone[k] = { by:S.me.name, at:today + ' 17:58', na:!!na }; return mockGrab(); },
     getReports: () => mRep,
     getNews: () => mNewsList(),
     getNotes: () => mNotes.filter(n => !n.removed),
