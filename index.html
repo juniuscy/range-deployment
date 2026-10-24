@@ -851,7 +851,7 @@ function signedIn(r){
   Object.assign(S, { token:r.token, me:r.me, types:r.types, today:r.today, edit:false });
   setStaff(r.staff || []);
   S.monday = mondayOf(r.today); S.dayIdx = dowIdx(r.today);
-  renderShell(); go(NOSTAFF(S.me.role) ? 'board' : 'home');
+  renderShell(); go(S.me.role === 'Admin' ? 'board' : 'home');
   if (isPD()) window.confirm = () => { toast(RO_MSG, true); return false; };
   loadNotes();
 }
@@ -860,17 +860,17 @@ function signedIn(r){
    Shell + navigation
    ============================================================ */
 /* the red "waiting for approval" dot: on Requests for managers (they approve there), on Admin for the Admin account */
-const dotTab = () => S.me && NOSTAFF(S.me.role) ? 'admin' : 'requests';
+const dotTab = () => S.me && S.me.role === 'Admin' ? 'admin' : 'requests';
 function renderShell(){
   // The Admin account only plans and manages: no personal tabs
-  const tabs = NOSTAFF(S.me.role) ? [['board','Deployment Plan']]
+  const tabs = S.me.role === 'Admin' ? [['board','Deployment Plan']]   // the PD sees the same tabs as the Managers
     : [['home','My Deploy'],['board','Deployment Plan'],['oil','My OIL'],['apply','Apply'],['requests','Requests']];
   if (S.me.role === 'APO Supervisor') tabs.push(['trn','Training']);   // view only
   if (canView()) tabs.push(['admin','Admin']);
   $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
   <header class="top"><div class="top-in">
     <div class="brand">Range Deployment</div>
-    <div class="who">${esc(S.me.name)}${isPD() ? ' <small style="opacity:.75">(View only)</small>' : ''}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
+    <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
   </div></header>
   <nav class="tabs" aria-label="Sections"><div class="in${tabs.length >= 7 ? ' many' : ''}">
     ${tabs.map(([k,l]) => `<button data-v="${k}">${tabs.length >= 7 && k === 'board' ? 'Deploy Plan' : l}${k === dotTab() && canView() ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
@@ -931,7 +931,7 @@ function drawHome(h, stale){
       ${h.attendance ? clockNotes(h.attendance) + sickBox(h.attendance) : ''}
       ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
-      ${canManage() || dmMine ? strCard() : ''}
+      ${canView() || dmMine ? strCard() : ''}
       <div id="news-slot">${newsCard(h.news)}</div>
       ${h.allergo && h.allergo.length ? algCard(h.allergo, 'Submit in Allergo') : ''}
       ${h.inspections || dmMine ? inspCard(h.inspections) : ''}
@@ -953,7 +953,7 @@ function drawHome(h, stale){
     wireClock();
     wireSick();
     wireNews(h.news, !stale);
-    if (canManage() || dmMine) loadStrCard();
+    if (canView() || dmMine) loadStrCard();
     if (h.inspections || dmMine) wireInsp(h.inspections);
     if (h.grab) { S.gc = h.grab; wireGc(h.grab); }
     if (h.reports) { S.rep = h.reports; wireRep(h.reports); }
@@ -2498,7 +2498,7 @@ async function viewBoard(force){
     const r = $('#wr'); if (r) r.insertAdjacentHTML('beforebegin', '<span class="upd" id="wk-upd" style="margin-right:8px">Updating\u2026</span>');
   } else loading();
   try {
-    const isAdm = S.me && NOSTAFF(S.me.role);
+    const isAdm = S.me && S.me.role === 'Admin';
     const [wk, insp, bd, rp, gc] = await Promise.all([
       call('getWeek', S.token, key, !!force),          // fresh from the sheet (cached on the server until the sheet changes)
       isAdm ? call('getInspections', S.token).catch(() => S.insp || null) : Promise.resolve(null),
@@ -2526,7 +2526,7 @@ const PARTY_CAP = '<svg class="pcap" viewBox="0 0 24 28" aria-hidden="true"><pat
 function drawBoard(wk){
   const end = addD(wk.monday, 6);
   const admin = canManage();
-  const isAdmAcct = S.me && NOSTAFF(S.me.role);
+  const isAdmAcct = S.me && S.me.role === 'Admin';
   const inspTop = (isAdmAcct ? bdayBanner(S.bdays) + strCard() : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '') + (isAdmAcct && S.gc ? gcCard(S.gc) : '') + (isAdmAcct && S.rep ? repCard(S.rep) : '');
   const head = inspTop + `<div class="wkbar">
       <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
@@ -3383,7 +3383,7 @@ function showWarnings(w){
 async function viewRequests(quiet){
   if (!quiet) loading();
   try {
-    const mgr = canManage();
+    const mgr = canView();
     const [list, alg, pend] = await Promise.all([call('getMyRequests', S.token), call('getAllergo', S.token).catch(() => null),
       mgr ? call('adminPending', S.token).catch(() => null) : Promise.resolve(null)]);
     const algItems = alg ? alg.items.filter(x => x.name === S.me.name && (!x.ticked || x.end >= addD(S.today, -60))) : [];   // own only (managers get everyone's for Admin, Allergo)
@@ -3424,10 +3424,8 @@ function viewAdmin(){
   const rows = [[['pending','Pending'],['att','Attendance'],['trn','Training'],['lib','LIB']],
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
     [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']],
-    [['duty','Duty Count'],['away','Away List'],['clr','Clearance']]]
-    .map(r => isPD() ? r.filter(([k]) => k !== 'clr') : r);           // Clearance is a sending tool (and holds NRICs): not for the PD
-  if (isPD() && S.adminTab === 'clr') S.adminTab = 'pending';
-  V().innerHTML = `<h2>Admin</h2>${isPD() ? '<div class="note blue" style="margin-bottom:10px"><b>View only.</b> You can see everything here, but cannot change anything.</div>' : ''}<div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
+    [['duty','Duty Count'],['away','Away List'],['clr','Clearance']]];
+  V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
   $('#spd').onclick = speedCheck;
