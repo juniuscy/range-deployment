@@ -621,6 +621,7 @@ async function apiCall(fn, args){
 }
 /* Every reply that carries dmMap (getHome, getWeek) updates the Duty Manager list kept in S.dm */
 function call(fn, ...args){
+  if (isPD() && !PD_READ.includes(fn)) return Promise.reject(new Error(RO_MSG));
   return call0(fn, ...args).then(r => {
     if (r && r.dmMap) {
       S.dm = S.dm || {};
@@ -650,7 +651,17 @@ function inRole(p, role){ return p.role === role || (role === 'APO' && APO_LIKE.
 const canManage = () => S.me && (S.me.role === 'Admin' || MGR_ROLES.includes(S.me.role));   // same rights
 const APO_LIKE = ['APO', 'APO Supervisor', 'Non-APO'];   // deployable as APO
 const TRAINEES = ['APO', 'APO Supervisor'];              // have yearly training
-const hasOil = () => S.me && S.me.role !== 'Admin';                                       // admin: no off days
+const hasOil = () => S.me && !NOSTAFF(S.me.role);                                         // admin / PD: no off days
+/* PD (Project Director): sees everything Admin / Managers see, but cannot change anything */
+const isPD = () => !!(S.me && S.me.role === 'PD');
+const canView = () => !!(S.me && (canManage() || isPD()));
+const NOSTAFF = r => r === 'Admin' || r === 'PD';          // not part of the team: no deployment, OIL, leave, attendance
+const RO_MSG = 'View only: the PD account cannot change anything.';
+/* what the PD may call (reading only); anything else is stopped here, and on the server */
+const PD_READ = ['login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
+  'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
+  'adminActions','adminAttendance','adminAwayList','adminChanges','adminLib','adminOil','adminPending','adminScanOil','adminStaff','adminTeam',
+  'getMyOil','getMyOilHistory','getMyRequests','getMySchedule'];
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -840,7 +851,8 @@ function signedIn(r){
   Object.assign(S, { token:r.token, me:r.me, types:r.types, today:r.today, edit:false });
   setStaff(r.staff || []);
   S.monday = mondayOf(r.today); S.dayIdx = dowIdx(r.today);
-  renderShell(); go(S.me.role === 'Admin' ? 'board' : 'home');
+  renderShell(); go(NOSTAFF(S.me.role) ? 'board' : 'home');
+  if (isPD()) window.confirm = () => { toast(RO_MSG, true); return false; };
   loadNotes();
 }
 
@@ -848,20 +860,20 @@ function signedIn(r){
    Shell + navigation
    ============================================================ */
 /* the red "waiting for approval" dot: on Requests for managers (they approve there), on Admin for the Admin account */
-const dotTab = () => S.me && S.me.role === 'Admin' ? 'admin' : 'requests';
+const dotTab = () => S.me && NOSTAFF(S.me.role) ? 'admin' : 'requests';
 function renderShell(){
   // The Admin account only plans and manages: no personal tabs
-  const tabs = S.me.role === 'Admin' ? [['board','Deployment Plan']]
+  const tabs = NOSTAFF(S.me.role) ? [['board','Deployment Plan']]
     : [['home','My Deploy'],['board','Deployment Plan'],['oil','My OIL'],['apply','Apply'],['requests','Requests']];
   if (S.me.role === 'APO Supervisor') tabs.push(['trn','Training']);   // view only
-  if (canManage()) tabs.push(['admin','Admin']);
+  if (canView()) tabs.push(['admin','Admin']);
   $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
   <header class="top"><div class="top-in">
     <div class="brand">Range Deployment</div>
-    <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
+    <div class="who">${esc(S.me.name)}${isPD() ? ' <small style="opacity:.75">(View only)</small>' : ''}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
   </div></header>
   <nav class="tabs" aria-label="Sections"><div class="in${tabs.length >= 7 ? ' many' : ''}">
-    ${tabs.map(([k,l]) => `<button data-v="${k}">${tabs.length >= 7 && k === 'board' ? 'Deploy Plan' : l}${k === dotTab() && canManage() ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
+    ${tabs.map(([k,l]) => `<button data-v="${k}">${tabs.length >= 7 && k === 'board' ? 'Deploy Plan' : l}${k === dotTab() && canView() ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
   </div></nav>
   <main id="view"></main>`;
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => go(b.dataset.v));
@@ -957,7 +969,7 @@ function drawHome(h, stale){
       drawSched();
     });
     drawSched();
-    if (canManage()) refreshPendingDot();
+    if (canView()) refreshPendingDot();
     if (!stale) {                                   // get this week's plan ready for the Deployment Plan tab
       const m = mondayOf(S.today);
       if (!S.cache[m]) setTimeout(() => call('getWeek', S.token, m).then(w => { S.cache[m] = w; lsWeekSave(w); }).catch(() => {}), 200);
@@ -1751,7 +1763,7 @@ const DM_CHECKS = {
   'dm-start': ['Medical Support', 'Ammo status', 'Range Deployment', 'Range systems & Infrastructure', 'In Pro completed at'],
   'dm-end': ['All range completed', 'All ammo accounted', 'All troops out pro without issues', 'All Units left MMRC at']
 };
-const repShown = (r, st) => r.dm ? isMeDm((S.dm || {})[S.today]) : r.weekly ? canManage() && !!(st && st.certDay) : canManage();
+const repShown = (r, st) => r.dm ? isMeDm((S.dm || {})[S.today]) || isPD() : r.weekly ? canView() && !!(st && st.certDay) : canView();
 const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
 function repStatus(r, st){
   if (r.form) { const f = (st && st.dmform) || { filled:0, total:18 };
@@ -2486,7 +2498,7 @@ async function viewBoard(force){
     const r = $('#wr'); if (r) r.insertAdjacentHTML('beforebegin', '<span class="upd" id="wk-upd" style="margin-right:8px">Updating\u2026</span>');
   } else loading();
   try {
-    const isAdm = S.me && S.me.role === 'Admin';
+    const isAdm = S.me && NOSTAFF(S.me.role);
     const [wk, insp, bd, rp, gc] = await Promise.all([
       call('getWeek', S.token, key, !!force),          // fresh from the sheet (cached on the server until the sheet changes)
       isAdm ? call('getInspections', S.token).catch(() => S.insp || null) : Promise.resolve(null),
@@ -2514,7 +2526,7 @@ const PARTY_CAP = '<svg class="pcap" viewBox="0 0 24 28" aria-hidden="true"><pat
 function drawBoard(wk){
   const end = addD(wk.monday, 6);
   const admin = canManage();
-  const isAdmAcct = S.me && S.me.role === 'Admin';
+  const isAdmAcct = S.me && NOSTAFF(S.me.role);
   const inspTop = (isAdmAcct ? bdayBanner(S.bdays) + strCard() : '') + (isAdmAcct && S.insp ? inspCard(S.insp) : '') + (isAdmAcct && S.gc ? gcCard(S.gc) : '') + (isAdmAcct && S.rep ? repCard(S.rep) : '');
   const head = inspTop + `<div class="wkbar">
       <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
@@ -2994,6 +3006,7 @@ function openWhatsApp(day){
 }
 /* From / To dates (and a remark) for leave over a period. Resolves with { start, end, remark } or null */
 function askRange(title, from, remark0, remarkLabel){
+  if (isPD()) { toast(RO_MSG, true); return Promise.resolve(null); }
   return new Promise(resolve => {
     const bg = document.createElement('div');
     bg.className = 'sheet-bg';
@@ -3021,6 +3034,7 @@ function askRange(title, from, remark0, remarkLabel){
 }
 /* Pick one of a few options. Resolves with the option key, or null */
 function askChoice(title, sub, opts){
+  if (isPD()) { toast(RO_MSG, true); return Promise.resolve(null); }
   return new Promise(resolve => {
     const bg = document.createElement('div');
     bg.className = 'sheet-bg';
@@ -3036,6 +3050,7 @@ function askChoice(title, sub, opts){
 }
 /* Small text prompt. Resolves with the text, '' or null (Cancel / Skip) */
 function askText(title, sub, value, ph, cancelLabel){
+  if (isPD()) { toast(RO_MSG, true); return Promise.resolve(null); }
   return new Promise(resolve => {
     const bg = document.createElement('div');
     bg.className = 'sheet-bg';
@@ -3409,8 +3424,10 @@ function viewAdmin(){
   const rows = [[['pending','Pending'],['att','Attendance'],['trn','Training'],['lib','LIB']],
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
     [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']],
-    [['duty','Duty Count'],['away','Away List'],['clr','Clearance']]];
-  V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
+    [['duty','Duty Count'],['away','Away List'],['clr','Clearance']]]
+    .map(r => isPD() ? r.filter(([k]) => k !== 'clr') : r);           // Clearance is a sending tool (and holds NRICs): not for the PD
+  if (isPD() && S.adminTab === 'clr') S.adminTab = 'pending';
+  V().innerHTML = `<h2>Admin</h2>${isPD() ? '<div class="note blue" style="margin-bottom:10px"><b>View only.</b> You can see everything here, but cannot change anything.</div>' : ''}<div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
   $('#spd').onclick = speedCheck;
@@ -3530,7 +3547,7 @@ async function admTeam(){
 async function admOil(){
   loadingA();
   try {
-    const names = (S.staff || []).filter(p => p.role !== 'Admin').map(p => p.name).sort();
+    const names = (S.staff || []).filter(p => !NOSTAFF(p.role)).map(p => p.name).sort();
     const list = await call('adminOil', S.token, S.oilFilter === '*' ? '' : (S.oilFilter || ''));
     const from = addD(mondayOf(S.today), -28), to = addD(S.today, -1);
     const status = o => o.reserved ? '<span class="pill Pending">On hold</span>'
@@ -3666,7 +3683,7 @@ function drawOilScan(){
   const rank = n => STR_RANK[((S.staff || []).find(p => p.name === n) || {}).role] ?? 7;
   sc.items.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : rank(a.name) - rank(b.name) || (a.name < b.name ? -1 : 1));
   const on = sc.items.filter(x => x.on && !x.already);
-  const names = (S.staff || []).filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic').sort((a, b) => (STR_RANK[a.role] ?? 7) - (STR_RANK[b.role] ?? 7) || (a.name < b.name ? -1 : 1));
+  const names = (S.staff || []).filter(p => !NOSTAFF(p.role) && p.role !== 'Backup Medic').sort((a, b) => (STR_RANK[a.role] ?? 7) - (STR_RANK[b.role] ?? 7) || (a.name < b.name ? -1 : 1));
   box.innerHTML = `<h3 style="margin:14px 0 6px">${esc(nice(sc.from))} to ${esc(nice(sc.to))}: ${sc.items.length ? sc.items.length + ' found' : 'nothing found'}</h3>
     ${sc.items.length ? `<div class="oscan">${sc.items.map((x, i) => `<label class="osr${x.already ? ' done' : x.on ? '' : ' off'}">
         <input type="checkbox" data-osc="${i}" ${x.already ? 'disabled' : x.on ? 'checked' : ''}>
@@ -4697,6 +4714,7 @@ function grammarReview(text, r){
 }
 /* Small confirm box: resolves with read(bg) (or true) on Confirm, null on Cancel */
 function askBox(title, body, ok, read){
+  if (isPD()) { toast(RO_MSG, true); return Promise.resolve(null); }
   return new Promise(res => {
     const bg = document.createElement('div');
     bg.className = 'sheet-bg';
@@ -4807,9 +4825,10 @@ async function admStaff(){
   loadingA();
   try { drawStaff(await call('adminStaff', S.token)); } catch(e){ fail(e); }
 }
-const ROLES = ['APO','APO Supervisor','Non-APO','Manager','DY Manager','Medic','Medic Certis','Backup Medic','Admin'];
+const ROLES = ['APO','APO Supervisor','Non-APO','Manager','DY Manager','Medic','Medic Certis','Backup Medic','Admin','PD'];
 /* Team and Staff lists: Manager, DY Manager, APO Supervisor, APO, Non-APO, Medic, Backup Medic, Admin; JAMES LAI first among managers */
-const ROLE_RANK = ['Manager','DY Manager','APO Supervisor','APO','Non-APO','Medic','Medic Certis','Backup Medic','Admin'];
+const roleLbl = r => r === 'PD' ? 'PD (Project Director, view only)' : r;
+const ROLE_RANK = ['PD','Manager','DY Manager','APO Supervisor','APO','Non-APO','Medic','Medic Certis','Backup Medic','Admin'];
 function byRole(list){
   const r = p => { const i = ROLE_RANK.indexOf(p.role); return i < 0 ? ROLE_RANK.length : i; };
   return (list || []).slice().sort((a, b) => (r(a) - r(b)) || ((b.name === 'JAMES LAI') - (a.name === 'JAMES LAI')) || a.name.localeCompare(b.name));
@@ -4830,7 +4849,7 @@ function drawStaff(list){
   A().innerHTML = `
     <div class="sec"><h3 style="margin-top:0">Add a staff member</h3>
       <label class="f"><span>Name as it appears on the roster</span><input type="text" id="n-n" placeholder="e.g. RAHMAN" autocomplete="off"></label>
-      <div class="row2"><label class="f"><span>Role</span><select id="n-r">${ROLES.map(r => `<option>${r}</option>`).join('')}</select></label>
+      <div class="row2"><label class="f"><span>Role</span><select id="n-r">${ROLES.map(r => `<option value="${r}">${roleLbl(r)}</option>`).join('')}</select></label>
       <label class="f"><span>Short names (optional)</span><input type="text" id="n-a" placeholder="e.g. RAH"></label></div>
       <div class="row2"><label class="f"><span>Email (optional)</span><input type="text" id="n-e" inputmode="email"></label>
       <label class="f"><span>First PIN (4 to 6 digits)</span><input type="text" id="n-p" inputmode="numeric" maxlength="6" placeholder="e.g. 583104"></label></div>
@@ -4844,7 +4863,7 @@ function drawStaff(list){
         <span>Also add to the Database tab so the sheet dropdowns list them</span></label>
       <button class="btn" id="n-go">Add staff</button></div>
     <div class="scroll"><table class="t"><tr><th>Name</th><th>Role</th><th>Short names</th><th>PIN</th><th></th></tr>
-      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}${p.sid ? `<div class="small muted">ID ${esc(p.sid)}</div>` : ''}${p.lastDay ? `<div class="small" style="color:${p.lastDay < S.today ? 'var(--flag)' : '#B45309'}">${p.lastDay < S.today ? 'Left' : 'Last day'} ${esc(nice(p.lastDay))} ${pd(p.lastDay).getFullYear()}</div>` : ''}${!p.birthday && p.role !== 'Admin' ? '<div class="small" style="color:var(--flag)">No birthday yet</div>' : ''}${p.role === 'APO' && (p.noMa || p.noIppt) ? `<div class="small muted">No ${[p.noMa ? 'MA' : '', p.noIppt ? 'IPPT' : ''].filter(Boolean).join(' / ')}</div>` : ''}</td><td>${esc(p.role)}</td>
+      ${list.map(p => `<tr style="${p.active ? '' : 'opacity:.55'}"><td><b>${esc(p.name)}</b>${p.active ? '' : ' (inactive)'}${p.sid ? `<div class="small muted">ID ${esc(p.sid)}</div>` : ''}${p.lastDay ? `<div class="small" style="color:${p.lastDay < S.today ? 'var(--flag)' : '#B45309'}">${p.lastDay < S.today ? 'Left' : 'Last day'} ${esc(nice(p.lastDay))} ${pd(p.lastDay).getFullYear()}</div>` : ''}${!p.birthday && !NOSTAFF(p.role) ? '<div class="small" style="color:var(--flag)">No birthday yet</div>' : ''}${p.role === 'APO' && (p.noMa || p.noIppt) ? `<div class="small muted">No ${[p.noMa ? 'MA' : '', p.noIppt ? 'IPPT' : ''].filter(Boolean).join(' / ')}</div>` : ''}</td><td>${esc(p.role)}</td>
         <td>${esc(p.aliases)}</td><td>${pinPill(p)}</td>
         <td style="white-space:nowrap"><button class="btn ghost" style="min-height:34px;padding:4px 10px" data-ed="${esc(p.name)}">Edit</button>
           <button class="btn ${p.active ? 'no' : 'ghost'}" style="min-height:34px;padding:4px 10px" data-act="${esc(p.name)}">${p.active ? 'Remove' : 'Restore'}</button></td></tr>`).join('')}</table></div>
@@ -4880,7 +4899,7 @@ function editStaff(p){
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(p.name)}</h3><div class="src">The name can't change because it links to past records. Add a new person instead if it's wrong.</div>
-    <label class="f"><span>Role</span><select id="s-r">${ROLES.map(r => `<option ${r===p.role?'selected':''}>${r}</option>`).join('')}</select></label>
+    <label class="f"><span>Role</span><select id="s-r">${ROLES.map(r => `<option value="${r}" ${r===p.role?'selected':''}>${roleLbl(r)}</option>`).join('')}</select></label>
     <label class="f"><span>Short names (comma separated)</span><input type="text" id="s-a" value="${esc(p.aliases)}"></label>
     <label class="f"><span>Email</span><input type="text" id="s-e" value="${esc(p.email)}"></label>
     <div class="row2"><label class="f"><span>Birthday</span><input type="date" id="s-b" value="${esc(p.birthday || '')}" max="${S.today}"></label>
@@ -4971,7 +4990,7 @@ const MOCK = (() => {
   }
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
   const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, att: !['KUMAR (SWIFT)','KISHORE'].includes(p.name), hasPin:p.role === 'APO', noPlad: p.name === 'CHEW' }))
-    .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }]);
+    .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }, { name:'TAN PD', role:'PD', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
   const mFx = {};                                                  // ?fxdemo: weekend DAO main shows FAIZAL from a sheet formula
   const fxDemo = w => { if (/wkdemo/.test(location.search) && w.days) w.days.forEach((d, i) => { if (i >= 5 && d.date >= today && !d.ranges.some(r => r.active) && d.ranges[0]) { d.ranges[0].sup = 'AG'; d.ranges[0].active = true; } });
@@ -5019,7 +5038,7 @@ const MOCK = (() => {
     put('WHT1', x[1]); put('WHT2', x[2]); put('PCT', x[3]); put('TS', x[4]); put('TESTTS', x[5]); put('TESTTS', x[6], true); put('MA', x[7]); put('IPPT', x[8]); });
   function mTrn(own){
     const apos = (S.staff || []).filter(p => TRAINEES.includes(p.role) && MB[p.name]);
-    const mine = !own && (canManage() || S.me.role === 'APO Supervisor') ? apos : apos.filter(p => p.name === S.me.name);
+    const mine = !own && (canView() || S.me.role === 'APO Supervisor') ? apos : apos.filter(p => p.name === S.me.name);
     const periods = TDF.map(d => Object.assign({ k:d.k, t:d.t, label:d.label, needs:d.needs || '', minAge:d.minAge || 0, doneWord:d.doneWord || 'PASSED' }, mPer(d, today)));
     const keys = {}; periods.forEach(p => { keys[p.t + '|' + p.id] = 1; });
     const names = mine.map(p => p.name);
@@ -5127,11 +5146,11 @@ const MOCK = (() => {
     d = d || today; const lv = mockLeave(d);
     if (d === today && !attStore.__seeded) {           // pretend most people clocked in this morning
       attStore.__seeded = 1;
-      staffList.filter(p => p.role !== 'Admin').forEach((p, i) => { if (!lv[p.name] && i % 7 !== 3) attRec(d, p.name).clockIn = i % 9 === 5 ? '08:14' : '07:4' + (i % 10); });
+      staffList.filter(p => !NOSTAFF(p.role)).forEach((p, i) => { if (!lv[p.name] && i % 7 !== 3) attRec(d, p.name).clockIn = i % 9 === 5 ? '08:14' : '07:4' + (i % 10); });
     }
     const wkd = (getWk(mondayOf(d)).days || [])[dowIdx(d)] || {}, rep = Object.assign({}, wkd.report || {});
     if (/extdemo/.test(location.search)) staffList.filter(p => !attRec(d, p.name).clockIn && !lv[p.name] && p.role === 'APO').slice(0, 2).forEach(p => { rep[p.name] = '12:00'; });
-    const rows = staffList.filter(p => p.role !== 'Admin' && p.active && p.att !== false).map(p => {
+    const rows = staffList.filter(p => !NOSTAFF(p.role) && p.active && p.att !== false).map(p => {
       const r = attRec(d, p.name); let status = '';
       if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
       const rsv = dowIdx(d) >= 5 ? ((wkd.duties || []).find(x => (x.sparePeople || []).includes(p.name)) || {}).duty || '' : '';
@@ -5157,11 +5176,11 @@ const MOCK = (() => {
       if (!who) throw new Error('Name or PIN is wrong.');
       n = who.name;
       const role = who ? who.role : 'APO';
-      return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || role !== 'Admin'), today, staff: staffList.filter(p => p.active) }; },
+      return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || !NOSTAFF(role)), today, staff: staffList.filter(p => p.active) }; },
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
-      news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: S.me.role === 'Admin' ? null : mockMyAtt(S.me.name), inspections: canManage() ? mockInsp() : null, grab: canManage() ? mockGrab() : null, reports: canManage() || isMeDm(mDm[today]) ? mRep : null, allergo: S.me.role === 'Admin' ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
+      news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: NOSTAFF(S.me.role) ? null : mockMyAtt(S.me.name), inspections: canView() ? mockInsp() : null, grab: canView() ? mockGrab() : null, reports: canView() || isMeDm(mDm[today]) ? mRep : null, allergo: NOSTAFF(S.me.role) ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
@@ -5170,7 +5189,7 @@ const MOCK = (() => {
     getClearance: () => ({ settings: { mailTo: 'Yang_CHAN@certisgroup.com', greet: 'HI FCC, Mr. Ramesh,', time: '0700HRS', loc: 'ARMOURY', purpose: 'WEAPONS MAINTENANCE', formPurpose: 'ARMSKOTE' }, lastTo: '2026-10-22', today, template: 'MMRC Clearance Template.xlsx' }),
     clearanceSend: (t, f, send) => ({ poc: [String(f.pocName || '').toUpperCase(), f.pocMobile].filter(Boolean).join(' / '), name: 'CCA_' + today.slice(8, 10) + today.slice(5, 7) + today.slice(2, 4) + '_MMRC_Clerance_Form.xlsx', url: send ? 'https://drive.google.com/' : '', sent: send ? f.mailTo : '', b64: '' }),
     getLeaveYear: (t, y) => { y = String(y || today.slice(0, 4)); const cats = ['MC','UL','NPL'];
-      const ppl = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic');
+      const ppl = staffList.filter(p => !NOSTAFF(p.role) && p.role !== 'Backup Medic');
       const st = MOCK.adminAwayList(t, y + '-01-01', 366).rows.filter(r => cats.includes(r.cat));
       if (y === '2026') [['ARIF','MC','2026-03-02','2026-03-03','Fever'],['LEONARD','MC','2026-05-11','2026-05-13','Back pain'],['CHEW','UL','2026-06-15','2026-06-15',''],['WONG','UL','2026-07-20','2026-07-21',''],['LIM','NPL','2026-08-24','2026-08-28',''],['LEONARD','UL','2026-09-07','2026-09-07',''],['FAIRUZ','MC','2026-04-06','2026-04-06','Flu']]
         .forEach(([n, c, a, b, why]) => { let k = 0; for (let d = a; d <= b; d = addD(d, 1)) if (dowIdx(d) < 5) k++; st.push({ name: n, cat: c, start: a, end: b, days: k, reason: why }); });
@@ -5291,7 +5310,7 @@ const MOCK = (() => {
     incTplDelete: (t, name) => { mInc.templates = mInc.templates.filter(x => x.name !== name); return mIncOut(); },
     incLog: (t, f) => { mInc.log.unshift({ id: 'I' + Date.now(), at: today + ' ' + hhmm(), type: f.type, date: f.date, time: f.time, loc: f.loc, by: S.me.name, msg: f.msg }); return mIncOut(); },
     dmCheckSave: (t, id, c, tm, x) => { mRep.dmchk[id] = { x: x ? JSON.parse(JSON.stringify(x)) : undefined, c: c.slice(), t: tm && typeof tm === 'object' ? Object.assign({}, tm) : tm, by: S.me.name, at: String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return JSON.parse(JSON.stringify(mRep)); },
-    getAllergo: () => { const all = canManage(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
+    getAllergo: () => { const all = canView(); const items = mAlg.filter(x => all || x.name === S.me.name).map(x => Object.assign({}, x, { state: x.ticked ? 'done' : today > x.due ? 'late' : 'todo' })); return { all, today, items }; },
     allergoTick: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(); },
     adminAllergoTick: (t, n, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = { at: today + ' 09:30', by: S.me.name }; return MOCK.getAllergo(t); },
     adminAllergoUndo: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = null; return MOCK.getAllergo(t); },
@@ -5305,7 +5324,7 @@ const MOCK = (() => {
       else throw new Error('Pick a date.'); return mTrn(); },
     trainingResult: (t, f) => { if (f.id) { const r = mrows.find(x => x.id === f.id); r.result = f.result; r.resultDate = f.result ? r.arranged : ''; }
       else { const d = TDF.find(z => z.k === f.k); mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:mPer(d, f.date).id, arranged:f.date, result:f.result, resultDate:f.date }); }
-      return mTrn(!canManage()); },
+      return mTrn(!canView()); },
     inspectionDone: (t, id, d) => { const x = inspM.find(i => i.id === id); x.last = d || today; return mockInsp(); },
     inspectionEdit: (t, id, f) => { const x = inspM.find(i => i.id === id); if (f.name) x.name = f.name; if (f.last != null) x.last = f.last; return mockInsp(); },
     adminClearAway: (t, d, n, scope) => { const r = attRec(d, n), removed = []; if (r.status && !/^Present/.test(r.status)) { removed.push(r.status); r.status = ''; r.reason = ''; }
@@ -5394,7 +5413,7 @@ const MOCK = (() => {
     adminDecide: (t, id, ok) => { const r = reqs.find(x => x.id === id); r.status = ok ? 'Approved' : 'Rejected';
       const ds = []; if (ok && ['AL','OIL','MC','HL','UL','CL','COURSE'].includes(r.type) && !(r.start === r.end && r.session && r.session !== 'Full')) for (let d = r.start; d <= r.end; d = addD(d, 1)) ds.push(d);
       return { status:r.status, notWritten:[], pulled: mPull(r.name, ds) }; },
-    adminTeam: () => staffList.filter(p => p.role !== 'Admin').map(p => ({ name:p.name, role:p.role, oilAvailable: oil.filter(o => o.name === p.name).reduce((a, o) => a + o.available, 0), oilReserved:0, pending: reqs.filter(r => r.name === p.name && r.status === 'Pending').length, lib: SNAP.lib[p.name] || null })),
+    adminTeam: () => staffList.filter(p => !NOSTAFF(p.role)).map(p => ({ name:p.name, role:p.role, oilAvailable: oil.filter(o => o.name === p.name).reduce((a, o) => a + o.available, 0), oilReserved:0, pending: reqs.filter(r => r.name === p.name && r.status === 'Pending').length, lib: SNAP.lib[p.name] || null })),
     adminOil: (t, n) => oil.filter(o => !n || o.name === n),
     adminTtsDone: (t, id) => { const o = oil.find(x => x.id === id); o.tts = 'TTS adjusted on ' + pd(today).getDate() + '/' + (pd(today).getMonth()+1) + '/26'; o.needsTts = false; return true; },
     adminAddOil: (t, f) => {
@@ -5729,7 +5748,7 @@ async function liveRefresh(){
       await calmRender('admin', async () => { S.quiet = true; try { await admLoad(); } finally { S.quiet = false; } });
     }
     else { Object.keys(S.cache).forEach(k => delete S.cache[k]); }       // other screens: next open reads fresh
-    if (canManage()) refreshPendingDot();
+    if (canView()) refreshPendingDot();
   } catch(e) { /* quiet: try again next time */ }
 }
 async function liveTick(){
