@@ -4938,7 +4938,7 @@ const MOCK = (() => {
       absences: i === 1 ? [{ label:'MC', text:'ARIF MC', people:['ARIF'] }] : i === 3 ? [{ label:'IPPT/ TRG etc', text:'WONG TEST SHOOT (1400hrs)', people:['WONG'] }] : [] };
   }
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
-  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, hasPin:p.role === 'APO', noPlad: p.name === 'CHEW' }))
+  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, att: !['KUMAR (SWIFT)','KISHORE'].includes(p.name), hasPin:p.role === 'APO', noPlad: p.name === 'CHEW' }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
   const mFx = {};                                                  // ?fxdemo: weekend DAO main shows FAIZAL from a sheet formula
@@ -5096,7 +5096,7 @@ const MOCK = (() => {
     }
     const wkd = (getWk(mondayOf(d)).days || [])[dowIdx(d)] || {}, rep = Object.assign({}, wkd.report || {});
     if (/extdemo/.test(location.search)) staffList.filter(p => !attRec(d, p.name).clockIn && !lv[p.name] && p.role === 'APO').slice(0, 2).forEach(p => { rep[p.name] = '12:00'; });
-    const rows = staffList.filter(p => p.role !== 'Admin' && p.role !== 'Backup Medic' && p.active && p.att !== false).map(p => {
+    const rows = staffList.filter(p => p.role !== 'Admin' && p.active && p.att !== false).map(p => {
       const r = attRec(d, p.name); let status = '';
       if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
       return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, reason:r.reason || '', ext: rep[p.name] || '' };
