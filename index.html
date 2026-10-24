@@ -1134,7 +1134,7 @@ function drawTraining(d){
   const shown = S.trnFilter ? grid.filter(x => needs(x.cs)) : grid;
   const pct = d.periods.find(p => p.k === 'PCT'), ip = d.periods.find(p => p.k === 'IPPT');
   const head = d.periods.map(per => `<th>${esc(per.k === 'WHT1' ? 'WHT H1' : per.k === 'WHT2' ? 'WHT H2' : per.k === 'MA' ? 'MA' : per.label)}</th>`).join('');
-  const cellTxt = c => c.date && ['done','arr','wait'].includes(c.st) ? sdt(c.date) + (c.st === 'arr' && c.row && c.row.time ? ' ' + c.row.time : '') + (c.st === 'wait' ? '?' : '') : c.st === 'fail' ? resWord(c.result) : TRN_TXT[c.st];
+  const cellTxt = c => c.date && ['done','arr','wait'].includes(c.st) ? sdt(c.date) + (c.st === 'arr' && c.row && c.row.session && c.row.session !== 'Full' ? ' ' + c.row.session : '') + (c.st === 'arr' && c.row && c.row.time ? ' ' + c.row.time : '') + (c.st === 'wait' ? '?' : '') : c.st === 'fail' ? resWord(c.result) : TRN_TXT[c.st];
   const who = x => `<b>${esc(x.p.name)}${x.p.sid ? ' <small style="font-weight:400">' + esc(x.p.sid) + '</small>' : ''}</b>`;
   A().innerHTML = `
     <p class="small muted" style="margin:0 0 4px">Work year <b>${esc(pct.id)}</b> &middot; IPPT year <b>${esc(sdt(ip.start))} ${ip.start.slice(0,4)} &ndash; ${esc(sdt(ip.end))} ${ip.end.slice(0,4)}</b></p>
@@ -1194,8 +1194,9 @@ function trnEditor(d, person, c){
     body = `<div class="row2"><label class="f"><span>${open ? 'Arranged date' : 'Arrange a date'}</span>
         <input type="date" id="te-d" value="${esc(open ? open.arranged : '')}" min="${per.start}" max="${per.end}"></label>
       <label class="f"><span>Time of booking (24hrs)</span><input type="text" id="te-tm" class="tm" inputmode="numeric" maxlength="4" placeholder="XXXX" value="${esc(open && open.time ? open.time : '')}" style="font:600 18px/1.2 ui-monospace,monospace;text-align:center"></label></div>
+      ${per.k === 'MA' ? `<label class="f"><span>Full day / AM / PM</span><select id="te-ses">${['Full','AM','PM'].map(x => `<option value="${x}" ${(open && open.session || 'Full') === x ? 'selected' : ''}>${x === 'Full' ? 'Full Day' : x}</option>`).join('')}</select></label>` : ''}
       <label class="f"><span>Remarks (optional)</span><textarea id="te-rm" maxlength="200" rows="2" placeholder="e.g. Report at Gym Block B, bring PT kit" style="min-height:60px">${esc(open && open.remark ? open.remark : '')}</textarea></label>
-      <p class="small muted" style="margin-top:-8px">Saving puts <b>${esc(person.name + ' ' + per.t)} (time hrs)</b> in that day's IPPT/ TRG row, so they show as away.</p>
+      <p class="small muted" style="margin-top:-8px">${per.k === 'MA' ? `Saving puts <b>${esc(person.name)} MA (AM / PM) (time hrs)</b> in that day's MA row, so they show as away (half a day for AM or PM).` : `Saving puts <b>${esc(person.name + ' ' + per.t)} (time hrs)</b> in that day's IPPT/ TRG row, so they show as away.`}</p>
       <div class="acts" style="margin-top:6px">${open ? '<button class="btn ghost" id="te-clr">Clear date</button>' : ''}<button class="btn" id="te-save">Save date</button></div>
       ${open ? `<label class="f" style="margin-top:14px"><span>Result (the APO normally enters this)</span></label>
         <div class="rbtn">${TRN_RES(per.k).map(r => `<button class="btn rb-${r}" data-rr="${r}">${resWord(r)}</button>`).join('')}</div>`
@@ -1218,14 +1219,15 @@ function trnEditor(d, person, c){
     const dt = $('#te-d', bg).value, tm = $('#te-tm', bg).value;
     if (!dt) return toast('Pick the date.', true);
     if (!/^([01][0-9]|2[0-3])[0-5][0-9]$/.test(tm)) return toast('Key in the time of the booking as 24hrs, e.g. 0900.', true);
-    run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:dt, time:tm, remark:$('#te-rm', bg).value }, 'Booked ' + nice(dt) + ', ' + tm + 'hrs');
+    const ses = $('#te-ses', bg) ? $('#te-ses', bg).value : 'Full';
+    run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:dt, time:tm, remark:$('#te-rm', bg).value, session:ses }, 'Booked ' + nice(dt) + (ses !== 'Full' ? ' ' + ses : '') + ', ' + tm + 'hrs');
   };
   if ($('#te-clr', bg)) $('#te-clr', bg).onclick = e => run(e.target, 'trainingArrange', { name:person.name, k:per.k, date:'' }, 'Date cleared');
   if ($('#te-pass', bg)) $('#te-pass', bg).onclick = e => run(e.target, 'trainingResult', { name:person.name, k:per.k, date:$('#te-pd', bg).value, result: per.k === 'MA' ? 'DONE' : 'PASSED' }, 'Saved');
   bg.querySelectorAll('[data-rr]').forEach(b => b.onclick = e => run(e.target, 'trainingResult', { id:c.row.id, result:b.dataset.rr }, 'Result saved'));
 }
 /* time of an arranged (open) booking: ' 0900hrs' */
-const trnT = c => c && c.row && !c.row.result && c.row.time ? ' ' + c.row.time + 'hrs' : '';
+const trnT = c => c && c.row && !c.row.result ? (c.row.session && c.row.session !== 'Full' ? ' ' + c.row.session : '') + (c.row.time ? ' ' + c.row.time + 'hrs' : '') : '';
 /* remark of an arranged (open) booking */
 const trnR = c => c && c.row && !c.row.result && c.row.remark ? c.row.remark : '';
 /* APO: own training on My Deploy */
@@ -5323,8 +5325,8 @@ const MOCK = (() => {
     getBirthdays: () => mBdays(),
     trainingArrange: (t, f) => { const d = TDF.find(z => z.k === f.k), per = mPer(d, today);
       const open = mrows.filter(r => r.name === f.name && r.t === d.t && r.period === per.id && !r.result).pop();
-      if (open && !f.date) mrows.splice(mrows.indexOf(open), 1); else if (open) { open.arranged = f.date; open.time = f.time; open.remark = f.remark || ''; }
-      else if (f.date) mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:per.id, arranged:f.date, time:f.time, remark:f.remark || '', result:'', resultDate:'' });
+      if (open && !f.date) mrows.splice(mrows.indexOf(open), 1); else if (open) { open.arranged = f.date; open.time = f.time; open.remark = f.remark || ''; open.session = d.k === 'MA' ? f.session || 'Full' : ''; }
+      else if (f.date) mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:per.id, arranged:f.date, time:f.time, remark:f.remark || '', session: d.k === 'MA' ? f.session || 'Full' : '', result:'', resultDate:'' });
       else throw new Error('Pick a date.'); return mTrn(); },
     trainingResult: (t, f) => { if (f.id) { const r = mrows.find(x => x.id === f.id); r.result = f.result; r.resultDate = f.result ? r.arranged : ''; }
       else { const d = TDF.find(z => z.k === f.k); mrows.push({ id:'M' + (++mid), name:f.name, t:d.t, period:mPer(d, f.date).id, arranged:f.date, result:f.result, resultDate:f.date }); }
