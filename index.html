@@ -3692,6 +3692,7 @@ const ATT_MSG = [['AL','AL'],['UL','UL'],['HL','HL'],['CL','CL'],['ML','ML'],['R
   ['PPL','PPL'],['PSPL','PSPL'],['Course','Course'],['LIB Test','@LIB Test'],['IPPT / TRG etc','@IPPT / TRG etc'],['OTHERS','Others']];
 const ATT_RANGE = ['AL','NPL','MC','HL','ML','PPL','PSPL'];   // picked with From / To dates (saved as a leave record)
 const ATT_LABEL = { AL:'Annual Leave', NPL:'No Pay Leave', MC:'Medical Certificate', HL:'Hospitalisation Leave', RS:'Report Sick', MA:'Medical Appointment', CL:'Compassionate Leave', ML:'Maternity Leave', PPL:'Paid Paternity Leave', PSPL:'Paid Shared Parental Leave' };
+const ATT_RNA = 'Reserve Not Activated';          // weekend / PH reserve (duty spare) not called in: goes under Not Deployed
 const ATT_REASON = ['MC','RS'];                   // statuses that carry a reason (shown in the attendance message)
 const MON_ATT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
 const DAYL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -3744,7 +3745,7 @@ function attText(a){
     // then (after a blank line) who is not deployed: no status (or marked Off) and not reporting later
     const sorted = arr => arr.slice().sort((x, y) => ((ORD[x.role] ?? 3) - (ORD[y.role] ?? 3)) ||
       ((y.name === 'JAMES LAI') - (x.name === 'JAMES LAI')) || x.name.localeCompare(y.name));
-    const notDep = sorted(a.rows.filter(r => (!r.status || r.status === 'Off') && !r.ext));
+    const notDep = sorted(rows.filter(r => (!r.status || r.status === ATT_RNA) && !r.ext));   // incl. the reserve not called in
     return head2.concat(['Present: ' + (ppl.length ? ppl.length + ' - ' + ppl.map(r => titleCase(r.name)).join(', ') : 'NIL'), ''], awayLines(),
       ['', 'Not Deployed: ' + list(notDep)]).join('\n');
   }
@@ -3757,6 +3758,8 @@ function attText(a){
     ''
   ]);
   L.push.apply(L, awayLines());
+  const rna = by(ATT_RNA);
+  if (rna.length) L.push('', 'Reserve Not Activated: ' + list(rna));
   const none = rows.filter(r => !r.status && !r.ext);
   if (none.length) L.push('Not accounted: ' + list(none));
   return L.join('\n');
@@ -3774,7 +3777,7 @@ function drawAtt(a){
   const present = counted.filter(r => r.status === 'Present' || r.status === 'Present (Late)').length;
   const late = counted.filter(r => r.status === 'Present (Late)').length;
   const none = counted.filter(r => !r.status);
-  const away = counted.length - present - none.length;
+  const away = counted.length - present - none.length - counted.filter(r => r.status === ATT_RNA).length;
   const cls = st => !st ? 'Rejected' : st === 'Present' ? 'Approved' : st === 'Present (Late)' ? 'Pending' : 'Cancelled';
   A().innerHTML = `
     <div class="row2" style="align-items:end">
@@ -3793,15 +3796,16 @@ function drawAtt(a){
       <button class="btn go" id="at-wa">WhatsApp message</button>
       <button class="btn ghost" id="at-rf">Refresh</button></div>
     <div class="scroll"><table class="t"><tr><th>Name</th><th>Clock in</th><th>Status</th></tr>
-      ${rows.map(r => `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.role)}${r.leave ? ', plan: ' + esc([r.leave.text].concat((r.leave.also || []).map(x => x.text)).join(' + ')) : ''}${r.ext ? `, <span class="extag">EXT ${esc(hrs(r.ext))}</span> late after ${esc(r.lateAt)}` : ''}</div></td>
+      ${rows.map(r => `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.role)}${r.leave ? ', plan: ' + esc([r.leave.text].concat((r.leave.also || []).map(x => x.text)).join(' + ')) : ''}${r.ext ? `, <span class="extag">EXT ${esc(hrs(r.ext))}</span> late after ${esc(r.lateAt)}` : ''}${r.reserve ? `, <b style="color:var(--ink)">Reserve</b> (${esc(r.reserve)} spare)` : ''}</div></td>
         <td><input type="time" data-atc="${esc(r.name)}" value="${esc(r.clockIn)}" style="min-height:38px;padding:4px 6px;max-width:120px">
           ${r.by ? `<div class="small muted">entered by ${esc(r.by)}</div>` : ''}</td>
         <td><span class="pill ${cls(r.status)}">${esc(r.status || 'Not accounted')}</span>
+          ${r.reserve && !r.status ? `<div style="margin-top:6px"><button type="button" class="btn ghost ib" data-atrna="${esc(r.name)}">Reserve Not Activated</button></div>` : ''}
           ${r.status && !/^Present/.test(r.status) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${r.status === 'RS' ? `<button type="button" class="btn ib" data-atmc="${esc(r.name)}">Got MC</button>` : ''}<button type="button" class="btn ghost ib" data-atclr="${esc(r.name)}">Remove ${esc(r.status)}</button></div>` : ''}
           ${ATT_REASON.includes(r.status) ? `<div class="small" style="margin-top:4px">${r.reason ? 'Reason: <b>' + esc(r.reason) + '</b> ' : '<span style="color:var(--flag);font-weight:600">No reason yet</span> '}<button type="button" class="lnk" style="padding:0" data-atr="${esc(r.name)}">${r.reason ? 'Edit' : 'Add reason'}</button></div>` : ''}
           <select data-ats="${esc(r.name)}" style="margin-top:6px;min-height:38px;padding:6px 8px">
             <option value="">${r.override ? 'Back to automatic' : 'Automatic'}</option>
-            ${a.statuses.map(st => `<option value="${esc(st)}" ${st === r.override ? 'selected' : ''}>${esc(st)}${ATT_LABEL[st] ? ' - ' + esc(ATT_LABEL[st]) : ''}${ATT_RANGE.includes(st) ? ' (dates)' : ''}</option>`).join('')}
+            ${a.statuses.filter(st => st !== ATT_RNA || r.reserve || r.override === ATT_RNA).map(st => `<option value="${esc(st)}" ${st === r.override ? 'selected' : ''}>${esc(st)}${ATT_LABEL[st] ? ' - ' + esc(ATT_LABEL[st]) : ''}${ATT_RANGE.includes(st) ? ' (dates)' : ''}</option>`).join('')}
           </select></td></tr>`).join('')}</table></div>
     ${(a.records || []).length ? `<h3>MC and leave marked in the app</h3>
       ${a.records.map(x => `<div class="req"><div class="h"><b>${esc(x.name)}: ${esc(x.typeLabel)}</b><span class="pill Approved">Approved</span></div>
@@ -3850,6 +3854,10 @@ function drawAtt(a){
     if (why == null) return;
     try { drawAtt(await call('attReason', S.token, a.date, r.name, why)); toast('Reason saved'); } catch(x){ fail(x); }
   });
+  A().querySelectorAll('[data-atrna]').forEach(b => b.onclick = () => {
+    const sel = A().querySelector('[data-ats="' + b.dataset.atrna + '"]'); if (!sel) return;
+    sel.value = ATT_RNA; sel.dispatchEvent(new Event('change'));
+  });
   A().querySelectorAll('[data-ats]').forEach(sel => sel.onchange = async () => {
     const r0 = a.rows.find(x => x.name === sel.dataset.ats);
     if (ATT_RANGE.includes(sel.value)) {                // AL / NPL / MC / HL / ML / PPL / PSPL: from which date to which date
@@ -3877,7 +3885,7 @@ function drawAtt(a){
     try {
       const res = await call('adminSetAttendance', S.token, a.date, sel.dataset.ats, sel.value, why);
       drawAtt(res);
-      const inSheet = sel.value && !['Present','Present (Late)','Off'].includes(sel.value);
+      const inSheet = sel.value && !['Present','Present (Late)','Off',ATT_RNA].includes(sel.value);
       toast(res.warn ? 'Saved in the app, but not in the weekly tab: ' + res.warn
         : sel.dataset.ats + ': ' + (sel.value || 'automatic') + (inSheet ? ', written to the weekly tab' : '') + pulledTxt(res.pulled), !!res.warn);
       if (res.pulled && res.pulled.length) S.cache = {};
@@ -4945,7 +4953,10 @@ const MOCK = (() => {
   const fxDemo = w => { if (/wkdemo/.test(location.search) && w.days) w.days.forEach((d, i) => { if (i >= 5 && d.date >= today && !d.ranges.some(r => r.active) && d.ranges[0]) { d.ranges[0].sup = 'AG'; d.ranges[0].active = true; } });
     if (/fxdemo/.test(location.search) && w.days) w.days.forEach((d, i) => { if (i < 5 || !d.ranges.some(r => r.active)) return;
     const x = d.duties.find(y => lettersKey(y.duty) === 'DAO'); if (x && !x.main && d.date >= today) { x.main = 'FAIZAL'; x.mainPeople = ['FAIZAL']; mFx[d.date] = ['DAO|main']; } }); return w; };
-  const getWk = m => weeks[m] || (weeks[m] = fxDemo(SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] }));
+  /* ?rsvdemo: Ivan Lim as the weekend DAO spare (reserve), to try "Reserve Not Activated" */
+  const fxRsv = w => { if (/rsvdemo/.test(location.search) && w.days) w.days.forEach((d, i) => { const x = i >= 5 && (d.duties || []).find(y => y.duty === 'DAO');
+    if (x && !x.sparePeople.includes('IVAN LIM')) { x.spare = 'IVAN LIM'; x.sparePeople = ['IVAN LIM']; x.mainPeople = x.mainPeople.filter(n => n !== 'IVAN LIM'); } }); return w; };
+  const getWk = m => weeks[m] || (weeks[m] = fxDemo(fxRsv(SNAP.weeks[m] ? JSON.parse(JSON.stringify(SNAP.weeks[m])) : { monday:m, sheet:null, days:[] })));
   function mockSched(from, n){
     const name = S.me.name, up = [];
     for (let i = 0; i < n; i++) {
@@ -5099,12 +5110,13 @@ const MOCK = (() => {
     const rows = staffList.filter(p => p.role !== 'Admin' && p.active && p.att !== false).map(p => {
       const r = attRec(d, p.name); let status = '';
       if (r.status) status = r.status; else if (r.clockIn) status = r.clockIn > lateAfter ? 'Present (Late)' : 'Present'; else if (lv[p.name]) status = lv[p.name].cat;
-      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, reason:r.reason || '', ext: rep[p.name] || '' };
+      const rsv = dowIdx(d) >= 5 ? ((wkd.duties || []).find(x => (x.sparePeople || []).includes(p.name)) || {}).duty || '' : '';
+      return { name:p.name, role:p.role, clockIn:r.clockIn, by:r.by || '', override:r.status, leave:lv[p.name] || null, status, reason:r.reason || '', ext: rep[p.name] || '', reserve: rsv };
     });
     const prev = addD(d, -1);
     const records = reqs.filter(r => r.status === 'Approved' && r.start <= d && r.end >= prev).map(r => ({ id:r.id, name:r.name, type:r.type, typeLabel:r.typeLabel, start:r.start, end:r.end, session:r.session || 'Full', days:r.days, canChange: r.type !== 'OIL' }));
     const plan = { 'LIB Test': [], 'IPPT / TRG etc': [] }; (wkd.absences || []).forEach(ab => { const k = ab.label.toUpperCase().replace(/\s+/g, ''); const lb = k === 'LIBTEST' ? 'LIB Test' : /^IPPT/.test(k) ? 'IPPT / TRG etc' : ''; if (lb) ab.people.forEach(n => { if (!plan[lb].includes(n)) plan[lb].push(n); }); });
-    return { plan, date:d, lateAfter, statuses:['Present','Present (Late)','AL','RS','MA','CL','ML','PPL','PSPL','UL','NPL','MC','HL','CCL','OIL','Course','ICT','Others','Off'], rows, records };
+    return { plan, date:d, lateAfter, statuses:['Present','Present (Late)','AL','RS','MA','CL','ML','PPL','PSPL','UL','NPL','MC','HL','CCL','OIL','Course','ICT','Others','Off','Reserve Not Activated'], rows, records };
   }
   const libList = Object.keys(SNAP.lib).map((n, i) => ({ row: i + 2, label: n, name: n, date: SNAP.lib[n] }));
   const reqs = [{ id:'R1', submitted:today+' 09:10', name:'LEONARD', type:'AL', typeLabel:'Annual leave', start:addD(today, 9), end:addD(today, 10), session:'Full', days:2, reason:'Family trip', status:'Pending', warnings:[addD(today, 9)+': rostered 100M1 (with Teo BL)'], othersAway:['FAIRUZ AL '+addD(today,10)] }];
@@ -5194,7 +5206,7 @@ const MOCK = (() => {
         let group, note = ''; const mk = mPres[r.name], hf = h => [r.leave].concat((r.leave && r.leave.also) || []).filter(x => x && x.half === h)[0], am = hf('AM'), pm = hf('PM'), isIn = /^Present/.test(r.status);
         if (mk) { group = mk.st; note = 'set by ' + mk.by + ' at ' + hrs(mk.at); } else if (r.clockIn) { group = pm ? 'oilpm' : 'in'; if (pm) note = pm.cat + ' (PM)'; }
         else if (am) { group = 'oilam'; note = am.cat + ' (AM)'; } else if (pm && (isIn || r.status === pm.cat)) { group = 'oilpm'; note = pm.cat + ' (PM)'; }
-        else if (ext && (isIn || !r.status)) group = 'pmshift'; else if (isIn) group = 'in'; else if (r.status === 'Off' || (!r.status && wkend && !ps.length)) group = 'off';
+        else if (ext && (isIn || !r.status)) group = 'pmshift'; else if (isIn) group = 'in'; else if (r.status === 'Off' || r.status === 'Reserve Not Activated' || (!r.status && wkend && !ps.length)) group = 'off';
         else if (r.status) group = 'away'; else if (now <= lateAt) group = 'pending'; else group = 'missing';
         return { name:r.name, role:r.role, group, note, marked: !!mk, late: !!ext && now > lateAt, status:r.status, clockIn:r.clockIn, by:r.by, where:ps.join(', '), due: ext || a.lateAfter, ext, half: r.leave && r.leave.half && !r.clockIn ? r.leave.half : '' }; }) }; },
     getInspections: () => mockInsp(),
@@ -5285,7 +5297,7 @@ const MOCK = (() => {
       reqs.push({ id:'R' + (reqs.length + 9), submitted: today + ' 12:30', name:f.name, type:f.type, typeLabel:({ ML:'Maternity leave', PPL:'Paid paternity leave', PSPL:'Paid shared parental leave', MC:'Medical leave (MC)' })[f.type] || f.type, start:f.start, end:f.end, session:'Full', days:ds.length, reason:f.remark || '', status:'Approved', warnings:[], othersAway:[] });
       return Object.assign(mockAtt(f.date || f.start), { pulled: mPull(f.name, ds), notWritten: [] }); },
     attReason: (t, d, n, why) => { const me = !canManage() || n === S.me.name; attRec(d, me ? S.me.name : n).reason = why || ''; return me ? mockMyAtt(S.me.name) : mockAtt(d); },
-    adminSetAttendance: (t, d, n, st, why) => { attRec(d, n).status = st; if (why != null) attRec(d, n).reason = why; const pulled = st && !/^Present/.test(st) ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
+    adminSetAttendance: (t, d, n, st, why) => { attRec(d, n).status = st; if (why != null) attRec(d, n).reason = why; const pulled = st && !/^Present/.test(st) && st !== 'Reserve Not Activated' ? mPull(n, [d]) : []; return Object.assign(mockAtt(d), { warn:'', pulled }); },
     adminChangeDates: (t, id, st, en, ses) => { const r = reqs.find(x => x.id === id); const was = [r.start, r.end]; Object.assign(r, { start:st, end:en, session: st === en ? ses : 'Full', days: st === en && ses !== 'Full' ? .5 : nDays(st, en) });
       const ds = []; for (let d = st; d <= en; d = addD(d, 1)) if (d < was[0] || d > was[1]) ds.push(d); return { pulled: mPull(r.name, ds), notWritten:[] }; },
     adminSetLateAfter: (t, hm, d) => { lateAfter = hm; return mockAtt(d); },
