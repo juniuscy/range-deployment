@@ -404,6 +404,11 @@ main.am .am-hrow select{width:auto;flex:none;height:40px;min-height:40px;padding
 .am-kpi div{display:flex;flex-direction:column;justify-content:space-between;min-width:0}.am-kpi span{line-height:1.25}
 .am-sumbtn{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}.am-sumbtn .btn.go{flex:1 1 100%}.am-sumbtn .btn{flex:1 1 0;min-width:0;white-space:nowrap;padding-left:8px;padding-right:8px}
 .am-saved{margin:8px 0 0;font-size:13px;color:var(--muted);text-align:center}
+.am-drb{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 10px}.am-drb .linkbtn{flex:none}
+.am-dr{padding:0;gap:0}.am-dr.on{border-color:var(--steel);box-shadow:0 0 0 2px var(--steel-soft)}
+.am-drb2{flex:1;min-width:0;text-align:left;background:none;border:0;padding:10px 12px;font:inherit;color:inherit;cursor:pointer}.am-drb2[disabled]{cursor:default}
+.am-drr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;padding:8px 12px 8px 0;flex:none}
+main.am #af-go{margin-top:2px}
 .am-phh{display:flex;justify-content:space-between;align-items:baseline}.am-phh small{font-size:12.5px;color:var(--muted)}
 #af-pics,#fv-pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-bottom:4px}#af-pics .am-pic,#fv-pics .am-pic{width:auto;height:auto;aspect-ratio:1}#af-pics .am-pic img,#fv-pics .am-pic img{cursor:zoom-in}
 #af-pics>p,#fv-pics>p{grid-column:1/-1}
@@ -736,7 +741,7 @@ const canView = () => !!(S.me && (canManage() || isPD()));
 const NOSTAFF = r => r === 'Admin' || r === 'PD';          // not part of the team: no deployment, OIL, leave, attendance
 const RO_MSG = 'View only: the PD account cannot change anything.';
 /* what the PD may call (reading only); anything else is stopped here, and on the server */
-const PD_READ = ['ammoFaultPhotos','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
+const PD_READ = ['ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
   'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
   'adminActions','adminAttendance','adminAwayList','adminChanges','adminLib','adminOil','adminPending','adminScanOil','adminStaff','adminTeam',
   'getMyOil','getMyOilHistory','getMyRequests','getMySchedule','ammoGet','ammoFault','ammoReceipts','fleetLogin'];
@@ -5129,7 +5134,7 @@ async function admChanges(){
 const SNAP = { weeks:{}, staff:[], oil:[], lib:{} }   /* preview data lives in Preview.html only */;
 const MOCK = (() => {
   const today = ymd(new Date());
-  const mAmSig = {}, mAmRc = {}, mAmPh = {};
+  const mAmSig = {}, mAmRc = {}, mAmPh = {}, mAmDr = [];
   const mAm = { trucks: [{ id:'TK1', plate:'SMM1234A', name:'Ammo Truck 1', notes:'', active:true }],
     contractors: [{ id:'CT1', company:'KRANJI TYRE CENTRE', trade:'Tyres', contact:'Mr Lee', phone:'6123 4567', email:'', address:'', uen:'', gstNo:'', notes:'', active:true }],
     faults: [{ id:'AF0', date: addD(today, -40), time:'0750', truckId:'TK1', plate:'SMM1234A', mileage:'47,900', condition:'Usable, with faults', checkedBy:'ARIF', remarks:'1. (Left side) Front tyre low', marks:[{ n:1, v:'left', x:70, y:104, r:24 }], ackBy:'JAMES LAI', ackAt:'', pdf:'x' }],
@@ -5429,7 +5434,7 @@ const MOCK = (() => {
     getNews: () => mNewsList(),
     getNotes: () => mNotes.filter(n => !n.removed),
     fleetLogin: () => ({ ready: true, url: 'https://script.google.com/macros/s/TEST/exec', user: 'mmrc', pass: 'demo' }),
-    ammoGet: () => Object.assign(JSON.parse(JSON.stringify(mAm)), { canEdit: S.me.role !== 'PD', canAck: canManage(), managers: staffList.filter(p => MGR_ROLES.includes(p.role)).map(p => p.name) }),
+    ammoGet: () => Object.assign(JSON.parse(JSON.stringify(mAm)), { drafts: mAmDr.map(d => ({ id: d.id, savedBy: d.savedBy, savedAt: d.savedAt, date: d.date, time: d.time, truckId: d.truckId, plate: d.plate, circles: d.marks.length, photos: d.photoList.length })), canEdit: S.me.role !== 'PD', canAck: canManage(), managers: staffList.filter(p => MGR_ROLES.includes(p.role)).map(p => p.name) }),
     ammoFault: (t, id) => Object.assign({}, mAm.faults.find(f => f.id === id), { sigChecked: (mAmSig[id] || {}).c || '', sigAck: (mAmSig[id] || {}).a || '' }),
     ammoSaveTruck: (t, f) => { const plate = String(f.plate || '').toUpperCase().trim(); if (!plate) throw new Error('Enter the plate number.');
       const x = f.id ? mAm.trucks.find(y => y.id === f.id) : null; if (x) Object.assign(x, { plate, name: f.name || '', notes: f.notes || '', active: f.active !== false });
@@ -5438,13 +5443,22 @@ const MOCK = (() => {
       const v = Object.assign({}, f, { company, uen: String(f.uen || '').toUpperCase(), gstNo: String(f.gstNo || '').toUpperCase(), active: f.active !== false });
       const x = f.id ? mAm.contractors.find(y => y.id === f.id) : null; if (x) Object.assign(x, v); else mAm.contractors.push(Object.assign(v, { id: 'CT' + Date.now() })); return MOCK.ammoGet(); },
     ammoSaveFault: (t, f) => { if (!f.sigChecked) throw new Error('Sign in the "Checked by" box.'); const tk = mAm.trucks.find(x => x.id === f.truckId); if (!tk) throw new Error('Pick the truck.');
-      const id = 'AF' + Date.now(); mAmSig[id] = { c: f.sigChecked, a: f.sigAck || '' }; mAmPh[id] = (f.photos || []).slice(0, 10); window.__ammoPhotos = mAmPh[id].length; window.__ammoPdf = (f.pdf || '').length; window.__ammoPdfData = f.pdf;
+      const id = 'AF' + Date.now(); mAmSig[id] = { c: f.sigChecked, a: f.sigAck || '' }; mAmPh[id] = (f.photos || []).slice(0, 10); window.__ammoPhotos = mAmPh[id].length; if (f.draftId) { const k = mAmDr.findIndex(x => x.id === f.draftId); if (k >= 0) mAmDr.splice(k, 1); } window.__ammoPdf = (f.pdf || '').length; window.__ammoPdfData = f.pdf;
       mAm.faults.unshift({ id, date: f.date, time: f.time, truckId: tk.id, plate: tk.plate, mileage: f.mileage, condition: f.condition, checkedBy: S.me.name, createdBy: S.me.name, remarks: f.remarks, marks: f.marks, ackBy: f.sigAck ? f.ackBy : '', ackAt: '', pdf: 'x', photos: mAmPh[id].length });
       const VN = AM_VNAME;
       f.marks.forEach(m => { const ln = String(f.remarks || '').split('\n').map(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(.*)$').exec(l)).filter(Boolean)[0];
         mAm.repairs.push({ id: 'AR' + Date.now() + m.n, faultId: id, no: m.n, truckId: tk.id, plate: tk.plate, view: VN[m.v], fault: ln ? ln[1].replace(/^\([^)]*\)\s*/, '') : 'Fault ' + m.n, found: f.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '' }); });
-      return Object.assign(MOCK.ammoGet(), { savedId: id }); },
+      return Object.assign(MOCK.ammoGet(), { savedId: id, notified: staffList.filter(p => MGR_ROLES.includes(p.role)).length }); },
     ammoFaultPhotos: (t, id) => (mAmPh[id] || []).map((p, i) => ({ id: id + 'P' + i, name: 'photo ' + (i + 1) + '.jpg', mime: 'image/jpeg', url: '#', data: p.data })),
+    ammoDraftSave: (t, f, id) => { const at = S.today + ' ' + new Date().toTimeString().slice(0, 5); let d = id && mAmDr.find(x => x.id === id);
+      const tk = mAm.trucks.find(x => x.id === f.truckId) || {};
+      const keep = (f.photos || []).filter(p => p.id).map(p => p.id), old = d ? d.photoList.filter(p => keep.includes(p.id)) : [];
+      const add = (f.photos || []).filter(p => !p.id && p.data).map((p, i) => ({ id: 'DP' + Date.now() + i, name: 'photo.jpg', data: p.data }));
+      const v = { savedBy: S.me.name, savedAt: at, date: f.date, time: f.time, truckId: f.truckId, plate: tk.plate || '', mileage: f.mileage, condition: f.condition, remarks: f.remarks, marks: f.marks || [], ackBy: f.ackBy, photoList: old.concat(add).slice(0, 10) };
+      if (d) Object.assign(d, v); else { d = Object.assign({ id: 'AD' + Date.now() }, v); mAmDr.unshift(d); }
+      return Object.assign(MOCK.ammoGet(), { draftId: d.id, draftPhotos: d.photoList.map(p => p.id) }); },
+    ammoDraftGet: (t, id) => { const d = mAmDr.find(x => x.id === id); if (!d) throw new Error('That draft is no longer there (it was finished or deleted).'); return Object.assign({ circles: d.marks.length, photos: d.photoList.length }, d); },
+    ammoDraftDelete: (t, id) => { const i = mAmDr.findIndex(x => x.id === id); if (i < 0) throw new Error('That draft was already deleted.'); mAmDr.splice(i, 1); return MOCK.ammoGet(); },
     ammoSaveSummary: (t, yr, pdf) => { if (!/^data:application\/pdf;base64,/.test(pdf)) throw new Error('The PDF was not made. Please try again.'); window.__sumPdf = pdf; const d = S.today.split('-').reverse().join('-');
       return { id: 'SUM' + yr, name: 'Ammo Truck repair spend ' + yr + ' (as at ' + d + ').pdf', folder: 'Ammo Truck / Summaries / ' + yr, url: '#' }; },
     ammoDeleteFault: (t, id) => { if (mAm.repairs.some(r => r.faultId === id && r.status === 'Fixed')) throw new Error('A repair on this fault list is already Fixed, so it is kept.');
@@ -6081,11 +6095,14 @@ function amDraft(){
 function amKeep(){ try { localStorage.setItem('rdp_ammo_draft', JSON.stringify(S.amF)); } catch(e) {} }
 function amFaultTab(){
   const f = amDraft(), d = S.am, can = amCan();
+  if (f.draftId && !(d.drafts || []).some(x => x.id === f.draftId)) { delete f.draftId; delete f.draftBy; delete f.draftAt; (S.amPh || []).forEach(p => { delete p.id; }); S.amPhFor = ''; amKeep(); }   // finished or deleted elsewhere
+  if (f.draftId && S.amPhFor !== f.draftId && can) amDraftPhotos(f.draftId);
   const trucks = d.trucks.filter(t => t.active || t.id === f.truckId);
   if (!f.truckId && trucks.length === 1) f.truckId = trucks[0].id;
   const nMarks = v => f.marks.filter(m => m.v === v).length;
   V().innerHTML = `<h2 class="am-h">Ammo Truck Fault List</h2>
     ${can ? `<p class="small muted" style="margin:-4px 0 10px">Tap a view to circle where the fault is, then describe each one in Remarks.</p>
+    ${f.draftId ? `<div class="note blue am-drb"><span>Continuing a draft saved by <b>${esc(titleCase(f.draftBy || ''))}</b>${f.draftAt ? ', ' + esc(amAt(f.draftAt)) : ''}. Tap Update draft to keep your changes.</span><button class="linkbtn" id="af-new">Start new</button></div>` : ''}
     <div class="sec"><div class="row2">
       <label class="f"><span>Date</span><input type="date" id="af-d" value="${esc(f.date)}" max="${S.today}"></label>
       <label class="f"><span>Time (24hrs)</span><input type="text" id="af-t" inputmode="numeric" maxlength="4" value="${esc(f.time)}"></label>
@@ -6107,11 +6124,15 @@ function amFaultTab(){
       <div><div class="f"><span>Checked by: ${esc(S.me.name)}</span></div><canvas class="am-sig" id="af-s1"></canvas><button class="linkbtn" id="af-s1x">Clear</button></div>
       <div><div class="f"><span>Acknowledged by (Manager)</span></div><select id="af-ab" style="margin-bottom:6px"><option value="">A manager signs later</option>${(d.managers || []).map(n => `<option ${n === f.ackBy ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
         <canvas class="am-sig" id="af-s2"></canvas><button class="linkbtn" id="af-s2x">Clear</button></div></div></div>
-    <div class="am-acts"><button class="btn ghost" id="af-clr">Clear form</button><button class="btn go" id="af-go">Save fault list</button></div>
-    <p class="small muted">Saving makes a PDF in Drive (Ammo Truck &rarr; Fault Lists), and each circle becomes a repair in the Repairs tab.</p>` :
+    <div class="am-acts"><button class="btn ghost" id="af-clr">Clear form</button><button class="btn ghost" id="af-dr">${f.draftId ? 'Update draft' : 'Save draft'}</button></div>
+    <button class="btn go block" id="af-go">Save fault list</button>
+    <p class="small muted"><b>Save draft</b> keeps it to finish later, on any phone (signatures are signed when you finish). <b>Save fault list</b> makes the PDF in Drive (Ammo Truck &rarr; Fault Lists), and each circle becomes a repair in the Repairs tab.</p>` :
     '<div class="note blue">View only.</div>'}
+    ${(d.drafts || []).length ? `<h3 style="margin-top:22px">Drafts (not finished)</h3>${amDraftRows(f, can)}` : ''}
     <h3 style="margin-top:22px">Past fault lists</h3>${amFaultRows()}`;
   V().querySelectorAll('[data-amf]').forEach(b => b.onclick = () => amFaultView(b.dataset.amf));
+  V().querySelectorAll('[data-amd]').forEach(b => b.onclick = () => amDraftOpen(b.dataset.amd));
+  V().querySelectorAll('[data-amdx]').forEach(b => b.onclick = e => { e.stopPropagation(); amDraftDel(b.dataset.amdx); });
   if (!can) return;
   const bind = (id, k, f2) => { const el = $(id); if (el) el.oninput = el.onchange = () => { f[k] = f2 ? f2(el.value) : el.value; amKeep(); }; };
   bind('#af-d', 'date'); bind('#af-t', 'time', v => v.replace(/\D/g, '').slice(0, 4)); bind('#af-tk', 'truckId'); bind('#af-km', 'mileage'); bind('#af-cd', 'condition'); bind('#af-rm', 'remarks'); bind('#af-ab', 'ackBy');
@@ -6119,9 +6140,14 @@ function amFaultTab(){
   const s1 = amSigPad($('#af-s1')), s2 = amSigPad($('#af-s2'));
   $('#af-s1x').onclick = () => s1.clear(); $('#af-s2x').onclick = () => s2.clear();
   $('#af-clr').onclick = async () => {
-    if (!(await askBox('Clear the form?', 'All circles, remarks and photos on this form are removed.', 'Yes, clear'))) return;
+    if (!(await askBox('Clear the form?', 'All circles, remarks and photos on this form are removed.' + (f.draftId ? ' The saved draft stays in Drafts.' : ''), 'Yes, clear'))) return;
     S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {} amFaultTab();
   };
+  if ($('#af-new')) $('#af-new').onclick = async () => {
+    if (!(await askBox('Start a new fault list?', 'The draft stays in Drafts; you can carry on with it later.', 'Yes, start new'))) return;
+    S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {} amFaultTab(); window.scrollTo(0, 0);
+  };
+  $('#af-dr').onclick = e => amSaveDraft(e.target);
   $('#af-go').onclick = e => amSaveFault(e.target, s1, s2);
   amPhotos();
 }
@@ -6129,7 +6155,7 @@ function amFaultTab(){
 const AM_MAXPH = 10;
 function amPhotos(){
   const L = S.amPh = S.amPh || [], box = $('#af-pics'); if (!box) return;
-  box.innerHTML = L.map((p, i) => `<div class="am-pic"><img src="${p.data}" alt="Photo ${i + 1}" data-afv="${i}"><button data-afx="${i}" aria-label="Remove photo ${i + 1}">\u00d7</button></div>`).join('') || '<p class="muted small" style="margin:0">No photos yet.</p>';
+  box.innerHTML = L.map((p, i) => `<div class="am-pic"><img src="${p.data}" alt="Photo ${i + 1}" data-afv="${i}"><button data-afx="${i}" aria-label="Remove photo ${i + 1}">\u00d7</button></div>`).join('') || `<p class="muted small" style="margin:0">${S.amPhLoading ? 'Loading the draft photos\u2026' : 'No photos yet.'}</p>`;
   $('#af-pn').textContent = L.length ? L.length + ' / ' + AM_MAXPH : '';
   box.querySelectorAll('[data-afx]').forEach(b => b.onclick = async () => { if (await askBox('Remove photo ' + (+b.dataset.afx + 1) + '?', '', 'Yes, remove')) { L.splice(+b.dataset.afx, 1); amPhotos(); } });
   box.querySelectorAll('[data-afv]').forEach(b => b.onclick = () => amPhotoBig(L, +b.dataset.afv));
@@ -6148,6 +6174,59 @@ function amPhotoBig(L, i){
     $('#pb-x', bg).onclick = () => bg.remove();
     if ($('#pb-p', bg)) { $('#pb-p', bg).onclick = () => { i = (i + L.length - 1) % L.length; draw(); }; $('#pb-n', bg).onclick = () => { i = (i + 1) % L.length; draw(); }; } };
   draw(); bg.onclick = e => { if (e.target === bg) bg.remove(); }; document.body.appendChild(bg);
+}
+/* ---------- drafts ---------- */
+const amAt = v => { v = String(v || ''); return v ? nice(v.slice(0, 10)) + (v.length > 11 ? ', ' + v.slice(11, 16).replace(':', '') + 'hrs' : '') : ''; };
+const amHasForm = f => !!(f && ((f.marks || []).length || String(f.remarks || '').trim() || String(f.mileage || '').trim() || (S.amPh || []).length));
+function amDraftRows(f, can){
+  return `<div class="am-list">${S.am.drafts.map(x => `<div class="am-row am-dr${x.id === f.draftId ? ' on' : ''}"><button class="am-drb2" data-amd="${esc(x.id)}" ${can ? '' : 'disabled'}><b>${esc(nice(x.date))}</b>${x.plate ? ' &middot; ' + esc(x.plate) : ''}
+      <small>Saved by ${esc(titleCase(x.savedBy || ''))}, ${esc(amAt(x.savedAt))}${x.circles ? ' &middot; ' + x.circles + ' circle' + (x.circles === 1 ? '' : 's') : ''}${x.photos ? ' &middot; ' + x.photos + ' photo' + (x.photos === 1 ? '' : 's') : ''}</small></button>
+      <span class="am-drr">${x.id === f.draftId ? '<span class="pill Pending">On the form</span>' : can ? '<span class="pill Pending">Continue</span>' : '<span class="pill Pending">Draft</span>'}${can && (x.savedBy === S.me.name || canManage()) ? `<button class="linkbtn" data-amdx="${esc(x.id)}" aria-label="Delete draft" style="color:var(--flag)">Delete</button>` : ''}</span></div>`).join('')}</div>`;
+}
+/* after the app was closed, the draft's photos are fetched again (photos are not kept on the phone) */
+async function amDraftPhotos(id){
+  if (S.amPhLoading === id) return; S.amPhLoading = id;
+  try { const x = await call('ammoDraftGet', S.token, id);
+    const mine = (S.amPh || []).filter(p => !p.id);
+    S.amPh = (x.photoList || []).map(p => ({ id: p.id, name: p.name, mime: 'image/jpeg', data: p.data })).concat(mine); S.amPhFor = id;
+  } catch(e) { S.amPhFor = id; }
+  finally { S.amPhLoading = ''; if (S.view === 'ammo' && S.amTab === 'fault') amPhotos(); }
+}
+async function amSaveDraft(btn){
+  const f = amDraft();
+  if (S.amPhLoading) return toast('The draft photos are still loading. Try again in a moment.', true);
+  busy(btn, true);
+  try {
+    const L = S.amPh || [];
+    const x = { date: f.date, time: f.time, truckId: f.truckId, mileage: f.mileage, condition: f.condition, remarks: f.remarks, marks: f.marks, ackBy: f.ackBy,
+      photos: L.map(p => p.id ? { id: p.id } : { data: p.data }) };
+    const r = await call('ammoDraftSave', S.token, x, f.draftId || '');
+    const known = L.filter(p => p.id).map(p => p.id), fresh = (r.draftPhotos || []).filter(id => known.indexOf(id) < 0);
+    L.filter(p => !p.id).forEach((p, i) => { if (fresh[i]) p.id = fresh[i]; });
+    const was = f.draftId;
+    S.amPhFor = r.draftId; f.draftId = r.draftId; f.draftBy = S.me.name; f.draftAt = (r.drafts.find(d => d.id === r.draftId) || {}).savedAt || ''; amKeep();
+    toast(was ? 'Draft updated' : 'Draft saved. Finish it any time from Drafts.');
+    amSet(r);
+  } catch(e){ busy(btn, false); fail(e); }
+}
+async function amDraftOpen(id){
+  const f = amDraft();
+  if (f.draftId === id) { window.scrollTo(0, 0); return toast('This draft is already on the form.'); }
+  if (amHasForm(f) && !(await askBox('Carry on with this draft?', 'What is on the form now is replaced' + (f.draftId ? ' (its own draft stays in Drafts).' : '. Save it as a draft first if you need it.'), 'Yes, open draft'))) return;
+  try {
+    const x = await call('ammoDraftGet', S.token, id);
+    S.amF = { date: x.date || S.today, time: x.time || '', truckId: x.truckId || '', mileage: x.mileage || '', condition: x.condition || '', remarks: x.remarks || '', marks: x.marks || [], ackBy: x.ackBy || '',
+      draftId: x.id, draftBy: x.savedBy, draftAt: x.savedAt };
+    S.amPh = (x.photoList || []).map(p => ({ id: p.id, name: p.name, mime: 'image/jpeg', data: p.data })); S.amPhFor = x.id;
+    amKeep(); amFaultTab(); window.scrollTo(0, 0);
+    toast('Draft opened' + (S.amPh.length ? ' with ' + S.amPh.length + ' photo' + (S.amPh.length === 1 ? '' : 's') : '') + '. Sign when you finish.');
+  } catch(e){ fail(e); }
+}
+async function amDraftDel(id){
+  const x = (S.am.drafts || []).find(d => d.id === id); if (!x) return;
+  if (!(await askBox('Delete this draft?', `<b>${esc(nice(x.date))}${x.plate ? ', ' + esc(x.plate) : ''}</b>, saved by ${esc(titleCase(x.savedBy || ''))}.<br><span class="muted">Its photos go to the Drive bin.</span>`, 'Yes, delete'))) return;
+  try { const r = await call('ammoDraftDelete', S.token, id); const f = amDraft(); if (f.draftId === id) { delete f.draftId; delete f.draftBy; delete f.draftAt; (S.amPh || []).forEach(p => { delete p.id; }); amKeep(); }
+    toast('Draft deleted'); amSet(r); } catch(e){ fail(e); }
 }
 function amFaultRows(){
   const L = S.am.faults || [];
@@ -6213,11 +6292,11 @@ async function amSaveFault(btn, s1, s2){
   busy(btn, true);
   try {
     const x = { date: f.date, time: f.time, truckId: f.truckId, plate: (amTruck(f.truckId) || {}).plate, mileage: f.mileage, condition: f.condition || (f.marks.length ? 'Usable, with faults' : 'Usable'),
-      checkedBy: S.me.name, remarks: f.remarks, marks: f.marks, sigChecked: sig1, sigAck: sig2, ackBy: sig2 ? f.ackBy : '', photos: (S.amPh || []).map(p => ({ name: p.name, mime: p.mime, data: p.data, w: p.w, h: p.h })) };
+      checkedBy: S.me.name, remarks: f.remarks, marks: f.marks, sigChecked: sig1, sigAck: sig2, ackBy: sig2 ? f.ackBy : '', photos: (S.amPh || []).map(p => ({ name: p.name, mime: p.mime, data: p.data, w: p.w, h: p.h })), draftId: f.draftId || '' };
     x.pdf = await amFaultPdf(x, true);
     const r = await call('ammoSaveFault', S.token, x);
     S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {}
-    toast('Fault list saved' + (f.marks.length ? '; ' + f.marks.length + ' repair' + (f.marks.length === 1 ? '' : 's') + ' added' : ''));
+    toast((f.draftId ? 'Draft finished; fault list saved' : 'Fault list saved') + (f.marks.length ? '; ' + f.marks.length + ' repair' + (f.marks.length === 1 ? '' : 's') + ' added' : '') + (r.notified ? '. Managers emailed (' + r.notified + ').' : ''));
     amSet(r);
   } catch(e){ busy(btn, false); fail(e); }
 }
