@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Record of RAI retrieved at Range (RAI Box)</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%232c4770'/%3E%3Ctext x='32' y='40' font-family='Arial, Helvetica, sans-serif' font-size='22' font-weight='700' fill='white' text-anchor='middle'%3ERAI%3C/text%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -444,6 +445,53 @@
     #signoffSection, #questionnaireSection, .signoff-block, .photo-item, tr{
       break-inside:avoid;page-break-inside:avoid;
     }
+  }
+  /* ---------- Phone layout (screen only; the PDF keeps the table) ---------- */
+  @media screen and (max-width:640px){
+    body:not(.pdf-export){padding:10px;}
+    body:not(.pdf-export) .toolbar{gap:8px;margin-bottom:10px;}
+    body:not(.pdf-export) .toolbar button{flex:1 1 auto;padding:10px 12px;}
+    body:not(.pdf-export) .drive-status{flex-basis:100%;}
+    body:not(.pdf-export) .sheet{padding:16px 14px;}
+    body:not(.pdf-export) .page-header{gap:10px;}
+    body:not(.pdf-export) .page-header .org-name{font-size:14px;}
+    body:not(.pdf-export) .page-header img{height:48px;}
+    body:not(.pdf-export) h1{font-size:18px;}
+    body:not(.pdf-export) input[type="date"], body:not(.pdf-export) input[type="time"],
+    body:not(.pdf-export) input[type="number"], body:not(.pdf-export) input[type="text"],
+    body:not(.pdf-export) select{font-size:16px;min-height:42px;min-width:0;}
+    body:not(.pdf-export) .top-grid{grid-template-columns:1fr 1fr;gap:12px;}
+    body:not(.pdf-export) .top-grid > div:first-child{grid-column:1 / -1;}
+    body:not(.pdf-export) .add-name-row input{min-width:0;font-size:16px;}
+    body:not(.pdf-export) .add-name-row button{padding:6px 10px;}
+    body:not(.pdf-export) #locationTable, body:not(.pdf-export) #locationTable tbody{display:block;width:100%;}
+    body:not(.pdf-export) #locationTable thead{display:none;}
+    body:not(.pdf-export) #locationTable tr{
+      display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;
+      border:1px solid var(--line);border-radius:8px;padding:10px 12px 12px;margin-bottom:10px;background:#fafbfc;
+    }
+    body:not(.pdf-export) #locationTable td{display:block;border:none;padding:0;min-width:0;}
+    body:not(.pdf-export) #locationTable td:nth-child(1){order:1;font-size:16px;font-weight:700;color:var(--accent);align-self:center;}
+    body:not(.pdf-export) #locationTable td:nth-child(6){order:2;text-align:right !important;}
+    body:not(.pdf-export) #locationTable td:nth-child(n+2):nth-child(-n+5){order:3;}
+    body:not(.pdf-export) #locationTable td:nth-child(n+2):nth-child(-n+5)::before{
+      display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:#555;margin-bottom:4px;
+    }
+    body:not(.pdf-export) #locationTable td:nth-child(2)::before{content:"Type of RAI rounds";}
+    body:not(.pdf-export) #locationTable td:nth-child(3)::before{content:"Status";}
+    body:not(.pdf-export) #locationTable td:nth-child(4)::before{content:"Quantity";}
+    body:not(.pdf-export) #locationTable td:nth-child(5)::before{content:"Time";}
+    body:not(.pdf-export) #locationTable td select, body:not(.pdf-export) #locationTable td input{width:100%;}
+    body:not(.pdf-export) .row-btn{width:36px;height:36px;font-size:18px;}
+    body:not(.pdf-export) .signoff-grid{grid-template-columns:1fr;gap:14px;}
+    body:not(.pdf-export) .id-box-row{justify-content:space-between;}
+    body:not(.pdf-export) .signoff-grid > *{min-width:0;}
+    body:not(.pdf-export) .id-box-row{flex-wrap:wrap;}
+    body:not(.pdf-export) .nric-prefix{width:66px;padding:6px 2px;}
+    body:not(.pdf-export) .nric-last4{width:78px;}
+    body:not(.pdf-export) input[readonly]{font-size:14px;}
+    body:not(.pdf-export) .questionnaire{grid-template-columns:1fr 104px;gap:12px;}
+    body:not(.pdf-export) .photo-grid{grid-template-columns:repeat(2, 1fr);}
   }
 </style>
 </head>

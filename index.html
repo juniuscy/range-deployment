@@ -354,7 +354,7 @@ main.hub h2{margin:4px 0 2px;font:700 30px/1.1 var(--cond)}main.hub .sub{color:v
 .am-tabs button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}.am-tabs em{font-style:normal;background:var(--flag);color:#fff;border-radius:999px;padding:0 6px;margin-left:5px;font-size:12px}
 main.am{max-width:760px;margin:0 auto;padding:12px 12px 40px}.am-h{margin:4px 0 8px;font:700 26px/1.1 var(--cond)}
 .am-hrow{display:flex;justify-content:space-between;align-items:center;gap:8px}.am-hrow select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
-.am-views{display:grid;grid-template-columns:1fr 1fr;gap:10px}.am-view{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 6px 4px;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.am-views{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.am-views>.am-view{grid-column:span 2}.am-views>.am-views>.am-view .am-vh b{font-size:13px}.am-views>.am-view.wide .am-vh b{font-size:15px}.am-view{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 6px 4px;text-align:left;cursor:pointer;font:inherit;color:inherit}
 .am-view.wide{grid-column:1/-1}.am-views.ro .am-view{cursor:default}.am-view svg{width:100%;height:auto;display:block}
 .am-vh{display:flex;justify-content:space-between;align-items:center;margin:0 4px 2px}.am-vh b{font:700 15px/1.2 var(--cond);letter-spacing:.4px;text-transform:uppercase;color:var(--steel)}.am-vh i{font-style:normal;font-size:12px;color:var(--flag);font-weight:700}
 .am-chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.am-chips b{font-size:12.5px;background:var(--flag-soft);color:var(--flag);border-radius:999px;padding:2px 10px}
@@ -5412,7 +5412,7 @@ const MOCK = (() => {
     ammoSaveFault: (t, f) => { if (!f.sigChecked) throw new Error('Sign in the "Checked by" box.'); const tk = mAm.trucks.find(x => x.id === f.truckId); if (!tk) throw new Error('Pick the truck.');
       const id = 'AF' + Date.now(); mAmSig[id] = { c: f.sigChecked, a: f.sigAck || '' }; window.__ammoPdf = (f.pdf || '').length; window.__ammoPdfData = f.pdf;
       mAm.faults.unshift({ id, date: f.date, time: f.time, truckId: tk.id, plate: tk.plate, mileage: f.mileage, condition: f.condition, checkedBy: S.me.name, createdBy: S.me.name, remarks: f.remarks, marks: f.marks, ackBy: f.sigAck ? f.ackBy : '', ackAt: '', pdf: 'x' });
-      const VN = { left:'Left side', right:'Right side', front:'Front', rear:'Rear', top:'Top', bottom:'Bottom' };
+      const VN = AM_VNAME;
       f.marks.forEach(m => { const ln = String(f.remarks || '').split('\n').map(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(.*)$').exec(l)).filter(Boolean)[0];
         mAm.repairs.push({ id: 'AR' + Date.now() + m.n, faultId: id, no: m.n, truckId: tk.id, plate: tk.plate, view: VN[m.v], fault: ln ? ln[1].replace(/^\([^)]*\)\s*/, '') : 'Fault ' + m.n, found: f.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '' }); });
       return Object.assign(MOCK.ammoGet(), { savedId: id }); },
@@ -5884,9 +5884,12 @@ window.addEventListener('scroll', () => { if (noteHold) noteHoldStop(); }, { pas
    repairs (contractor, receipt, pictures), contractors and trucks, and a monthly spend summary.
    Records: Ammo tabs in the Google Sheet. PDFs, receipts and signatures: Drive, folder "Ammo Truck".
    ============================================================ */
-const AM_VIEWS = [['left','Left side'],['right','Right side'],['front','Front'],['rear','Rear'],['top','Top'],['bottom','Bottom']];
-const AM_VNAME = { left:'Left side', right:'Right side', front:'Front', rear:'Rear', top:'Top', bottom:'Bottom' };
-const AM_BOX = { left:'0 -12 300 152', right:'0 -12 300 152', front:'0 -12 200 172', rear:'0 -12 200 172', top:'0 0 300 130', bottom:'0 0 300 130' };
+const AM_VIEWS = [['left','Left side'],['right','Right side'],['front','Front'],['rear','Rear, tailgate closed'],['reardown','Rear, tailgate down'],['top','Top'],['bottom','Bottom']];
+const AM_VNAME = { left:'Left side', right:'Right side', front:'Front', rear:'Rear, tailgate closed', reardown:'Rear, tailgate down', top:'Top', bottom:'Bottom' };
+const AM_BOX = { left:'0 -12 300 152', right:'0 -12 300 152', front:'0 -12 200 172', rear:'0 -12 200 172', reardown:'0 -12 200 172', top:'0 0 300 130', bottom:'0 0 300 130' };
+const AM_WIDE = ['left','right','top','bottom'];
+/* a repair's view key from its saved name (older repairs say just "Rear") */
+const amViewKey = label => label === 'Rear' ? 'rear' : (AM_VIEWS.find(([, l]) => l === label) || ['left'])[0];
 const AM_STATUS = ['Open','At contractor','Fixed','Not needed'];
 const AM_COND = ['Usable','Usable, with faults','Not usable'];
 const AM_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -5901,6 +5904,7 @@ const amSide = () => `<path ${amS.o} d="M18,100 L18,68 Q20,58 34,56 L86,54 L106,
   <path ${amS.l} d="M161,8 L287,8 M161,90 L287,90"/><path ${amS.l} d="M200,8 L200,90 M245,8 L245,90"/>
   <rect ${amS.tl} x="281" y="74" width="6" height="12" rx="2"/><rect ${amS.lt} x="18" y="64" width="8" height="10" rx="2"/>
   <path ${amS.l} d="M16,92 L30,92 M280,94 L290,94"/><path ${amS.o} d="M98,48 l8,0 l0,7 l-10,0 z"/>
+  <circle ${amS.o} cx="289" cy="3" r="4"/><circle cx="289" cy="3" r="1.4" fill="#17212B"/>
   <circle ${amS.w} cx="70" cy="104" r="21"/><circle ${amS.wi} cx="70" cy="104" r="9"/>
   <circle ${amS.w} cx="230" cy="104" r="21"/><circle ${amS.wi} cx="230" cy="104" r="9"/>`;
 const AM_ART = {
@@ -5914,11 +5918,22 @@ const AM_ART = {
     <rect ${amS.w} x="34" y="123" width="26" height="24" rx="5"/><rect ${amS.w} x="140" y="123" width="26" height="24" rx="5"/>
     <rect ${amS.o} x="36" y="46" width="14" height="11" rx="2"/><rect ${amS.o} x="150" y="46" width="14" height="11" rx="2"/>`,
   rear: () => `<rect ${amS.o} x="30" y="-6" width="140" height="118" rx="4"/>
-    <rect ${amS.l} x="38" y="0" width="61" height="106" rx="2"/><rect ${amS.l} x="101" y="0" width="61" height="106" rx="2"/>
-    <path ${amS.l} d="M94,46 L94,76 M106,46 L106,76"/><rect ${amS.o} x="90" y="56" width="20" height="8" rx="2"/>
-    <path ${amS.l} d="M44,8 L44,98 M156,8 L156,98"/><rect ${amS.tl} x="31" y="86" width="7" height="18" rx="2"/><rect ${amS.tl} x="162" y="86" width="7" height="18" rx="2"/>
-    <rect ${amS.o} x="24" y="110" width="152" height="13" rx="5"/><rect ${amS.l} x="84" y="96" width="32" height="9"/>
+    <rect ${amS.o} x="40" y="6" width="120" height="98" rx="2"/><path ${amS.l} d="M40,30 h120 M40,54 h120 M40,78 h120"/>
+    <rect ${amS.o} x="88" y="88" width="24" height="7" rx="2"/><rect ${amS.l} x="46" y="100" width="10" height="5"/><rect ${amS.l} x="144" y="100" width="10" height="5"/>
+    <circle ${amS.o} cx="35" cy="2" r="5"/><circle cx="35" cy="2" r="1.6" fill="#17212B"/><circle ${amS.o} cx="165" cy="2" r="5"/><circle cx="165" cy="2" r="1.6" fill="#17212B"/>
+    <path ${amS.l} d="M35,7 L42,12 M165,7 L158,12"/>
+    <rect ${amS.tl} x="31" y="86" width="7" height="18" rx="2"/><rect ${amS.tl} x="162" y="86" width="7" height="18" rx="2"/>
+    <rect ${amS.o} x="24" y="110" width="152" height="13" rx="5"/><rect ${amS.l} x="84" y="112" width="32" height="9"/>
     <rect ${amS.w} x="34" y="123" width="26" height="24" rx="5"/><rect ${amS.w} x="140" y="123" width="26" height="24" rx="5"/><rect ${amS.l} x="94" y="123" width="12" height="9"/>`,
+  reardown: () => `<rect ${amS.o} x="30" y="-6" width="140" height="118" rx="4"/>
+    <rect ${amS.l} x="39" y="4" width="60" height="99" rx="2"/><rect ${amS.l} x="101" y="4" width="60" height="99" rx="2"/>
+    <path ${amS.l} d="M94,42 L94,72 M106,42 L106,72"/><rect ${amS.o} x="90" y="52" width="20" height="8" rx="2"/><path ${amS.l} d="M45,12 L45,96 M155,12 L155,96"/>
+    <rect ${amS.tl} x="31" y="86" width="7" height="18" rx="2"/><rect ${amS.tl} x="162" y="86" width="7" height="18" rx="2"/>
+    <rect ${amS.w} x="34" y="123" width="26" height="24" rx="5"/><rect ${amS.w} x="140" y="123" width="26" height="24" rx="5"/>
+    <path ${amS.o} d="M40,104 L160,104 L176,132 L24,132 Z"/><path ${amS.l} d="M36,111 L164,111 M32,118 L168,118 M28,125 L172,125"/>
+    <rect ${amS.l} x="46" y="101" width="10" height="5"/><rect ${amS.l} x="144" y="101" width="10" height="5"/>
+    <circle ${amS.o} cx="35" cy="2" r="5"/><circle cx="35" cy="2" r="1.6" fill="#17212B"/><circle ${amS.o} cx="165" cy="2" r="5"/><circle cx="165" cy="2" r="1.6" fill="#17212B"/>
+    <path fill="none" stroke="#17212B" stroke-width="1.6" stroke-dasharray="3 2" d="M33,6 L25,131 M167,6 L175,131"/>`,
   top: () => `<rect ${amS.w} x="56" y="16" width="30" height="8" rx="3"/><rect ${amS.w} x="216" y="16" width="30" height="8" rx="3"/>
     <rect ${amS.w} x="56" y="106" width="30" height="8" rx="3"/><rect ${amS.w} x="216" y="106" width="30" height="8" rx="3"/>
     <rect ${amS.o} x="18" y="22" width="266" height="86" rx="16"/>
@@ -6045,7 +6060,7 @@ function amFaultTab(){
       <label class="f"><span>Checked by</span><input type="text" value="${esc(S.me.name)}" disabled></label>
       <label class="f"><span>Truck condition</span><select id="af-cd">${AM_COND.map(c => `<option ${c === (f.condition || (f.marks.length ? 'Usable, with faults' : 'Usable')) ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
     </div>${trucks.length ? '' : '<p class="small" style="color:var(--flag);margin:0">Add your truck first: Contractors tab &rarr; Trucks &rarr; Add truck.</p>'}</div>
-    <div class="am-views">${AM_VIEWS.map(([v, l]) => `<button class="am-view${['left','right','top','bottom'].includes(v) ? ' wide' : ''}" data-amv="${v}"><span class="am-vh"><b>${l}</b>${nMarks(v) ? `<i>${nMarks(v)} circle${nMarks(v) === 1 ? '' : 's'}</i>` : ''}</span>${amSvg(v, f.marks)}</button>`).join('')}</div>
+    <div class="am-views">${AM_VIEWS.map(([v, l]) => `<button class="am-view${AM_WIDE.includes(v) ? ' wide' : ''}" data-amv="${v}"><span class="am-vh"><b>${l}</b>${nMarks(v) ? `<i>${nMarks(v)} circle${nMarks(v) === 1 ? '' : 's'}</i>` : ''}</span>${amSvg(v, f.marks)}</button>`).join('')}</div>
     <div class="sec" style="margin-top:12px"><label class="f" style="margin:0"><span>Remarks (one line per circle)</span></label>
       ${f.marks.length ? `<div class="am-chips">${f.marks.slice().sort((a, b) => a.n - b.n).map(m => `<b>${m.n} ${esc(AM_VNAME[m.v])}</b>`).join('')}</div>` : ''}
       <textarea id="af-rm" class="am-rem" placeholder="1. Left rear tyre: tread worn&#10;2. ...">${esc(f.remarks)}</textarea></div>
@@ -6157,8 +6172,8 @@ async function amFaultPdf(x, asData){
     if (!im) return 0; const h = w * im.h / im.w; doc.addImage(im.data, 'JPEG', X, Y + 1.5, w, h, undefined, 'FAST'); doc.setDrawColor(210); doc.rect(X, Y + 1.5, w, h); return h + 6; };
   const half = (W - 6) / 2;
   let h1 = Math.max(await put('left', M, y, half), await put('right', M + half + 6, y, half)); y += h1 + 2;
-  const fw = half * 0.72;
-  h1 = Math.max(await put('front', M + (half - fw) / 2, y, fw), await put('rear', M + half + 6 + (half - fw) / 2, y, fw)); y += h1 + 2;
+  const tw = (W - 12) / 3;
+  h1 = Math.max(await put('front', M, y, tw), await put('rear', M + tw + 6, y, tw), await put('reardown', M + 2 * (tw + 6), y, tw)); y += h1 + 2;
   h1 = Math.max(await put('top', M, y, half), await put('bottom', M + half + 6, y, half)); y += h1 + 2;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.text('Remarks', M, y + 2); y += 6;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
@@ -6199,7 +6214,7 @@ async function amFaultView(id){
   const canDel = S.am.canEdit && (x.createdBy === S.me.name || canManage());
   $('.sheet', bg).innerHTML = `<h3>${esc(x.plate)} &middot; ${esc(nice(x.date))}</h3>
     <div class="src">${x.time ? esc(x.time) + 'hrs &middot; ' : ''}${x.mileage ? esc(x.mileage) + ' km &middot; ' : ''}${esc(x.condition)} &middot; checked by ${esc(titleCase(x.checkedBy))}</div>
-    <div class="am-views ro">${AM_VIEWS.filter(([v]) => (x.marks || []).some(m => m.v === v)).map(([v, l]) => `<div class="am-view${['left','right','top','bottom'].includes(v) ? ' wide' : ''}"><span class="am-vh"><b>${l}</b></span>${amSvg(v, x.marks)}</div>`).join('') || '<p class="muted">No fault circled.</p>'}</div>
+    <div class="am-views ro">${AM_VIEWS.filter(([v]) => (x.marks || []).some(m => m.v === v)).map(([v, l]) => `<div class="am-view${AM_WIDE.includes(v) ? ' wide' : ''}"><span class="am-vh"><b>${l}</b></span>${amSvg(v, x.marks)}</div>`).join('') || '<p class="muted">No fault circled.</p>'}</div>
     ${x.remarks ? `<div class="sec" style="white-space:pre-wrap;margin-top:10px">${esc(x.remarks)}</div>` : ''}
     ${reps.length ? `<div class="small" style="margin:8px 0">${reps.map(r => `<div>${r.no}. ${esc(r.fault)} &middot; <b>${esc(r.status)}</b></div>`).join('')}</div>` : ''}
     <div class="am-sigs"><div><div class="f"><span>Checked by: ${esc(titleCase(x.checkedBy))}</span></div>${x.sigChecked ? `<img class="am-sigimg" src="${x.sigChecked}" alt="">` : ''}</div>
@@ -6257,7 +6272,7 @@ async function amRepEdit(id, setStatus){
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Repair ${r.no}: ${esc(r.fault)}</h3>
     <div class="src">${esc(r.plate)} &middot; ${esc(r.view)} &middot; found ${esc(nice(r.found))}</div>
     <fieldset ${can ? '' : 'disabled'} style="border:0;padding:0;margin:0">
-    <div class="am-thumb">${amSvg(AM_VIEWS.find(([, l]) => l === r.view) ? AM_VIEWS.find(([, l]) => l === r.view)[0] : 'left', ((S.am.faults.find(f => f.id === r.faultId) || {}).marks || []), r.no)}</div>
+    <div class="am-thumb">${amSvg(amViewKey(r.view), ((S.am.faults.find(f => f.id === r.faultId) || {}).marks || []), r.no)}</div>
     <label class="f"><span>Fault</span><input id="re-ft" value="${esc(r.fault)}"></label>
     <div class="row2"><label class="f"><span>Contractor</span><select id="re-c"><option value="">${cons.length ? 'Pick' : 'None yet (add in Contractors)'}</option>${cons.map(c => `<option value="${esc(c.id)}" ${c.id === r.contractorId ? 'selected' : ''}>${esc(c.company)}</option>`).join('')}</select></label>
       <label class="f"><span>Status</span><select id="re-s">${AM_STATUS.map(s => `<option ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
@@ -6325,9 +6340,9 @@ async function amRepPdf(r, imgs, pdfCount, asData){
     list.filter(p => p[1]).forEach(p => { doc.setFont('helvetica', 'bold'); doc.text(p[0], M, y); doc.setFont('helvetica', 'normal'); const t = doc.splitTextToSize(String(p[1]), W - 42); doc.text(t, M + 42, y); y += 5 * t.length; }); y += 3; };
   const f = (S.am.faults || []).find(x => x.id === r.faultId) || {};
   rows('Fault', [['Found', amDmy(r.found) + (f.checkedBy ? ' by ' + titleCase(f.checkedBy) : '')], ['Where', r.view], ['Status', r.status], ['Sent on', amDmy(r.sentOn)], ['Fixed on', amDmy(r.fixedOn)], ['Work done', r.workDone]]);
-  const vk = (AM_VIEWS.find(([, l]) => l === r.view) || ['left'])[0];
+  const vk = amViewKey(r.view);
   const im = await amPng(vk, f.marks || [], r.no, 700);
-  if (im) { const w = vk === 'front' || vk === 'rear' ? 70 : 110, h = w * im.h / im.w; doc.addImage(im.data, 'JPEG', M, y, w, h, undefined, 'FAST'); doc.setDrawColor(210); doc.rect(M, y, w, h); y += h + 6; }
+  if (im) { const w = AM_WIDE.includes(vk) ? 110 : 70, h = w * im.h / im.w; doc.addImage(im.data, 'JPEG', M, y, w, h, undefined, 'FAST'); doc.setDrawColor(210); doc.rect(M, y, w, h); y += h + 6; }
   const c = amCon(r.contractorId) || {};
   rows('Contractor', [['Company', c.company || '-'], ['Trade', c.trade], ['Contact', [c.contact, c.phone].filter(Boolean).join(', ')], ['Email', c.email], ['UEN no.', c.uen], ['GST reg. no.', c.gstNo], ['Address', c.address]]);
   if (y > 230) { doc.addPage(); y = 20; }
