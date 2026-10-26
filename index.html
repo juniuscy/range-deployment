@@ -331,6 +331,21 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .sheet .chips .chip{padding:6px 11px;font-size:14px}
 .sheet .acts{display:flex;gap:8px;margin-top:16px}
 .sheet .acts .btn{flex:1}
+/* Home (pick an app) */
+.homeb{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:999px;padding:5px 12px;font:600 14px/1.2 var(--body);cursor:pointer;flex:none}
+main.hub{max-width:620px;margin:0 auto;padding:18px 16px 40px}
+main.hub h2{margin:4px 0 2px;font:700 30px/1.1 var(--cond)}main.hub .sub{color:var(--muted);font-size:14px;margin-bottom:16px}
+.hbig{display:block;width:100%;border:0;border-radius:16px;background:var(--ink);color:#fff;padding:22px 18px;text-align:left;cursor:pointer;box-shadow:0 2px 10px rgba(23,33,43,.18)}
+.hbig b{display:block;font:700 36px/1.02 var(--cond);letter-spacing:.5px}.hbig span{display:block;margin-top:8px;font-size:14px;opacity:.85}
+.hchips{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}.hchips:empty{display:none}.hchips i{font-style:normal;font-size:12.5px;background:rgba(255,255,255,.14);border-radius:999px;padding:3px 10px}
+.hrow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.htile{border:0;border-radius:16px;padding:16px 4px 14px;min-height:156px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:8px;color:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(23,33,43,.14)}
+.htile svg{width:34px;height:34px}.htile b{font:700 18px/1.05 var(--cond);text-align:center;letter-spacing:.3px}
+.htile small{font-size:11px;opacity:.9;background:rgba(255,255,255,.18);border-radius:999px;padding:1px 7px}.htile.soon{opacity:.6}
+.appbar{position:fixed;left:0;right:0;top:0;height:calc(48px + env(safe-area-inset-top));padding:env(safe-area-inset-top) 12px 0;background:var(--ink);color:#fff;display:flex;align-items:center;gap:10px;z-index:7}
+.appbar button{background:#fff;color:var(--ink);border:0;border-radius:999px;padding:6px 14px;font:700 14px/1.2 var(--body);cursor:pointer}
+.appbar b{font:700 20px/1 var(--cond);letter-spacing:.3px}.appbar span{margin-left:auto;font-size:13px;opacity:.8}
+.appframe{position:fixed;left:0;right:0;bottom:0;top:calc(48px + env(safe-area-inset-top));width:100%;height:calc(100% - 48px - env(safe-area-inset-top));border:0;background:#fff}
 /* Sticky notes */
 #nlay{position:absolute;left:0;top:0;width:0;height:0;z-index:4}
 .npin{position:absolute;width:34px;height:34px;margin:0;padding:0;border:0;border-radius:3px 3px 10px 3px;cursor:pointer;transform:rotate(-5deg);box-shadow:0 2px 6px rgba(23,33,43,.35);
@@ -852,9 +867,8 @@ function signedIn(r){
   Object.assign(S, { token:r.token, me:r.me, types:r.types, today:r.today, edit:false });
   setStaff(r.staff || []);
   S.monday = mondayOf(r.today); S.dayIdx = dowIdx(r.today);
-  renderShell(); go(S.me.role === 'Admin' ? 'board' : 'home');
   if (isPD()) window.confirm = () => { toast(RO_MSG, true); return false; };
-  loadNotes();
+  renderHub();
 }
 
 /* ============================================================
@@ -870,7 +884,7 @@ function renderShell(){
   if (canView()) tabs.push(['admin','Admin']);
   $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
   <header class="top"><div class="top-in">
-    <div class="brand">Range Deployment</div>
+    <button class="homeb" id="homebtn" aria-label="Home">&#8249; Home</button><div class="brand">Range Deployment</div>
     <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
   </div></header>
   <nav class="tabs" aria-label="Sections"><div class="in${tabs.length >= 7 ? ' many' : ''}">
@@ -880,6 +894,80 @@ function renderShell(){
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => go(b.dataset.v));
   $('#out').onclick = () => { S.token = null; saveToken(''); renderLogin(); };
   $('#pinbtn').onclick = changePin;
+  $('#homebtn').onclick = () => renderHub();
+}
+
+/* ============================================================
+   Home: after sign-in, pick an app.
+   Deployment Plan is this app; the others are separate apps kept in the same GitHub folder
+   (fleet/ = MMRC Fleet Log, rai/ = Daily RAI) and open below a thin "Home" bar, unchanged.
+   ============================================================ */
+const APPS_BASE = GAS ? 'https://juniuscy.github.io/range-deployment/' : '';   // inside Apps Script: the GitHub copy
+const HUB_APPS = [
+  { k:'rai', name:'Daily RAI', lines:['DAILY','RAI'], url:'rai/index.html', col:'#2C5378',
+    ico:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
+  { k:'movexx', name:'T1000 Movexx', lines:['MOVEXX'], url:'fleet/movexx.html', col:'#2E7A4C', only:true,
+    ico:'<rect x="3" y="8" width="12" height="8" rx="2"/><path d="M15 11h3l3 3v2h-6"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>' },
+  { k:'trolley', name:'Trolley', lines:['TROLLEY'], url:'fleet/trolley.html', col:'#A26A0A', only:true,
+    ico:'<path d="M3 4h3l2.6 10.2a1.5 1.5 0 0 0 1.5 1.1h7.4a1.5 1.5 0 0 0 1.5-1.1L21 8H7"/><circle cx="10" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>' },
+  { k:'ammo', name:'Ammo Truck', lines:['AMMO','TRUCK'], url:'', col:'#6D28D9', only:true,
+    ico:'<path d="M2 7h12v9H2z"/><path d="M14 10h4l4 4v2h-8"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>' }];
+/* Movexx, Trolley and Ammo Truck: only for the people ticked in Admin -> Staff (the Admin account sees all) */
+const hubApps = () => HUB_APPS.filter(a => !a.only || (S.me && (S.me.role === 'Admin' || (S.me.apps || []).includes(a.k))));
+const APP_PICK = [['movexx','Movexx'],['trolley','Trolley'],['ammo','Ammo Truck']];
+/* phone Back button: from an app (or the Deployment Plan) back to Home */
+function hubPush(where){ if (S.away) return; try { history.pushState({ rdp: where }, ''); S.away = true; } catch(e) {} }
+window.addEventListener('popstate', () => { S.away = false; if (S.token && S.me && S.view !== 'hub') renderHub(true); });
+function renderHub(fromBack){
+  if (fromBack) S.away = false;
+  S.view = 'hub';
+  const d = pd(S.today);
+  $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
+  <header class="top"><div class="top-in"><div class="brand">Range Deployment</div>
+    <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div></div></header>
+  <main id="view" class="hub">
+    <h2>Hi ${esc(S.me.name)}</h2><div class="sub">${esc(DOW[dowIdx(S.today)] + ' ' + d.getDate() + ' ' + MON[d.getMonth()])} &middot; pick an app</div>
+    <button class="hbig" id="hub-plan"><b>DEPLOYMENT PLAN</b><span>My Deploy, plan, OIL, leave, attendance and admin</span><div class="hchips" id="hub-chips"></div></button>
+    <div class="hrow" style="grid-template-columns:repeat(${Math.max(hubApps().length, 1)},1fr)">${hubApps().map(a => `<button class="htile${a.url ? '' : ' soon'}" data-hub="${a.k}" style="background:${a.col}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${a.ico}</svg>
+      <b>${a.lines.join('<br>')}</b>${a.url ? '' : '<small>Coming soon</small>'}</button>`).join('')}</div>
+  </main>`;
+  $('#out').onclick = () => { S.token = null; saveToken(''); renderLogin(); };
+  $('#pinbtn').onclick = changePin;
+  $('#hub-plan').onclick = openPlan;
+  document.querySelectorAll('[data-hub]').forEach(b => b.onclick = () => openHubApp(b.dataset.hub));
+  window.scrollTo(0, 0);
+  hubChips();
+  loadNotes();
+}
+/* small lines on the Deployment Plan tile: today's DM, and requests waiting (managers / PD) */
+async function hubChips(){
+  const box = () => $('#hub-chips');
+  const put = () => { const b = box(); if (!b) return;
+    const dm = (S.dm || {})[S.today];
+    b.innerHTML = (dm ? `<i>DM today: ${esc(titleCase(String(dm)))}</i>` : '') + (S.hubPend ? `<i>${S.hubPend} waiting approval</i>` : ''); };
+  put();
+  try {
+    const [wk, pend] = await Promise.all([S.cache[S.monday] ? Promise.resolve(S.cache[S.monday]) : call('getWeek', S.token, S.monday).catch(() => null),
+      canView() ? call('adminPending', S.token).catch(() => null) : Promise.resolve(null)]);
+    if (wk && !S.cache[S.monday]) { S.cache[S.monday] = wk; try { lsWeekSave(wk); } catch(e) {} }
+    if (Array.isArray(pend)) S.hubPend = pend.length;
+    if (S.view === 'hub') put();
+  } catch(e) {}
+}
+function openPlan(){
+  hubPush('plan');
+  renderShell(); go(S.me.role === 'Admin' ? 'board' : 'home');
+  loadNotes();
+}
+function openHubApp(k){
+  const a = hubApps().find(x => x.k === k); if (!a) return;
+  if (!a.url) { toast(a.name + ' is coming soon.'); return; }
+  hubPush(k);
+  S.view = 'app:' + k;
+  $('#app').innerHTML = `<div class="appbar"><button id="app-home">&#8249; Home</button><b>${esc(a.name.toUpperCase())}</b><span>${esc(S.me.name)}</span></div>
+    <iframe class="appframe" src="${esc(APPS_BASE + a.url)}" title="${esc(a.name)}" allow="camera; clipboard-read; clipboard-write; fullscreen"></iframe>`;
+  $('#app-home').onclick = () => renderHub();
 }
 
 function go(v){
@@ -4915,6 +5003,8 @@ function editStaff(p){
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-act" ${p.active?'checked':''} style="width:20px;height:20px"><span>Active (unticked hides them from sign-in and lists)</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-att" ${p.att !== false ? 'checked' : ''} style="width:20px;height:20px"><span>Counted in daily attendance</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-noplad" ${p.noPlad ? 'checked' : ''} style="width:20px;height:20px"><span>Not able to go PLAD</span></label>
+    <div class="f" style="margin-bottom:4px"><span>Can open on the Home screen</span></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">${APP_PICK.map(([k, l]) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-sapp="${k}" ${(p.apps || []).includes(k) ? 'checked' : ''} style="width:20px;height:20px"><span>${l}</span></label>`).join('')}</div>
     ${exBox('s', p)}
     ${p.locked ? `<div class="note red" style="display:flex;align-items:center;gap:10px;justify-content:space-between">Locked after 5 wrong PINs.<button class="btn" id="s-unl" style="min-height:38px">Unlock</button></div>` : ''}
     <label class="f"><span>${p.hasPin ? 'Give a new PIN (if they forgot theirs)' : 'Give a first PIN'}</span>
@@ -4940,7 +5030,7 @@ function editStaff(p){
   $('#s-ok', bg).onclick = async e => {
     busy(e.target, true);
     try {
-      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value, noMa:$('#s-xma', bg).checked, noIppt:$('#s-xip', bg).checked });
+      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, apps:[...bg.querySelectorAll('[data-sapp]:checked')].map(x => x.dataset.sapp), noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value, noMa:$('#s-xma', bg).checked, noIppt:$('#s-xip', bg).checked });
       setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -4995,7 +5085,7 @@ const MOCK = (() => {
       absences: i === 1 ? [{ label:'MC', text:'ARIF MC', people:['ARIF'] }] : i === 3 ? [{ label:'IPPT/ TRG etc', text:'WONG TEST SHOOT (1400hrs)', people:['WONG'] }] : [] };
   }
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
-  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, att: !['KUMAR (SWIFT)','KISHORE'].includes(p.name), hasPin:p.role === 'APO', noPlad: p.name === 'CHEW' }))
+  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, att: !['KUMAR (SWIFT)','KISHORE'].includes(p.name), hasPin:p.role === 'APO', noPlad: p.name === 'CHEW', apps: p.name === 'CHAN YANG' ? ['movexx','trolley','ammo'] : [] }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }, { name:'TAN PD', role:'PD', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
   const mFx = {};                                                  // ?fxdemo: weekend DAO main shows FAIZAL from a sheet formula
@@ -5182,7 +5272,7 @@ const MOCK = (() => {
       if (!who) throw new Error('Name or PIN is wrong.');
       n = who.name;
       const role = who ? who.role : 'APO';
-      return { token:'demo', me:{ name:n, role }, types: types.filter(t => t.code !== 'OIL' || !NOSTAFF(role)), today, staff: staffList.filter(p => p.active) }; },
+      return { token:'demo', me:{ name:n, role, apps: who.apps || [] }, types: types.filter(t => t.code !== 'OIL' || !NOSTAFF(role)), today, staff: staffList.filter(p => p.active) }; },
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
@@ -5399,8 +5489,8 @@ const MOCK = (() => {
     adminSaveStaff: (t, f) => {
       const name = String(f.name||'').trim().toUpperCase(); if (!name) throw new Error('Enter one name, without / or & or commas.');
       let p = staffList.find(x => x.name === name);
-      if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false, noPlad: !!f.noPlad, lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt }); }
-      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false, noPlad: !!f.noPlad, lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt });
+      if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false, noPlad: !!f.noPlad, apps: Array.isArray(f.apps) ? f.apps : [], lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt }); }
+      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false, noPlad: !!f.noPlad, apps: Array.isArray(f.apps) ? f.apps : (p.apps || []), lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt });
       S.staff = staffList.filter(x => x.active).map(x => ({ name: x.name, role: x.role, aliases: x.aliases || [], noPlad: !!x.noPlad, lastDay: x.lastDay || '' }));
       return { list: staffList, staff: S.staff };
     },
