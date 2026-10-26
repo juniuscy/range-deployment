@@ -397,7 +397,11 @@ main.am{max-width:760px;margin:0 auto;padding:12px 12px 40px}.am-h{margin:4px 0 
 .am-views>p{grid-column:1/-1;margin:0}
 .am-hrow{margin-bottom:8px}.am-hrow .am-h{margin:0}.am-hrow .btn.sm{min-height:38px;padding:6px 14px;font-size:14px;flex:none}
 main.am .am-hrow select{width:auto;flex:none;height:40px;min-height:40px;padding:0 30px 0 12px}
-.am-tabs button{font-size:clamp(12px,3.5vw,14px);padding:7px 2px;min-width:0}
+.am-tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}.am-tabs::-webkit-scrollbar{display:none}
+.am-tabs button{flex:1 0 auto;font-size:14px;padding:7px 12px;min-width:0}
+.am-tabs.more-r{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent)}
+.am-tabs.more-l{-webkit-mask-image:linear-gradient(90deg,transparent,#000 44px);mask-image:linear-gradient(90deg,transparent,#000 44px)}
+.am-tabs.more-l.more-r{-webkit-mask-image:linear-gradient(90deg,transparent,#000 44px,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(90deg,transparent,#000 44px,#000 calc(100% - 44px),transparent)}
 .am-vh .lb{display:flex;flex-direction:column;min-width:0}.am-vh .lb small{font:600 11.5px/1.25 var(--body);color:var(--muted);text-transform:none;letter-spacing:0}
 .am-views>.am-view:not(.wide){display:flex;flex-direction:column}.am-views>.am-view:not(.wide) svg{margin-top:auto}
 .am-views>.am-view:not(.wide) .am-vh{align-items:flex-start;flex-wrap:wrap;gap:0 4px}
@@ -5947,8 +5951,8 @@ const amS = { o:'fill="#F7F9F6" stroke="#17212B" stroke-width="2" stroke-linejoi
   lt:'fill="#FFE8A3" stroke="#17212B" stroke-width="1.2"', tl:'fill="#F2A7A1" stroke="#17212B" stroke-width="1.2"' };
 const amSide = () => `<path ${amS.o} d="M18,100 L18,68 Q20,58 34,56 L86,54 L106,28 L150,26 Q156,26 157,33 L157,60 L160,60 L160,100 L96,100 A27,27 0 0 0 44,100 Z"/>
   <path ${amS.o} d="M161,-2 L284,-2 Q287,-2 287,1 L287,100 L256,100 A27,27 0 0 0 204,100 L161,100 Z"/>
-  <path ${amS.g} d="M110,32 L150,31 L151,55 L93,55 Z"/><path ${amS.l} d="M128,31 L128,55"/>
-  <path ${amS.l} d="M93,56 L93,98 M128,56 L128,98"/><path ${amS.l} d="M134,64 h8 M100,64 h8"/>
+  <path ${amS.g} d="M110,32 L150,31 L151,55 L93,55 Z"/>
+  <path ${amS.l} d="M97,56 L97,96 L150,96 L150,56"/><path ${amS.l} d="M134,64 h9"/>
   <path ${amS.l} d="M161,8 L287,8 M161,90 L287,90"/><path ${amS.l} d="M200,8 L200,90 M245,8 L245,90"/>
   <rect ${amS.tl} x="281" y="74" width="6" height="12" rx="2"/><rect ${amS.lt} x="18" y="64" width="8" height="10" rx="2"/>
   <path ${amS.l} d="M16,92 L30,92 M280,94 L290,94"/><path ${amS.o} d="M98,48 l8,0 l0,7 l-10,0 z"/>
@@ -6067,20 +6071,29 @@ async function openAmmo(){
   hubPush('ammo');
   S.view = 'ammo'; S.amTab = S.amTab || 'fault';
   $('#app').innerHTML = `<div class="appbar am-bar"><button id="app-home">&#8249; Home</button><b>AMMO TRUCK</b><span>${esc(S.me.name)}</span></div>
-    <div class="am-tabs" role="tablist">${[['fault','Fault list'],['rep','Repairs'],['con','Contractors'],['sum','Summary']].map(([k, l]) =>
-      `<button data-amt="${k}" aria-pressed="${S.amTab === k}">${l}${k === 'rep' ? '<em id="am-open" hidden></em>' : ''}</button>`).join('')}</div>
+    <div class="am-tabs" role="tablist">${[['fault','Fault list'],['ack','Acknowledge'],['rep','Repairs'],['con','Contractors'],['sum','Summary']].map(([k, l]) =>
+      `<button data-amt="${k}" aria-pressed="${S.amTab === k}">${l}${k === 'rep' ? '<em id="am-open" hidden></em>' : k === 'ack' ? '<em id="am-ack" hidden></em>' : ''}</button>`).join('')}</div>
     <main id="view" class="am"><div class="loading">Loading\u2026</div></main>`;
   $('#app-home').onclick = () => renderHub();
   document.querySelectorAll('[data-amt]').forEach(b => b.onclick = () => { S.amTab = b.dataset.amt;
-    document.querySelectorAll('[data-amt]').forEach(x => x.setAttribute('aria-pressed', x === b)); amDraw(); window.scrollTo(0, 0); });
+    document.querySelectorAll('[data-amt]').forEach(x => x.setAttribute('aria-pressed', x === b)); amTabInView(); amDraw(); window.scrollTo(0, 0); });
+  amTabInView();
   try { S.am = await call('ammoGet', S.token); amDraw(); } catch(e){ V().innerHTML = `<div class="note red">${esc((e && e.message) || e)}</div>`; }
 }
 function amSet(d){ if (d) S.am = d; amDraw(); }
+/* on a narrow phone the tab row scrolls sideways: keep the open tab in sight */
+function amTabInView(){ const t = $('.am-tabs'), b = t && t.querySelector('[aria-pressed="true"]'); if (!b) return;
+  const l = b.offsetLeft - t.offsetLeft, r = l + b.offsetWidth; if (l < t.scrollLeft + 40) t.scrollLeft = Math.max(0, l - 40); else if (r > t.scrollLeft + t.clientWidth - 40) t.scrollLeft = r - t.clientWidth + 40;
+  amTabFade(); if (!t.dataset.f) { t.dataset.f = 1; t.addEventListener('scroll', amTabFade, { passive: true }); window.addEventListener('resize', amTabFade); } }
+/* fade the edge that has more tabs past it, so it is clear the row can be swiped */
+function amTabFade(){ const t = $('.am-tabs'); if (!t) return; t.classList.toggle('more-l', t.scrollLeft > 2); t.classList.toggle('more-r', t.scrollLeft + t.clientWidth < t.scrollWidth - 2); }
+const amWaiting = () => (S.am.faults || []).filter(x => !x.ackBy);
 function amDraw(){
   if (S.view !== 'ammo' || !S.am) return;
   const open = (S.am.repairs || []).filter(r => r.status === 'Open' || r.status === 'At contractor').length;
   const b = $('#am-open'); if (b) { b.hidden = !open; b.textContent = open; }
-  ({ fault: amFaultTab, rep: amRepTab, con: amConTab, sum: amSumTab })[S.amTab]();
+  const w = amWaiting().length, a = $('#am-ack'); if (a) { a.hidden = !w; a.textContent = w; }
+  ({ fault: amFaultTab, ack: amAckTab, rep: amRepTab, con: amConTab, sum: amSumTab })[S.amTab]();
 }
 
 /* ---------- Fault list tab: new fault list + past ones ---------- */
@@ -6120,13 +6133,11 @@ function amFaultTab(){
       <div class="am-btns"><label class="btn ghost sm am-file">Take photo<input type="file" accept="image/*" capture="environment" id="af-cam" hidden></label>
         <label class="btn ghost sm am-file">Upload photos<input type="file" accept="image/*" multiple id="af-up" hidden></label></div>
       <p class="small muted" style="margin:4px 0 0">Up to ${AM_MAXPH} photos. They are saved in Drive next to the PDF and added to it.</p></div>
-    <div class="sec"><div class="am-sigs">
-      <div><div class="f"><span>Checked by: ${esc(S.me.name)}</span></div><canvas class="am-sig" id="af-s1"></canvas><button class="linkbtn" id="af-s1x">Clear</button></div>
-      <div><div class="f"><span>Acknowledged by (Manager)</span></div><select id="af-ab" style="margin-bottom:6px"><option value="">A manager signs later</option>${(d.managers || []).map(n => `<option ${n === f.ackBy ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
-        <canvas class="am-sig" id="af-s2"></canvas><button class="linkbtn" id="af-s2x">Clear</button></div></div></div>
+    <div class="sec"><div class="f"><span>Checked by: ${esc(S.me.name)}</span></div><canvas class="am-sig" id="af-s1"></canvas><button class="linkbtn" id="af-s1x">Clear</button>
+      <p class="small muted" style="margin:6px 0 0">After submitting, a Manager / DY Manager acknowledges it in the <b>Acknowledge</b> tab.</p></div>
     <div class="am-acts"><button class="btn ghost" id="af-clr">Clear form</button><button class="btn ghost" id="af-dr">${f.draftId ? 'Update draft' : 'Save draft'}</button></div>
-    <button class="btn go block" id="af-go">Save fault list</button>
-    <p class="small muted"><b>Save draft</b> keeps it to finish later, on any phone (signatures are signed when you finish). <b>Save fault list</b> makes the PDF in Drive (Ammo Truck &rarr; Fault Lists), and each circle becomes a repair in the Repairs tab.</p>` :
+    <button class="btn go block" id="af-go">Submit Fault List</button>
+    <p class="small muted"><b>Save draft</b> keeps it to finish later, on any phone (signatures are signed when you finish). <b>Submit Fault List</b> makes the PDF in Drive (Ammo Truck &rarr; Fault Lists), and each circle becomes a repair in the Repairs tab.</p>` :
     '<div class="note blue">View only.</div>'}
     ${(d.drafts || []).length ? `<h3 style="margin-top:22px">Drafts (not finished)</h3>${amDraftRows(f, can)}` : ''}
     <h3 style="margin-top:22px">Past fault lists</h3>${amFaultRows()}`;
@@ -6135,10 +6146,10 @@ function amFaultTab(){
   V().querySelectorAll('[data-amdx]').forEach(b => b.onclick = e => { e.stopPropagation(); amDraftDel(b.dataset.amdx); });
   if (!can) return;
   const bind = (id, k, f2) => { const el = $(id); if (el) el.oninput = el.onchange = () => { f[k] = f2 ? f2(el.value) : el.value; amKeep(); }; };
-  bind('#af-d', 'date'); bind('#af-t', 'time', v => v.replace(/\D/g, '').slice(0, 4)); bind('#af-tk', 'truckId'); bind('#af-km', 'mileage'); bind('#af-cd', 'condition'); bind('#af-rm', 'remarks'); bind('#af-ab', 'ackBy');
+  bind('#af-d', 'date'); bind('#af-t', 'time', v => v.replace(/\D/g, '').slice(0, 4)); bind('#af-tk', 'truckId'); bind('#af-km', 'mileage'); bind('#af-cd', 'condition'); bind('#af-rm', 'remarks');
   V().querySelectorAll('[data-amv]').forEach(b => b.onclick = () => amEditView(b.dataset.amv));
-  const s1 = amSigPad($('#af-s1')), s2 = amSigPad($('#af-s2'));
-  $('#af-s1x').onclick = () => s1.clear(); $('#af-s2x').onclick = () => s2.clear();
+  const s1 = amSigPad($('#af-s1'));
+  $('#af-s1x').onclick = () => s1.clear();
   $('#af-clr').onclick = async () => {
     if (!(await askBox('Clear the form?', 'All circles, remarks and photos on this form are removed.' + (f.draftId ? ' The saved draft stays in Drafts.' : ''), 'Yes, clear'))) return;
     S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {} amFaultTab();
@@ -6148,7 +6159,7 @@ function amFaultTab(){
     S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {} amFaultTab(); window.scrollTo(0, 0);
   };
   $('#af-dr').onclick = e => amSaveDraft(e.target);
-  $('#af-go').onclick = e => amSaveFault(e.target, s1, s2);
+  $('#af-go').onclick = e => amSaveFault(e.target, s1);
   amPhotos();
 }
 /* photos for the fault list being filled in (kept until it is saved or cleared) */
@@ -6175,6 +6186,26 @@ function amPhotoBig(L, i){
     if ($('#pb-p', bg)) { $('#pb-p', bg).onclick = () => { i = (i + L.length - 1) % L.length; draw(); }; $('#pb-n', bg).onclick = () => { i = (i + 1) % L.length; draw(); }; } };
   draw(); bg.onclick = e => { if (e.target === bg) bg.remove(); }; document.body.appendChild(bg);
 }
+/* ---------- Acknowledge tab: fault lists waiting for a Manager / DY Manager to sign ---------- */
+function amAckTab(){
+  const d = S.am, mgr = !!(d.canAck && d.canEdit);
+  const key = x => (x.date || '') + (x.time || '');
+  const W = amWaiting().slice().sort((a, b) => key(a) < key(b) ? -1 : 1);                 // oldest first
+  const D = (d.faults || []).filter(x => x.ackBy).slice(0, 30);
+  const days = x => { const n = Math.round((new Date(S.today) - new Date(x.date)) / 864e5); return n <= 0 ? 'today' : n === 1 ? '1 day ago' : n + ' days ago'; };
+  const row = (x, wait) => { const n = (x.marks || []).length;
+    return `<button class="am-row" data-amf="${esc(x.id)}"><span><b>${esc(nice(x.date))}</b>${x.time ? ' ' + esc(x.time) + 'hrs' : ''} &middot; ${esc(x.plate)}
+      <small>Checked by ${esc(titleCase(x.checkedBy || ''))} &middot; ${n ? n + ' fault' + (n === 1 ? '' : 's') : 'no fault'}${x.photos ? ' &middot; ' + x.photos + ' photo' + (x.photos === 1 ? '' : 's') : ''}${wait ? ' &middot; ' + days(x) : x.ackBy ? '<br>Acknowledged by ' + esc(titleCase(x.ackBy)) + (x.ackAt ? ', ' + esc(amAt(x.ackAt)) : '') : ''}</small></span>
+      ${wait ? `<span class="pill ${mgr ? 'Rejected' : 'Pending'}">${mgr ? 'Sign' : 'Waiting'}</span>` : '<span class="pill Approved">Done</span>'}</button>`; };
+  V().innerHTML = `<h2 class="am-h">Acknowledgement</h2>
+    <p class="small muted" style="margin:-4px 0 12px">${mgr ? 'Open a fault list, check the circles, remarks and photos, then sign at the bottom to acknowledge it. The PDF in Drive is updated with your signature.' : 'Fault lists waiting for a Manager / DY Manager to sign. Only they can acknowledge.'}</p>
+    <h3 style="margin:0 0 8px">Waiting (${W.length})</h3>
+    ${W.length ? `<div class="am-list">${W.map(x => row(x, true)).join('')}</div>` : '<p class="muted">Nothing waiting: every fault list is acknowledged.</p>'}
+    <h3 style="margin:22px 0 8px">Acknowledged</h3>
+    ${D.length ? `<div class="am-list">${D.map(x => row(x, false)).join('')}</div>${(d.faults || []).filter(x => x.ackBy).length > 30 ? '<p class="small muted">The last 30 are shown; older ones are under Fault list &rarr; Past fault lists.</p>' : ''}` : '<p class="muted">None yet.</p>'}`;
+  V().querySelectorAll('[data-amf]').forEach(b => b.onclick = () => amFaultView(b.dataset.amf));
+}
+
 /* ---------- drafts ---------- */
 const amAt = v => { v = String(v || ''); return v ? nice(v.slice(0, 10)) + (v.length > 11 ? ', ' + v.slice(11, 16).replace(':', '') + 'hrs' : '') : ''; };
 const amHasForm = f => !!(f && ((f.marks || []).length || String(f.remarks || '').trim() || String(f.mileage || '').trim() || (S.amPh || []).length));
@@ -6279,15 +6310,14 @@ function amAddMark(v, x, y, r){
   if (!f.condition || f.condition === 'Usable') f.condition = 'Usable, with faults';
   amKeep();
 }
-async function amSaveFault(btn, s1, s2){
+async function amSaveFault(btn, s1){
   const f = amDraft();
   if (!f.truckId) return toast('Pick the truck.', true);
   if (!/^([01]\d|2[0-3])[0-5]\d$/.test(f.time)) return toast('Key in the time as 24hrs, e.g. 0745.', true);
-  const sig1 = s1.data(), sig2 = s2.data();
+  const sig1 = s1.data(), sig2 = '';
   if (!sig1) return toast('Sign in the "Checked by" box.', true);
-  if (sig2 && !f.ackBy) return toast('Pick the manager who signed.', true);
   const missing = f.marks.filter(m => !new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(\\([^)]*\\))?\\s*\\S').test((f.remarks || '').split('\n').find(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]').test(l)) || ''));
-  const ok = await askBox('Save this fault list?', `<b>${esc((amTruck(f.truckId) || {}).plate || '')}</b>, ${esc(nice(f.date))}, ${f.marks.length ? f.marks.length + ' circled fault' + (f.marks.length === 1 ? '' : 's') : 'no fault circled'}.${missing.length ? `<br><span style="color:var(--flag)">No remarks yet for circle ${missing.map(m => m.n).join(', ')}.</span>` : ''}${(S.amPh || []).length ? '<br>' + S.amPh.length + ' photo' + (S.amPh.length === 1 ? '' : 's') + '.' : ''}<br><span class="muted">A PDF is saved in Drive.</span>`, 'Yes, save');
+  const ok = await askBox('Submit this fault list?', `<b>${esc((amTruck(f.truckId) || {}).plate || '')}</b>, ${esc(nice(f.date))}, ${f.marks.length ? f.marks.length + ' circled fault' + (f.marks.length === 1 ? '' : 's') : 'no fault circled'}.${missing.length ? `<br><span style="color:var(--flag)">No remarks yet for circle ${missing.map(m => m.n).join(', ')}.</span>` : ''}${(S.amPh || []).length ? '<br>' + S.amPh.length + ' photo' + (S.amPh.length === 1 ? '' : 's') + '.' : ''}<br><span class="muted">A PDF is saved in Drive.</span>`, 'Yes, submit');
   if (!ok) return;
   busy(btn, true);
   try {
@@ -6296,7 +6326,7 @@ async function amSaveFault(btn, s1, s2){
     x.pdf = await amFaultPdf(x, true);
     const r = await call('ammoSaveFault', S.token, x);
     S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {}
-    toast((f.draftId ? 'Draft finished; fault list saved' : 'Fault list saved') + (f.marks.length ? '; ' + f.marks.length + ' repair' + (f.marks.length === 1 ? '' : 's') + ' added' : '') + (r.notified ? '. Managers emailed (' + r.notified + ').' : ''));
+    toast((f.draftId ? 'Draft finished; fault list submitted' : 'Fault list submitted') + (f.marks.length ? '; ' + f.marks.length + ' repair' + (f.marks.length === 1 ? '' : 's') + ' added' : '') + (r.notified ? '. Managers emailed (' + r.notified + ').' : ''));
     amSet(r);
   } catch(e){ busy(btn, false); fail(e); }
 }
