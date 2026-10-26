@@ -408,6 +408,9 @@ main.am .am-hrow select{width:auto;flex:none;height:40px;min-height:40px;padding
 .am-kpi div{display:flex;flex-direction:column;justify-content:space-between;min-width:0}.am-kpi span{line-height:1.25}
 .am-sumbtn{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}.am-sumbtn .btn.go{flex:1 1 100%}.am-sumbtn .btn{flex:1 1 0;min-width:0;white-space:nowrap;padding-left:8px;padding-right:8px}
 .am-saved{margin:8px 0 0;font-size:13px;color:var(--muted);text-align:center}
+.am-hisl{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:22px 0 0;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:10px;font-size:14px}.am-hisl .linkbtn{flex:none}
+.am-hf .f{margin-bottom:10px}.am-hfs{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;color:var(--muted)}
+.am-mh{display:flex;align-items:center;gap:8px;margin:18px 0 8px}.am-mh span{font:600 12.5px var(--body);background:var(--steel-soft);color:var(--steel);border-radius:999px;padding:2px 9px}
 .am-drb{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 10px}.am-drb .linkbtn{flex:none}
 .am-dr{padding:0;gap:0}.am-dr.on{border-color:var(--steel);box-shadow:0 0 0 2px var(--steel-soft)}
 .am-drb2{flex:1;min-width:0;text-align:left;background:none;border:0;padding:10px 12px;font:inherit;color:inherit;cursor:pointer}.am-drb2[disabled]{cursor:default}
@@ -6071,7 +6074,7 @@ async function openAmmo(){
   hubPush('ammo');
   S.view = 'ammo'; S.amTab = S.amTab || 'fault';
   $('#app').innerHTML = `<div class="appbar am-bar"><button id="app-home">&#8249; Home</button><b>AMMO TRUCK</b><span>${esc(S.me.name)}</span></div>
-    <div class="am-tabs" role="tablist">${[['fault','Fault list'],['ack','Acknowledge'],['rep','Repairs'],['con','Contractors'],['sum','Summary']].map(([k, l]) =>
+    <div class="am-tabs" role="tablist">${[['fault','Fault list'],['ack','Acknowledge'],['his','History'],['rep','Repairs'],['con','Contractors'],['sum','Summary']].map(([k, l]) =>
       `<button data-amt="${k}" aria-pressed="${S.amTab === k}">${l}${k === 'rep' ? '<em id="am-open" hidden></em>' : k === 'ack' ? '<em id="am-ack" hidden></em>' : ''}</button>`).join('')}</div>
     <main id="view" class="am"><div class="loading">Loading\u2026</div></main>`;
   $('#app-home').onclick = () => renderHub();
@@ -6093,7 +6096,7 @@ function amDraw(){
   const open = (S.am.repairs || []).filter(r => r.status === 'Open' || r.status === 'At contractor').length;
   const b = $('#am-open'); if (b) { b.hidden = !open; b.textContent = open; }
   const w = amWaiting().length, a = $('#am-ack'); if (a) { a.hidden = !w; a.textContent = w; }
-  ({ fault: amFaultTab, ack: amAckTab, rep: amRepTab, con: amConTab, sum: amSumTab })[S.amTab]();
+  ({ fault: amFaultTab, ack: amAckTab, his: amHisTab, rep: amRepTab, con: amConTab, sum: amSumTab })[S.amTab]();
 }
 
 /* ---------- Fault list tab: new fault list + past ones ---------- */
@@ -6140,7 +6143,8 @@ function amFaultTab(){
     <p class="small muted"><b>Save draft</b> keeps it to finish later, on any phone (signatures are signed when you finish). <b>Submit Fault List</b> makes the PDF in Drive (Ammo Truck &rarr; Fault Lists), and each circle becomes a repair in the Repairs tab.</p>` :
     '<div class="note blue">View only.</div>'}
     ${(d.drafts || []).length ? `<h3 style="margin-top:22px">Drafts (not finished)</h3>${amDraftRows(f, can)}` : ''}
-    <h3 style="margin-top:22px">Past fault lists</h3>${amFaultRows()}`;
+    ${(d.faults || []).length ? `<div class="am-hisl"><span>${(d.faults || []).length} fault list${(d.faults || []).length === 1 ? '' : 's'} submitted${d.faults[0] ? ', last ' + esc(nice(d.faults[0].date)) + ' (' + esc(d.faults[0].plate) + ')' : ''}</span><button class="linkbtn" id="af-his">See History</button></div>` : ''}`;
+  if ($('#af-his')) $('#af-his').onclick = () => { const b = $('[data-amt="his"]'); if (b) b.click(); };
   V().querySelectorAll('[data-amf]').forEach(b => b.onclick = () => amFaultView(b.dataset.amf));
   V().querySelectorAll('[data-amd]').forEach(b => b.onclick = () => amDraftOpen(b.dataset.amd));
   V().querySelectorAll('[data-amdx]').forEach(b => b.onclick = e => { e.stopPropagation(); amDraftDel(b.dataset.amdx); });
@@ -6202,7 +6206,7 @@ function amAckTab(){
     <h3 style="margin:0 0 8px">Waiting (${W.length})</h3>
     ${W.length ? `<div class="am-list">${W.map(x => row(x, true)).join('')}</div>` : '<p class="muted">Nothing waiting: every fault list is acknowledged.</p>'}
     <h3 style="margin:22px 0 8px">Acknowledged</h3>
-    ${D.length ? `<div class="am-list">${D.map(x => row(x, false)).join('')}</div>${(d.faults || []).filter(x => x.ackBy).length > 30 ? '<p class="small muted">The last 30 are shown; older ones are under Fault list &rarr; Past fault lists.</p>' : ''}` : '<p class="muted">None yet.</p>'}`;
+    ${D.length ? `<div class="am-list">${D.map(x => row(x, false)).join('')}</div>${(d.faults || []).filter(x => x.ackBy).length > 30 ? '<p class="small muted">The last 30 are shown; all of them are in the History tab.</p>' : ''}` : '<p class="muted">None yet.</p>'}`;
   V().querySelectorAll('[data-amf]').forEach(b => b.onclick = () => amFaultView(b.dataset.amf));
 }
 
@@ -6259,12 +6263,47 @@ async function amDraftDel(id){
   try { const r = await call('ammoDraftDelete', S.token, id); const f = amDraft(); if (f.draftId === id) { delete f.draftId; delete f.draftBy; delete f.draftAt; (S.amPh || []).forEach(p => { delete p.id; }); amKeep(); }
     toast('Draft deleted'); amSet(r); } catch(e){ fail(e); }
 }
-function amFaultRows(){
-  const L = S.am.faults || [];
-  if (!L.length) return '<p class="muted">None yet.</p>';
-  return `<div class="am-list">${L.slice(0, 60).map(x => { const n = (x.marks || []).length;
-    return `<button class="am-row" data-amf="${esc(x.id)}"><span><b>${esc(nice(x.date))}</b> &middot; ${esc(x.plate)}<small>Checked by ${esc(titleCase(x.checkedBy || ''))}${x.photos ? ' &middot; ' + x.photos + ' photo' + (x.photos === 1 ? '' : 's') : ''}${x.ackBy ? ' &middot; ack. ' + esc(titleCase(x.ackBy)) : ' &middot; <span style="color:var(--wait)">not acknowledged yet</span>'}</small></span>
-      <span class="pill ${n ? 'Rejected' : 'Approved'}">${n ? n + ' fault' + (n === 1 ? '' : 's') : 'No fault'}</span></button>`; }).join('')}</div>`;
+/* one fault list as a row (History tab) */
+function amFaultRow(x){
+  const n = (x.marks || []).length;
+  return `<button class="am-row" data-amf="${esc(x.id)}"><span><b>${esc(nice(x.date))}</b>${x.time ? ' ' + esc(x.time) + 'hrs' : ''} &middot; ${esc(x.plate)}<small>Checked by ${esc(titleCase(x.checkedBy || ''))}${x.mileage ? ' &middot; ' + esc(x.mileage) + ' km' : ''}${x.photos ? ' &middot; ' + x.photos + ' photo' + (x.photos === 1 ? '' : 's') : ''}<br>${x.ackBy ? 'Acknowledged by ' + esc(titleCase(x.ackBy)) : '<span style="color:var(--wait)">Not acknowledged yet</span>'}</small></span>
+    <span class="pill ${n ? 'Rejected' : 'Approved'}">${n ? n + ' fault' + (n === 1 ? '' : 's') : 'No fault'}</span></button>`;
+}
+/* ---------- History tab: every fault list submitted, with filters ---------- */
+function amHisTab(){
+  const d = S.am, F = S.amHf = S.amHf || { truck: '', month: '', st: '', q: '', more: 0 };
+  const all = (d.faults || []).slice().sort((a, b) => ((b.date || '') + (b.time || '')) < ((a.date || '') + (a.time || '')) ? -1 : 1);
+  const months = [...new Set(all.map(x => (x.date || '').slice(0, 7)).filter(Boolean))];
+  const mName = m => ['January','February','March','April','May','June','July','August','September','October','November','December'][Number(m.slice(5, 7)) - 1] + ' ' + m.slice(0, 4);
+  const q = F.q.trim().toLowerCase();
+  const L = all.filter(x => (!F.truck || x.truckId === F.truck) && (!F.month || (x.date || '').slice(0, 7) === F.month)
+    && (!F.st || (F.st === 'wait' ? !x.ackBy : F.st === 'ack' ? !!x.ackBy : F.st === 'faults' ? (x.marks || []).length : !(x.marks || []).length))
+    && (!q || [x.plate, x.checkedBy, x.ackBy, x.remarks, x.condition, nice(x.date)].join(' ').toLowerCase().includes(q)));
+  const shown = L.slice(0, 50 + F.more);
+  let last = '', body = '';
+  shown.forEach(x => { const m = (x.date || '').slice(0, 7); if (m !== last) { const c = L.filter(y => (y.date || '').slice(0, 7) === m).length;
+      body += `${last ? '</div>' : ''}<h3 class="am-mh">${esc(mName(m))} <span>${c}</span></h3><div class="am-list">`; last = m; }
+    body += amFaultRow(x); });
+  if (last) body += '</div>';
+  const trucks = d.trucks.filter(t => all.some(x => x.truckId === t.id));
+  V().innerHTML = `<h2 class="am-h">History</h2>
+    <p class="small muted" style="margin:-4px 0 10px">Every fault list submitted. Tap one to see it, its photos and signatures, or to share its PDF.</p>
+    <div class="sec am-hf"><div class="row2">
+      <label class="f"><span>Truck</span><select id="ah-tk"><option value="">All trucks</option>${trucks.map(t => `<option value="${esc(t.id)}" ${t.id === F.truck ? 'selected' : ''}>${esc(t.plate)}</option>`).join('')}</select></label>
+      <label class="f"><span>Month</span><select id="ah-m"><option value="">All months</option>${months.map(m => `<option value="${m}" ${m === F.month ? 'selected' : ''}>${esc(mName(m))}</option>`).join('')}</select></label>
+      <label class="f"><span>Show</span><select id="ah-st">${[['', 'All'], ['wait', 'Not acknowledged yet'], ['ack', 'Acknowledged'], ['faults', 'With faults'], ['none', 'No fault']].map(([k, l]) => `<option value="${k}" ${k === F.st ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="f"><span>Search</span><input type="text" id="ah-q" value="${esc(F.q)}" placeholder="Name, remark\u2026"></label></div>
+      <div class="am-hfs"><span>${L.length} of ${all.length} fault list${all.length === 1 ? '' : 's'}</span>${F.truck || F.month || F.st || F.q ? '<button class="linkbtn" id="ah-x">Clear filters</button>' : ''}</div></div>
+    ${all.length ? (L.length ? body : '<p class="muted">Nothing matches these filters.</p>') : '<p class="muted">No fault list submitted yet.</p>'}
+    ${L.length > shown.length ? `<button class="btn ghost block" id="ah-more" style="margin-top:6px">Show ${Math.min(50, L.length - shown.length)} more</button>` : ''}`;
+  const set = (k, v) => { F[k] = v; F.more = 0; amHisTab(); };
+  $('#ah-tk').onchange = e => set('truck', e.target.value);
+  $('#ah-m').onchange = e => set('month', e.target.value);
+  $('#ah-st').onchange = e => set('st', e.target.value);
+  let t = null; $('#ah-q').oninput = e => { clearTimeout(t); const v = e.target.value; t = setTimeout(() => { F.q = v; F.more = 0; const pos = e.target.selectionStart; amHisTab(); const i = $('#ah-q'); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch(x) {} } }, 300); };
+  if ($('#ah-x')) $('#ah-x').onclick = () => { S.amHf = null; amHisTab(); };
+  if ($('#ah-more')) $('#ah-more').onclick = () => { F.more += 50; amHisTab(); };
+  V().querySelectorAll('[data-amf]').forEach(b => b.onclick = () => amFaultView(b.dataset.amf));
 }
 /* full-screen editor for one view: drag around a spot to circle it, tap to drop a small circle, tap a circle to remove it */
 function amEditView(v){
