@@ -711,7 +711,7 @@ const RO_MSG = 'View only: the PD account cannot change anything.';
 const PD_READ = ['login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
   'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
   'adminActions','adminAttendance','adminAwayList','adminChanges','adminLib','adminOil','adminPending','adminScanOil','adminStaff','adminTeam',
-  'getMyOil','getMyOilHistory','getMyRequests','getMySchedule','ammoGet','ammoFault','ammoReceipts'];
+  'getMyOil','getMyOilHistory','getMyRequests','getMySchedule','ammoGet','ammoFault','ammoReceipts','fleetLogin'];
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -994,10 +994,15 @@ function openPlan(){
   renderShell(); go(S.me.role === 'Admin' ? 'board' : 'home');
   loadNotes();
 }
-function openHubApp(k){
+async function openHubApp(k){
   const a = hubApps().find(x => x.k === k); if (!a) return;
   if (a.native) { openAmmo(); return; }
   if (!a.url) { toast(a.name + ' is coming soon.'); return; }
+  if (/^fleet\//.test(a.url) && !GAS && !S.fleetIn) {          // Movexx / Trolley: sign in to the Fleet Log for them
+    try { const L = await call('fleetLogin', S.token);
+      if (L && L.ready) { localStorage.setItem('mmrc-fleet-url', L.url); localStorage.setItem('mmrc-fleet-user', L.user); localStorage.setItem('mmrc-fleet-pass', L.pass); S.fleetIn = true; } }
+    catch(e) { /* not set up: the Fleet Log asks for its login as before */ }
+  }
   hubPush(k);
   S.view = 'app:' + k;
   $('#app').innerHTML = `<div class="appbar"><button id="app-home">&#8249; Home</button><b>${esc(a.name.toUpperCase())}</b><span>${esc(S.me.name)}</span></div>
@@ -5395,6 +5400,7 @@ const MOCK = (() => {
     getReports: () => mRep,
     getNews: () => mNewsList(),
     getNotes: () => mNotes.filter(n => !n.removed),
+    fleetLogin: () => ({ ready: true, url: 'https://script.google.com/macros/s/TEST/exec', user: 'mmrc', pass: 'demo' }),
     ammoGet: () => Object.assign(JSON.parse(JSON.stringify(mAm)), { canEdit: S.me.role !== 'PD', canAck: canManage(), managers: staffList.filter(p => MGR_ROLES.includes(p.role)).map(p => p.name) }),
     ammoFault: (t, id) => Object.assign({}, mAm.faults.find(f => f.id === id), { sigChecked: (mAmSig[id] || {}).c || '', sigAck: (mAmSig[id] || {}).a || '' }),
     ammoSaveTruck: (t, f) => { const plate = String(f.plate || '').toUpperCase().trim(); if (!plate) throw new Error('Enter the plate number.');
@@ -5405,11 +5411,13 @@ const MOCK = (() => {
       const x = f.id ? mAm.contractors.find(y => y.id === f.id) : null; if (x) Object.assign(x, v); else mAm.contractors.push(Object.assign(v, { id: 'CT' + Date.now() })); return MOCK.ammoGet(); },
     ammoSaveFault: (t, f) => { if (!f.sigChecked) throw new Error('Sign in the "Checked by" box.'); const tk = mAm.trucks.find(x => x.id === f.truckId); if (!tk) throw new Error('Pick the truck.');
       const id = 'AF' + Date.now(); mAmSig[id] = { c: f.sigChecked, a: f.sigAck || '' }; window.__ammoPdf = (f.pdf || '').length; window.__ammoPdfData = f.pdf;
-      mAm.faults.unshift({ id, date: f.date, time: f.time, truckId: tk.id, plate: tk.plate, mileage: f.mileage, condition: f.condition, checkedBy: S.me.name, remarks: f.remarks, marks: f.marks, ackBy: f.sigAck ? f.ackBy : '', ackAt: '', pdf: 'x' });
+      mAm.faults.unshift({ id, date: f.date, time: f.time, truckId: tk.id, plate: tk.plate, mileage: f.mileage, condition: f.condition, checkedBy: S.me.name, createdBy: S.me.name, remarks: f.remarks, marks: f.marks, ackBy: f.sigAck ? f.ackBy : '', ackAt: '', pdf: 'x' });
       const VN = { left:'Left side', right:'Right side', front:'Front', rear:'Rear', top:'Top', bottom:'Bottom' };
       f.marks.forEach(m => { const ln = String(f.remarks || '').split('\n').map(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(.*)$').exec(l)).filter(Boolean)[0];
         mAm.repairs.push({ id: 'AR' + Date.now() + m.n, faultId: id, no: m.n, truckId: tk.id, plate: tk.plate, view: VN[m.v], fault: ln ? ln[1].replace(/^\([^)]*\)\s*/, '') : 'Fault ' + m.n, found: f.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '' }); });
       return Object.assign(MOCK.ammoGet(), { savedId: id }); },
+    ammoDeleteFault: (t, id) => { if (mAm.repairs.some(r => r.faultId === id && r.status === 'Fixed')) throw new Error('A repair on this fault list is already Fixed, so it is kept.');
+      mAm.faults = mAm.faults.filter(f => f.id !== id); mAm.repairs = mAm.repairs.filter(r => r.faultId !== id); return MOCK.ammoGet(); },
     ammoAck: (t, id, who, sig) => { const f = mAm.faults.find(x => x.id === id); f.ackBy = who; (mAmSig[id] = mAmSig[id] || {}).a = sig; return MOCK.ammoGet(); },
     ammoSaveRepair: (t, f) => { const r = mAm.repairs.find(x => x.id === f.id); const net = f.net === '' ? '' : Number(f.net), pct = f.pct === '' ? 9 : Number(f.pct), gst = net === '' ? '' : Math.round(net * pct) / 100;
       const keep = (r.receipts || []).filter(x => (f.keep || []).includes(x.id)); (f.add || []).forEach((a, i) => { const id = 'RC' + Date.now() + i; mAmRc[id] = a.data; keep.push({ id, name: a.name, mime: a.mime }); });
@@ -5978,7 +5986,11 @@ function amSigPad(cv){
   cv.onpointermove = e => { if (!on) return; const p = pt(e); g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(p.x, p.y); g.stroke(); last = p; drawn = true; };
   cv.onpointerup = cv.onpointercancel = () => { on = false; };
   setTimeout(fit, 0);
-  return { clear: fit, data: () => drawn ? cv.toDataURL('image/png') : '' };
+  /* a small copy (kept with the record in the sheet): 360px wide PNG, or JPEG if that is still too big */
+  const small = () => { const k = Math.min(1, 360 / cv.width), c = document.createElement('canvas'); c.width = Math.round(cv.width * k); c.height = Math.round(cv.height * k);
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(cv, 0, 0, c.width, c.height);
+    const png = c.toDataURL('image/png'); return png.length < 45000 ? png : c.toDataURL('image/jpeg', 0.7); };
+  return { clear: fit, data: () => drawn ? small() : '' };
 }
 const amMoney = n => 'S$ ' + (Number(n) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const amDmy = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '';
@@ -6156,7 +6168,7 @@ async function amFaultPdf(x, asData){
   y += 4;
   const sig = async (data, label, name, X) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.text(label, X, y);
     doc.setDrawColor(180); doc.rect(X, y + 2, half, 26);
-    if (data) { const s = await amImgSize(data), hh = Math.min(24, half * s.h / s.w), ww = hh * s.w / s.h; doc.addImage(data, 'PNG', X + (half - ww) / 2, y + 3, ww, hh, undefined, 'FAST'); }
+    if (data) { const s = await amImgSize(data), hh = Math.min(24, half * s.h / s.w), ww = hh * s.w / s.h; doc.addImage(data, /jpeg/.test(data.slice(0, 20)) ? 'JPEG' : 'PNG', X + (half - ww) / 2, y + 3, ww, hh, undefined, 'FAST'); }
     doc.setFont('helvetica', 'normal'); doc.text(name || '', X, y + 33); };
   await sig(x.sigChecked, 'Checked by', titleCase(x.checkedBy || ''), M);
   await sig(x.sigAck, 'Acknowledged by (Manager)', x.ackBy ? titleCase(x.ackBy) : 'Not acknowledged yet', M + half + 6);
@@ -6183,6 +6195,8 @@ async function amFaultView(id){
   try { x = await call('ammoFault', S.token, id); } catch(e){ bg.remove(); return fail(e); }
   const reps = (S.am.repairs || []).filter(r => r.faultId === id).sort((a, b) => a.no - b.no);
   const canAck = S.am.canAck && S.am.canEdit && !x.ackBy;
+  const fixed = reps.some(r => r.status === 'Fixed');
+  const canDel = S.am.canEdit && (x.createdBy === S.me.name || canManage());
   $('.sheet', bg).innerHTML = `<h3>${esc(x.plate)} &middot; ${esc(nice(x.date))}</h3>
     <div class="src">${x.time ? esc(x.time) + 'hrs &middot; ' : ''}${x.mileage ? esc(x.mileage) + ' km &middot; ' : ''}${esc(x.condition)} &middot; checked by ${esc(titleCase(x.checkedBy))}</div>
     <div class="am-views ro">${AM_VIEWS.filter(([v]) => (x.marks || []).some(m => m.v === v)).map(([v, l]) => `<div class="am-view${['left','right','top','bottom'].includes(v) ? ' wide' : ''}"><span class="am-vh"><b>${l}</b></span>${amSvg(v, x.marks)}</div>`).join('') || '<p class="muted">No fault circled.</p>'}</div>
@@ -6191,9 +6205,15 @@ async function amFaultView(id){
     <div class="am-sigs"><div><div class="f"><span>Checked by: ${esc(titleCase(x.checkedBy))}</span></div>${x.sigChecked ? `<img class="am-sigimg" src="${x.sigChecked}" alt="">` : ''}</div>
       <div><div class="f"><span>Acknowledged by${x.ackBy ? ': ' + esc(titleCase(x.ackBy)) : ' (Manager)'}</span></div>${x.sigAck ? `<img class="am-sigimg" src="${x.sigAck}" alt="">` :
         canAck ? `<select id="fv-ab" style="margin-bottom:6px">${(S.am.managers || []).map(n => `<option ${n === S.me.name ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select><canvas class="am-sig" id="fv-s"></canvas><button class="linkbtn" id="fv-sx">Clear</button>` : '<p class="muted small">Not acknowledged yet.</p>'}</div></div>
-    <div class="acts"><button class="btn ghost" id="fv-x">Close</button><button class="btn ghost" id="fv-pdf">Share PDF</button>${canAck ? '<button class="btn go" id="fv-ack">Acknowledge</button>' : ''}</div>`;
+    <div class="acts"><button class="btn ghost" id="fv-x">Close</button><button class="btn ghost" id="fv-pdf">Share PDF</button>${canAck ? '<button class="btn go" id="fv-ack">Acknowledge</button>' : ''}</div>
+    ${canDel ? (fixed ? '<p class="small muted" style="margin:10px 0 0">A repair on this list is Fixed, so it cannot be deleted.</p>' : '<p style="text-align:center;margin:12px 0 0"><button class="linkbtn" id="fv-del" style="color:var(--flag)">Delete this fault list</button></p>') : ''}`;
   $('#fv-x', bg).onclick = () => bg.remove();
   $('#fv-pdf', bg).onclick = async e => { busy(e.target, true); try { await amSharePdf(await amFaultPdf(x, false), amDmy(x.date).replace(/\//g, '-') + ' ' + x.plate + ' Fault List.pdf', e.target); } catch(err){ busy(e.target, false); fail(err); } };
+  if ($('#fv-del', bg)) $('#fv-del', bg).onclick = async () => {
+    const ok = await askBox('Delete this fault list?', `<b>${esc(x.plate)}, ${esc(nice(x.date))}</b>${reps.length ? '<br>Its ' + reps.length + ' repair' + (reps.length === 1 ? '' : 's') + ' (and any receipt pictures) are deleted too.' : ''}<br><span class="muted">The PDF in Drive goes to the bin. This cannot be undone in the app.</span>`, 'Yes, delete');
+    if (!ok) return;
+    try { const r = await call('ammoDeleteFault', S.token, id); bg.remove(); toast('Fault list deleted'); amSet(r); } catch(err){ fail(err); }
+  };
   if (canAck) {
     const pad = amSigPad($('#fv-s', bg)); $('#fv-sx', bg).onclick = () => pad.clear();
     $('#fv-ack', bg).onclick = async e => {
