@@ -346,6 +346,40 @@ main.hub h2{margin:4px 0 2px;font:700 30px/1.1 var(--cond)}main.hub .sub{color:v
 .appbar button{background:#fff;color:var(--ink);border:0;border-radius:999px;padding:6px 14px;font:700 14px/1.2 var(--body);cursor:pointer}
 .appbar b{font:700 20px/1 var(--cond);letter-spacing:.3px}.appbar span{margin-left:auto;font-size:13px;opacity:.8}
 .appframe{position:fixed;left:0;right:0;bottom:0;top:calc(48px + env(safe-area-inset-top));width:100%;height:calc(100% - 48px - env(safe-area-inset-top));border:0;background:#fff}
+.am-sh input:not([type]),main.am input:not([type]),.am-sh input[type=number],main.am input[type=number]{width:100%;padding:11px 12px;border:1px solid #B9C3BA;border-radius:var(--r-sm);background:#fff;min-height:46px;font:inherit;color:inherit}
+.am-sh .row2>*,main.am .row2>*,.am-3>*{min-width:0}.am-sh input,.am-sh select,main.am input,main.am select{min-width:0;max-width:100%}
+.am-kpi b{font-size:20px!important}
+.am-tabs{display:flex;gap:5px;padding:calc(56px + env(safe-area-inset-top)) 10px 0;max-width:760px;margin:0 auto}
+.am-tabs button{flex:1;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 4px;font:600 14px var(--body);color:var(--ink);cursor:pointer;white-space:nowrap}
+.am-tabs button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}.am-tabs em{font-style:normal;background:var(--flag);color:#fff;border-radius:999px;padding:0 6px;margin-left:5px;font-size:12px}
+main.am{max-width:760px;margin:0 auto;padding:12px 12px 40px}.am-h{margin:4px 0 8px;font:700 26px/1.1 var(--cond)}
+.am-hrow{display:flex;justify-content:space-between;align-items:center;gap:8px}.am-hrow select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.am-views{display:grid;grid-template-columns:1fr 1fr;gap:10px}.am-view{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 6px 4px;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.am-view.wide{grid-column:1/-1}.am-views.ro .am-view{cursor:default}.am-view svg{width:100%;height:auto;display:block}
+.am-vh{display:flex;justify-content:space-between;align-items:center;margin:0 4px 2px}.am-vh b{font:700 15px/1.2 var(--cond);letter-spacing:.4px;text-transform:uppercase;color:var(--steel)}.am-vh i{font-style:normal;font-size:12px;color:var(--flag);font-weight:700}
+.am-chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.am-chips b{font-size:12.5px;background:var(--flag-soft);color:var(--flag);border-radius:999px;padding:2px 10px}
+.am-rem{width:100%;min-height:200px;font:inherit;font-size:15.5px;line-height:1.6;border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical;margin-top:4px}
+.am-sigs{display:grid;grid-template-columns:1fr 1fr;gap:10px}.am-sigs select{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px}
+.am-sig{width:100%;height:96px;border:1px dashed #9AA6B2;border-radius:8px;background:#fff;display:block}.am-sigimg{width:100%;max-height:100px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff}
+.am-acts{display:flex;gap:8px;margin:12px 0 6px}.am-acts .btn{flex:1}.am-acts.sm{margin:8px 0 0}.am-acts.sm .btn{flex:0 0 auto;min-height:36px;padding:5px 12px;font-size:14px}
+.am-list{display:flex;flex-direction:column;gap:6px}.am-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:left;font:inherit;color:inherit;width:100%;cursor:pointer}
+.am-row small{display:block;color:var(--muted);font-size:12.5px}
+.am-ed .sheet{max-width:760px}.am-draw{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px}.am-draw svg{width:100%;height:auto;display:block;max-height:62vh}
+.am-rep{display:flex;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}.am-rep .b{flex:1;min-width:0}.am-rep .h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.am-num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--flag);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.am-thumb{background:#fff;border:1px solid var(--line);border-radius:10px;padding:4px;margin-bottom:10px}.am-thumb svg{width:100%;height:auto;display:block;max-height:180px}
+.am-tot{display:flex;justify-content:space-between;align-items:center;background:var(--steel-soft);border-radius:10px;padding:10px 12px;margin:2px 0 10px}.am-tot b{font:700 24px var(--cond)}
+.am-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.am-3 small{display:block;font-size:11.5px;color:var(--muted);margin-top:3px}
+.am-pics{display:flex;gap:8px;flex-wrap:wrap}.am-pic{position:relative;width:78px;height:96px;border:1px solid var(--line);border-radius:8px;background:#F4F6F3;display:grid;place-items:center;overflow:hidden;font-size:12px}
+.am-pic img{width:100%;height:100%;object-fit:cover}.am-pic button{position:absolute;right:2px;top:2px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(23,33,43,.75);color:#fff;font-size:15px;line-height:1;cursor:pointer}
+.am-file{position:relative;cursor:pointer;min-height:38px;display:inline-flex;align-items:center}
+.am-con .h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.am-con.off{opacity:.65}.am-con dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:8px 0 0;font-size:14px}.am-con dt{color:var(--muted)}.am-con dd{margin:0}
+.am-cs{display:flex;gap:14px;align-items:center;margin-top:8px;border-top:1px solid var(--line);padding-top:8px;font-size:13.5px}.am-cs .linkbtn{margin-left:auto}
+.am-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}.am-kpi div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px}.am-kpi b{display:block;font:700 22px/1.1 var(--cond)}.am-kpi span{font-size:12px;color:var(--muted)}
+.am-chart{width:100%;height:auto;display:block;margin:6px 0 2px}.am-chart text{font:11px var(--body);fill:#5B6874}.am-bar{cursor:pointer}.am-bar path{fill:#2C5378}.am-bar.on path{fill:#17212B}.am-bar.on text{fill:#17212B;font-weight:700}
+.am-msel{margin-top:8px;padding:8px 10px;background:var(--steel-soft);border-radius:8px;font-size:13.5px;display:flex;flex-direction:column;gap:3px}
+.am-kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:14px}.am-kv:first-of-type{border-top:0}
+@media (max-width:420px){.am-sigs{grid-template-columns:1fr}.am-3{grid-template-columns:1fr 1fr}}
 /* Sticky notes */
 #nlay{position:absolute;left:0;top:0;width:0;height:0;z-index:4}
 .npin{position:absolute;width:34px;height:34px;margin:0;padding:0;border:0;border-radius:3px 3px 10px 3px;cursor:pointer;transform:rotate(-5deg);box-shadow:0 2px 6px rgba(23,33,43,.35);
@@ -677,7 +711,7 @@ const RO_MSG = 'View only: the PD account cannot change anything.';
 const PD_READ = ['login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
   'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
   'adminActions','adminAttendance','adminAwayList','adminChanges','adminLib','adminOil','adminPending','adminScanOil','adminStaff','adminTeam',
-  'getMyOil','getMyOilHistory','getMyRequests','getMySchedule'];
+  'getMyOil','getMyOilHistory','getMyRequests','getMySchedule','ammoGet','ammoFault','ammoReceipts'];
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -910,7 +944,7 @@ const HUB_APPS = [
     ico:'<rect x="3" y="8" width="12" height="8" rx="2"/><path d="M15 11h3l3 3v2h-6"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>' },
   { k:'trolley', name:'Trolley', lines:['TROLLEY'], url:'fleet/trolley.html', col:'#A26A0A', only:true,
     ico:'<path d="M3 4h3l2.6 10.2a1.5 1.5 0 0 0 1.5 1.1h7.4a1.5 1.5 0 0 0 1.5-1.1L21 8H7"/><circle cx="10" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>' },
-  { k:'ammo', name:'Ammo Truck', lines:['AMMO','TRUCK'], url:'', col:'#6D28D9', only:true,
+  { k:'ammo', name:'Ammo Truck', lines:['AMMO','TRUCK'], url:'', native:true, col:'#6D28D9', only:true,
     ico:'<path d="M2 7h12v9H2z"/><path d="M14 10h4l4 4v2h-8"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>' }];
 /* Movexx, Trolley and Ammo Truck: only for the people ticked in Admin -> Staff (the Admin account sees all) */
 const hubApps = () => HUB_APPS.filter(a => !a.only || (S.me && (S.me.role === 'Admin' || (S.me.apps || []).includes(a.k))));
@@ -928,9 +962,9 @@ function renderHub(fromBack){
   <main id="view" class="hub">
     <h2>Hi ${esc(S.me.name)}</h2><div class="sub">${esc(DOW[dowIdx(S.today)] + ' ' + d.getDate() + ' ' + MON[d.getMonth()])} &middot; pick an app</div>
     <button class="hbig" id="hub-plan"><b>DEPLOYMENT PLAN</b><span>My Deploy, plan, OIL, leave, attendance and admin</span><div class="hchips" id="hub-chips"></div></button>
-    <div class="hrow" style="grid-template-columns:repeat(${Math.max(hubApps().length, 1)},1fr)">${hubApps().map(a => `<button class="htile${a.url ? '' : ' soon'}" data-hub="${a.k}" style="background:${a.col}">
+    <div class="hrow" style="grid-template-columns:repeat(${Math.max(hubApps().length, 1)},1fr)">${hubApps().map(a => `<button class="htile${a.url || a.native ? '' : ' soon'}" data-hub="${a.k}" style="background:${a.col}">
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${a.ico}</svg>
-      <b>${a.lines.join('<br>')}</b>${a.url ? '' : '<small>Coming soon</small>'}</button>`).join('')}</div>
+      <b>${a.lines.join('<br>')}</b>${a.url || a.native ? '' : '<small>Coming soon</small>'}</button>`).join('')}</div>
   </main>`;
   $('#out').onclick = () => { S.token = null; saveToken(''); renderLogin(); };
   $('#pinbtn').onclick = changePin;
@@ -962,6 +996,7 @@ function openPlan(){
 }
 function openHubApp(k){
   const a = hubApps().find(x => x.k === k); if (!a) return;
+  if (a.native) { openAmmo(); return; }
   if (!a.url) { toast(a.name + ' is coming soon.'); return; }
   hubPush(k);
   S.view = 'app:' + k;
@@ -5061,6 +5096,12 @@ async function admChanges(){
 const SNAP = { weeks:{}, staff:[], oil:[], lib:{} }   /* preview data lives in Preview.html only */;
 const MOCK = (() => {
   const today = ymd(new Date());
+  const mAmSig = {}, mAmRc = {};
+  const mAm = { trucks: [{ id:'TK1', plate:'SMM1234A', name:'Ammo Truck 1', notes:'', active:true }],
+    contractors: [{ id:'CT1', company:'KRANJI TYRE CENTRE', trade:'Tyres', contact:'Mr Lee', phone:'6123 4567', email:'', address:'', uen:'', gstNo:'', notes:'', active:true }],
+    faults: [{ id:'AF0', date: addD(today, -40), time:'0750', truckId:'TK1', plate:'SMM1234A', mileage:'47,900', condition:'Usable, with faults', checkedBy:'ARIF', remarks:'1. (Left side) Front tyre low', marks:[{ n:1, v:'left', x:70, y:104, r:24 }], ackBy:'JAMES LAI', ackAt:'', pdf:'x' }],
+    repairs: [{ id:'AR0', faultId:'AF0', no:1, truckId:'TK1', plate:'SMM1234A', view:'Left side', fault:'Front tyre low', found: addD(today, -40), status:'Fixed', contractorId:'CT1', sentOn: addD(today, -39), fixedOn: addD(today, -38),
+      workDone:'Changed tyre', invoiceNo:'KT-881', invoiceDate: addD(today, -38), net: 180, pct: 9, gst: 16.2, total: 196.2, receipts: [], pdf:'x' }] };
   const mNotes = [{ id:'NT1', page:'board', dated:true, start:today, end:addD(today, 2), anchor:JSON.stringify({ p:[], s:'Duties', t:'H3' }), x:0.6, y:0.5,
     text:'Draw key 59 and 194 by 0715.\nSign the key log before handing over.', colour:'pink', len:'3d', by:'JAMES LAI', created:today + ' 07:45', updated:'', seen:[{ n:'ARIF', t:today + ' 08:02' }] }];
   const mon = mondayOf(today);
@@ -5085,7 +5126,7 @@ const MOCK = (() => {
       absences: i === 1 ? [{ label:'MC', text:'ARIF MC', people:['ARIF'] }] : i === 3 ? [{ label:'IPPT/ TRG etc', text:'WONG TEST SHOOT (1400hrs)', people:['WONG'] }] : [] };
   }
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
-  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, att: !['KUMAR (SWIFT)','KISHORE'].includes(p.name), hasPin:p.role === 'APO', noPlad: p.name === 'CHEW', apps: p.name === 'CHAN YANG' ? ['movexx','trolley','ammo'] : [] }))
+  const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, att: !['KUMAR (SWIFT)','KISHORE'].includes(p.name), hasPin:p.role === 'APO', noPlad: p.name === 'CHEW', apps: p.name === 'CHAN YANG' ? ['movexx','trolley','ammo'] : p.name === 'ARIF' ? ['ammo'] : [] }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }, { name:'TAN PD', role:'PD', aliases:[], email:'', active:true, hasPin:true }]);
   const weeks = {};
   const mFx = {};                                                  // ?fxdemo: weekend DAO main shows FAIZAL from a sheet formula
@@ -5354,6 +5395,28 @@ const MOCK = (() => {
     getReports: () => mRep,
     getNews: () => mNewsList(),
     getNotes: () => mNotes.filter(n => !n.removed),
+    ammoGet: () => Object.assign(JSON.parse(JSON.stringify(mAm)), { canEdit: S.me.role !== 'PD', canAck: canManage(), managers: staffList.filter(p => MGR_ROLES.includes(p.role)).map(p => p.name) }),
+    ammoFault: (t, id) => Object.assign({}, mAm.faults.find(f => f.id === id), { sigChecked: (mAmSig[id] || {}).c || '', sigAck: (mAmSig[id] || {}).a || '' }),
+    ammoSaveTruck: (t, f) => { const plate = String(f.plate || '').toUpperCase().trim(); if (!plate) throw new Error('Enter the plate number.');
+      const x = f.id ? mAm.trucks.find(y => y.id === f.id) : null; if (x) Object.assign(x, { plate, name: f.name || '', notes: f.notes || '', active: f.active !== false });
+      else mAm.trucks.push({ id: 'TK' + Date.now(), plate, name: f.name || '', notes: f.notes || '', active: f.active !== false }); return MOCK.ammoGet(); },
+    ammoSaveContractor: (t, f) => { const company = String(f.company || '').toUpperCase().trim(); if (!company) throw new Error('Enter the company name.');
+      const v = Object.assign({}, f, { company, uen: String(f.uen || '').toUpperCase(), gstNo: String(f.gstNo || '').toUpperCase(), active: f.active !== false });
+      const x = f.id ? mAm.contractors.find(y => y.id === f.id) : null; if (x) Object.assign(x, v); else mAm.contractors.push(Object.assign(v, { id: 'CT' + Date.now() })); return MOCK.ammoGet(); },
+    ammoSaveFault: (t, f) => { if (!f.sigChecked) throw new Error('Sign in the "Checked by" box.'); const tk = mAm.trucks.find(x => x.id === f.truckId); if (!tk) throw new Error('Pick the truck.');
+      const id = 'AF' + Date.now(); mAmSig[id] = { c: f.sigChecked, a: f.sigAck || '' }; window.__ammoPdf = (f.pdf || '').length; window.__ammoPdfData = f.pdf;
+      mAm.faults.unshift({ id, date: f.date, time: f.time, truckId: tk.id, plate: tk.plate, mileage: f.mileage, condition: f.condition, checkedBy: S.me.name, remarks: f.remarks, marks: f.marks, ackBy: f.sigAck ? f.ackBy : '', ackAt: '', pdf: 'x' });
+      const VN = { left:'Left side', right:'Right side', front:'Front', rear:'Rear', top:'Top', bottom:'Bottom' };
+      f.marks.forEach(m => { const ln = String(f.remarks || '').split('\n').map(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(.*)$').exec(l)).filter(Boolean)[0];
+        mAm.repairs.push({ id: 'AR' + Date.now() + m.n, faultId: id, no: m.n, truckId: tk.id, plate: tk.plate, view: VN[m.v], fault: ln ? ln[1].replace(/^\([^)]*\)\s*/, '') : 'Fault ' + m.n, found: f.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '' }); });
+      return Object.assign(MOCK.ammoGet(), { savedId: id }); },
+    ammoAck: (t, id, who, sig) => { const f = mAm.faults.find(x => x.id === id); f.ackBy = who; (mAmSig[id] = mAmSig[id] || {}).a = sig; return MOCK.ammoGet(); },
+    ammoSaveRepair: (t, f) => { const r = mAm.repairs.find(x => x.id === f.id); const net = f.net === '' ? '' : Number(f.net), pct = f.pct === '' ? 9 : Number(f.pct), gst = net === '' ? '' : Math.round(net * pct) / 100;
+      const keep = (r.receipts || []).filter(x => (f.keep || []).includes(x.id)); (f.add || []).forEach((a, i) => { const id = 'RC' + Date.now() + i; mAmRc[id] = a.data; keep.push({ id, name: a.name, mime: a.mime }); });
+      window.__repPdf = (f.pdf || '').length; window.__repPdfData = f.pdf;
+      Object.assign(r, { status: f.status, contractorId: f.contractorId, sentOn: f.sentOn, fixedOn: f.status === 'Fixed' ? (f.fixedOn || today) : f.fixedOn, workDone: f.workDone, fault: f.fault || r.fault,
+        invoiceNo: f.invoiceNo, invoiceDate: f.invoiceDate, net, pct, gst, total: net === '' ? '' : net + gst, receipts: keep }); return MOCK.ammoGet(); },
+    ammoReceipts: (t, id) => (mAm.repairs.find(x => x.id === id).receipts || []).map(x => Object.assign({}, x, { data: /^image/.test(x.mime) ? mAmRc[x.id] || '' : '', url: '#' })),
     noteSave: (t, f) => { if (!String(f.text || '').trim()) throw new Error('Type the note first.');
       const hm = today + ' ' + String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0');
       const n = f.id ? mNotes.find(x => x.id === f.id) : null;
@@ -5808,6 +5871,582 @@ window.addEventListener('scroll', () => { if (noteHold) noteHoldStop(); }, { pas
   document.addEventListener('scroll', e => { if (e.target !== document && !noteDragging) notePlaceSoon(); }, true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(notePlaceSoon);
 })();
+/* ============================================================
+   Ammo Truck (Home screen app): fault lists with circled faults on six truck views,
+   repairs (contractor, receipt, pictures), contractors and trucks, and a monthly spend summary.
+   Records: Ammo tabs in the Google Sheet. PDFs, receipts and signatures: Drive, folder "Ammo Truck".
+   ============================================================ */
+const AM_VIEWS = [['left','Left side'],['right','Right side'],['front','Front'],['rear','Rear'],['top','Top'],['bottom','Bottom']];
+const AM_VNAME = { left:'Left side', right:'Right side', front:'Front', rear:'Rear', top:'Top', bottom:'Bottom' };
+const AM_BOX = { left:'0 -12 300 152', right:'0 -12 300 152', front:'0 -12 200 172', rear:'0 -12 200 172', top:'0 0 300 130', bottom:'0 0 300 130' };
+const AM_STATUS = ['Open','At contractor','Fixed','Not needed'];
+const AM_COND = ['Usable','Usable, with faults','Not usable'];
+const AM_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+/* the truck drawings (pickup with a high box at the back); inline colours so they also work inside the PDF */
+const amS = { o:'fill="#F7F9F6" stroke="#17212B" stroke-width="2" stroke-linejoin="round"', l:'fill="none" stroke="#17212B" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"',
+  g:'fill="#DCE6EE" stroke="#17212B" stroke-width="1.4"', w:'fill="#2B3540" stroke="#17212B" stroke-width="1.5"', wi:'fill="#9AA6B2" stroke="#17212B" stroke-width="1"',
+  lt:'fill="#FFE8A3" stroke="#17212B" stroke-width="1.2"', tl:'fill="#F2A7A1" stroke="#17212B" stroke-width="1.2"' };
+const amSide = () => `<path ${amS.o} d="M18,100 L18,68 Q20,58 34,56 L86,54 L106,28 L150,26 Q156,26 157,33 L157,60 L160,60 L160,100 L96,100 A27,27 0 0 0 44,100 Z"/>
+  <path ${amS.o} d="M161,-2 L284,-2 Q287,-2 287,1 L287,100 L256,100 A27,27 0 0 0 204,100 L161,100 Z"/>
+  <path ${amS.g} d="M110,32 L150,31 L151,55 L93,55 Z"/><path ${amS.l} d="M128,31 L128,55"/>
+  <path ${amS.l} d="M93,56 L93,98 M128,56 L128,98"/><path ${amS.l} d="M134,64 h8 M100,64 h8"/>
+  <path ${amS.l} d="M161,8 L287,8 M161,90 L287,90"/><path ${amS.l} d="M200,8 L200,90 M245,8 L245,90"/>
+  <rect ${amS.tl} x="281" y="74" width="6" height="12" rx="2"/><rect ${amS.lt} x="18" y="64" width="8" height="10" rx="2"/>
+  <path ${amS.l} d="M16,92 L30,92 M280,94 L290,94"/><path ${amS.o} d="M98,48 l8,0 l0,7 l-10,0 z"/>
+  <circle ${amS.w} cx="70" cy="104" r="21"/><circle ${amS.wi} cx="70" cy="104" r="9"/>
+  <circle ${amS.w} cx="230" cy="104" r="21"/><circle ${amS.wi} cx="230" cy="104" r="9"/>`;
+const AM_ART = {
+  left: amSide,
+  right: () => `<g transform="translate(300,0) scale(-1,1)">${amSide()}</g>`,
+  front: () => `<rect ${amS.o} x="30" y="-6" width="140" height="68" rx="3"/>
+    <path ${amS.o} d="M52,62 L64,22 L136,22 L148,62 Z"/><path ${amS.g} d="M60,58 L70,29 L130,29 L140,58 Z"/>
+    <rect ${amS.o} x="28" y="60" width="144" height="54" rx="9"/><rect ${amS.l} x="68" y="72" width="64" height="26" rx="4"/>
+    <path ${amS.l} d="M70,80 h60 M70,88 h60"/><rect ${amS.lt} x="36" y="72" width="26" height="14" rx="4"/><rect ${amS.lt} x="138" y="72" width="26" height="14" rx="4"/>
+    <rect ${amS.o} x="24" y="110" width="152" height="13" rx="5"/><rect ${amS.l} x="84" y="112" width="32" height="9"/>
+    <rect ${amS.w} x="34" y="123" width="26" height="24" rx="5"/><rect ${amS.w} x="140" y="123" width="26" height="24" rx="5"/>
+    <rect ${amS.o} x="36" y="46" width="14" height="11" rx="2"/><rect ${amS.o} x="150" y="46" width="14" height="11" rx="2"/>`,
+  rear: () => `<rect ${amS.o} x="30" y="-6" width="140" height="118" rx="4"/>
+    <rect ${amS.l} x="38" y="0" width="61" height="106" rx="2"/><rect ${amS.l} x="101" y="0" width="61" height="106" rx="2"/>
+    <path ${amS.l} d="M94,46 L94,76 M106,46 L106,76"/><rect ${amS.o} x="90" y="56" width="20" height="8" rx="2"/>
+    <path ${amS.l} d="M44,8 L44,98 M156,8 L156,98"/><rect ${amS.tl} x="31" y="86" width="7" height="18" rx="2"/><rect ${amS.tl} x="162" y="86" width="7" height="18" rx="2"/>
+    <rect ${amS.o} x="24" y="110" width="152" height="13" rx="5"/><rect ${amS.l} x="84" y="96" width="32" height="9"/>
+    <rect ${amS.w} x="34" y="123" width="26" height="24" rx="5"/><rect ${amS.w} x="140" y="123" width="26" height="24" rx="5"/><rect ${amS.l} x="94" y="123" width="12" height="9"/>`,
+  top: () => `<rect ${amS.w} x="56" y="16" width="30" height="8" rx="3"/><rect ${amS.w} x="216" y="16" width="30" height="8" rx="3"/>
+    <rect ${amS.w} x="56" y="106" width="30" height="8" rx="3"/><rect ${amS.w} x="216" y="106" width="30" height="8" rx="3"/>
+    <rect ${amS.o} x="18" y="22" width="266" height="86" rx="16"/>
+    <path ${amS.l} d="M32,34 Q28,65 32,96 M92,30 L92,100"/><path ${amS.g} d="M95,30 L114,36 L114,94 L95,100 Z"/>
+    <rect ${amS.o} x="114" y="34" width="38" height="62" rx="4"/><path ${amS.g} d="M152,36 L158,38 L158,92 L152,94 Z"/>
+    <rect ${amS.o} x="160" y="22" width="124" height="86" rx="4"/><path ${amS.l} d="M170,32 h104 M170,98 h104 M200,32 v66 M245,32 v66"/>
+    <rect ${amS.o} x="96" y="12" width="10" height="12" rx="2"/><rect ${amS.o} x="96" y="106" width="10" height="12" rx="2"/>`,
+  bottom: () => `<rect ${amS.o} x="18" y="22" width="266" height="86" rx="16"/>
+    <path ${amS.l} d="M30,52 L276,52 M30,78 L276,78"/><path ${amS.l} d="M30,52 L30,78 M120,52 L120,78 M190,52 L190,78 M276,52 L276,78"/>
+    <rect ${amS.w} x="58" y="20" width="26" height="14" rx="4"/><rect ${amS.w} x="58" y="96" width="26" height="14" rx="4"/>
+    <rect ${amS.w} x="218" y="20" width="26" height="14" rx="4"/><rect ${amS.w} x="218" y="96" width="26" height="14" rx="4"/>
+    <path ${amS.l} d="M71,34 L71,96 M231,34 L231,96"/><circle ${amS.o} cx="231" cy="65" r="9"/><circle ${amS.o} cx="50" cy="65" r="12"/>
+    <path ${amS.l} d="M71,65 L222,65" stroke-dasharray="4 3"/><rect ${amS.o} x="140" y="82" width="40" height="20" rx="3"/>
+    <path ${amS.l} d="M100,88 L136,88 M184,92 L276,92"/><circle ${amS.w} cx="262" cy="40" r="10"/>`
+};
+/* circles: red ring + numbered tag */
+function amMarksSvg(marks, only){
+  return (marks || []).filter(m => only == null || m.n === only).map(m => {
+    const tx = m.x + m.r * 0.72, ty = m.y - m.r * 0.72;
+    return `<g><circle cx="${m.x}" cy="${m.y}" r="${m.r}" fill="rgba(179,38,30,.08)" stroke="#B3261E" stroke-width="3"/>
+      <circle cx="${tx}" cy="${ty}" r="9" fill="#B3261E"/><text x="${tx}" y="${ty + 4}" text-anchor="middle" font-family="Arial" font-weight="700" font-size="12" fill="#fff">${m.n}</text></g>`; }).join('');
+}
+function amSvg(v, marks, only, extra){
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${AM_BOX[v]}" ${extra || ''}>${AM_ART[v]()}${amMarksSvg((marks || []).filter(m => m.v === v), only)}</svg>`;
+}
+/* an SVG view as a PNG (for the PDF) */
+function amPng(v, marks, only, w){
+  return new Promise(res => {
+    const box = AM_BOX[v].split(' ').map(Number), W = w || 900, H = Math.round(W * box[3] / box[2]);
+    const img = new Image();
+    img.onload = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(img, 0, 0, W, H); res({ data: c.toDataURL('image/jpeg', 0.85), w: W, h: H }); };
+    img.onerror = () => res(null);
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(amSvg(v, marks, only, `width="${W}" height="${H}"`));
+  });
+}
+/* pictures: shrink before sending (long side 1600px, JPEG) */
+function amReadFile(file){
+  return new Promise((res, rej) => {
+    if (!file) return res(null);
+    if (file.size > 12 * 1024 * 1024) return rej(new Error(file.name + ' is over 12 MB.'));
+    const r = new FileReader();
+    r.onerror = () => rej(new Error('Could not read ' + file.name));
+    r.onload = () => {
+      if (/pdf/i.test(file.type)) return res({ name: file.name, mime: 'application/pdf', data: r.result });
+      const img = new Image();
+      img.onload = () => { const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height); res({ name: file.name, mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.82), w: c.width, h: c.height }); };
+      img.onerror = () => rej(new Error(file.name + ' is not a picture this phone can open.'));
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+const amImgSize = data => new Promise(res => { const i = new Image(); i.onload = () => res({ w: i.width, h: i.height }); i.onerror = () => res({ w: 1, h: 1 }); i.src = data; });
+/* signature pad on a canvas; .data() is '' while empty */
+function amSigPad(cv){
+  const g = cv.getContext('2d'); let drawn = false, on = false, last = null;
+  const fit = () => { const r = cv.getBoundingClientRect(); cv.width = Math.max(10, Math.round(r.width * 2)); cv.height = Math.max(10, Math.round(r.height * 2));
+    g.lineWidth = 4.4; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#0F2A44'; drawn = false; };
+  const pt = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; };
+  cv.style.touchAction = 'none';
+  cv.onpointerdown = e => { on = true; last = pt(e); try { cv.setPointerCapture(e.pointerId); } catch(x) {} };
+  cv.onpointermove = e => { if (!on) return; const p = pt(e); g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(p.x, p.y); g.stroke(); last = p; drawn = true; };
+  cv.onpointerup = cv.onpointercancel = () => { on = false; };
+  setTimeout(fit, 0);
+  return { clear: fit, data: () => drawn ? cv.toDataURL('image/png') : '' };
+}
+const amMoney = n => 'S$ ' + (Number(n) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const amDmy = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '';
+const amCan = () => !!(S.am && S.am.canEdit);
+const amCon = id => (S.am.contractors || []).find(c => c.id === id) || null;
+const amTruck = id => (S.am.trucks || []).find(t => t.id === id) || null;
+const amSpendDate = r => r.invoiceDate || r.fixedOn || r.found || '';
+
+/* ---------- open the app ---------- */
+async function openAmmo(){
+  hubPush('ammo');
+  S.view = 'ammo'; S.amTab = S.amTab || 'fault';
+  $('#app').innerHTML = `<div class="appbar am-bar"><button id="app-home">&#8249; Home</button><b>AMMO TRUCK</b><span>${esc(S.me.name)}</span></div>
+    <div class="am-tabs" role="tablist">${[['fault','Fault list'],['rep','Repairs'],['con','Contractors'],['sum','Summary']].map(([k, l]) =>
+      `<button data-amt="${k}" aria-pressed="${S.amTab === k}">${l}${k === 'rep' ? '<em id="am-open" hidden></em>' : ''}</button>`).join('')}</div>
+    <main id="view" class="am"><div class="loading">Loading\u2026</div></main>`;
+  $('#app-home').onclick = () => renderHub();
+  document.querySelectorAll('[data-amt]').forEach(b => b.onclick = () => { S.amTab = b.dataset.amt;
+    document.querySelectorAll('[data-amt]').forEach(x => x.setAttribute('aria-pressed', x === b)); amDraw(); window.scrollTo(0, 0); });
+  try { S.am = await call('ammoGet', S.token); amDraw(); } catch(e){ V().innerHTML = `<div class="note red">${esc((e && e.message) || e)}</div>`; }
+}
+function amSet(d){ if (d) S.am = d; amDraw(); }
+function amDraw(){
+  if (S.view !== 'ammo' || !S.am) return;
+  const open = (S.am.repairs || []).filter(r => r.status === 'Open' || r.status === 'At contractor').length;
+  const b = $('#am-open'); if (b) { b.hidden = !open; b.textContent = open; }
+  ({ fault: amFaultTab, rep: amRepTab, con: amConTab, sum: amSumTab })[S.amTab]();
+}
+
+/* ---------- Fault list tab: new fault list + past ones ---------- */
+function amDraft(){
+  if (!S.amF) {
+    let saved = null; try { saved = JSON.parse(localStorage.getItem('rdp_ammo_draft') || 'null'); } catch(e) {}
+    const now = new Date();
+    S.amF = saved && saved.date ? saved : { date: S.today, time: String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0'), truckId: '', mileage: '', condition: '', remarks: '', marks: [], ackBy: '' };
+  }
+  return S.amF;
+}
+function amKeep(){ try { localStorage.setItem('rdp_ammo_draft', JSON.stringify(S.amF)); } catch(e) {} }
+function amFaultTab(){
+  const f = amDraft(), d = S.am, can = amCan();
+  const trucks = d.trucks.filter(t => t.active || t.id === f.truckId);
+  if (!f.truckId && trucks.length === 1) f.truckId = trucks[0].id;
+  const nMarks = v => f.marks.filter(m => m.v === v).length;
+  V().innerHTML = `<h2 class="am-h">Ammo Truck Fault List</h2>
+    ${can ? `<p class="small muted" style="margin:-4px 0 10px">Tap a view to circle where the fault is, then describe each one in Remarks.</p>
+    <div class="sec"><div class="row2">
+      <label class="f"><span>Date</span><input type="date" id="af-d" value="${esc(f.date)}" max="${S.today}"></label>
+      <label class="f"><span>Time (24hrs)</span><input type="text" id="af-t" inputmode="numeric" maxlength="4" value="${esc(f.time)}"></label>
+      <label class="f"><span>Truck</span><select id="af-tk"><option value="">${trucks.length ? 'Pick the truck' : 'No truck yet'}</option>${trucks.map(t => `<option value="${esc(t.id)}" ${t.id === f.truckId ? 'selected' : ''}>${esc(t.plate)}${t.name ? ' (' + esc(t.name) + ')' : ''}</option>`).join('')}</select></label>
+      <label class="f"><span>Mileage (km)</span><input type="text" id="af-km" inputmode="numeric" value="${esc(f.mileage)}"></label>
+      <label class="f"><span>Checked by</span><input type="text" value="${esc(S.me.name)}" disabled></label>
+      <label class="f"><span>Truck condition</span><select id="af-cd">${AM_COND.map(c => `<option ${c === (f.condition || (f.marks.length ? 'Usable, with faults' : 'Usable')) ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+    </div>${trucks.length ? '' : '<p class="small" style="color:var(--flag);margin:0">Add your truck first: Contractors tab &rarr; Trucks &rarr; Add truck.</p>'}</div>
+    <div class="am-views">${AM_VIEWS.map(([v, l]) => `<button class="am-view${['left','right','top','bottom'].includes(v) ? ' wide' : ''}" data-amv="${v}"><span class="am-vh"><b>${l}</b>${nMarks(v) ? `<i>${nMarks(v)} circle${nMarks(v) === 1 ? '' : 's'}</i>` : ''}</span>${amSvg(v, f.marks)}</button>`).join('')}</div>
+    <div class="sec" style="margin-top:12px"><label class="f" style="margin:0"><span>Remarks (one line per circle)</span></label>
+      ${f.marks.length ? `<div class="am-chips">${f.marks.slice().sort((a, b) => a.n - b.n).map(m => `<b>${m.n} ${esc(AM_VNAME[m.v])}</b>`).join('')}</div>` : ''}
+      <textarea id="af-rm" class="am-rem" placeholder="1. Left rear tyre: tread worn&#10;2. ...">${esc(f.remarks)}</textarea></div>
+    <div class="sec"><div class="am-sigs">
+      <div><div class="f"><span>Checked by: ${esc(S.me.name)}</span></div><canvas class="am-sig" id="af-s1"></canvas><button class="linkbtn" id="af-s1x">Clear</button></div>
+      <div><div class="f"><span>Acknowledged by (Manager)</span></div><select id="af-ab" style="margin-bottom:6px"><option value="">Later (a manager signs it afterwards)</option>${(d.managers || []).map(n => `<option ${n === f.ackBy ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+        <canvas class="am-sig" id="af-s2"></canvas><button class="linkbtn" id="af-s2x">Clear</button></div></div></div>
+    <div class="am-acts"><button class="btn ghost" id="af-clr">Clear form</button><button class="btn go" id="af-go">Save fault list</button></div>
+    <p class="small muted">Saving makes a PDF in Drive (Ammo Truck &rarr; Fault Lists), and each circle becomes a repair in the Repairs tab.</p>` :
+    '<div class="note blue">View only.</div>'}
+    <h3 style="margin-top:22px">Past fault lists</h3>${amFaultRows()}`;
+  V().querySelectorAll('[data-amf]').forEach(b => b.onclick = () => amFaultView(b.dataset.amf));
+  if (!can) return;
+  const bind = (id, k, f2) => { const el = $(id); if (el) el.oninput = el.onchange = () => { f[k] = f2 ? f2(el.value) : el.value; amKeep(); }; };
+  bind('#af-d', 'date'); bind('#af-t', 'time', v => v.replace(/\D/g, '').slice(0, 4)); bind('#af-tk', 'truckId'); bind('#af-km', 'mileage'); bind('#af-cd', 'condition'); bind('#af-rm', 'remarks'); bind('#af-ab', 'ackBy');
+  V().querySelectorAll('[data-amv]').forEach(b => b.onclick = () => amEditView(b.dataset.amv));
+  const s1 = amSigPad($('#af-s1')), s2 = amSigPad($('#af-s2'));
+  $('#af-s1x').onclick = () => s1.clear(); $('#af-s2x').onclick = () => s2.clear();
+  $('#af-clr').onclick = async () => {
+    if (!(await askBox('Clear the form?', 'All circles and remarks on this form are removed.', 'Yes, clear'))) return;
+    S.amF = null; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {} amFaultTab();
+  };
+  $('#af-go').onclick = e => amSaveFault(e.target, s1, s2);
+}
+function amFaultRows(){
+  const L = S.am.faults || [];
+  if (!L.length) return '<p class="muted">None yet.</p>';
+  return `<div class="am-list">${L.slice(0, 60).map(x => { const n = (x.marks || []).length;
+    return `<button class="am-row" data-amf="${esc(x.id)}"><span><b>${esc(nice(x.date))}</b> &middot; ${esc(x.plate)}<small>Checked by ${esc(titleCase(x.checkedBy || ''))}${x.ackBy ? ' &middot; ack. ' + esc(titleCase(x.ackBy)) : ' &middot; <span style="color:var(--wait)">not acknowledged yet</span>'}</small></span>
+      <span class="pill ${n ? 'Rejected' : 'Approved'}">${n ? n + ' fault' + (n === 1 ? '' : 's') : 'No fault'}</span></button>`; }).join('')}</div>`;
+}
+/* full-screen editor for one view: drag around a spot to circle it, tap to drop a small circle, tap a circle to remove it */
+function amEditView(v){
+  const f = amDraft();
+  const bg = document.createElement('div'); bg.className = 'sheet-bg am-ed am-sh';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(AM_VNAME[v])}</h3>
+    <div class="src">Drag your finger around the fault to circle it, or tap the spot. Tap a circle to remove it.</div>
+    <div class="am-draw" id="ae-box">${amSvg(v, f.marks, null, 'id="ae-svg"')}</div>
+    <div class="acts"><button class="btn ghost" id="ae-u">Undo</button><button class="btn" id="ae-ok">Done</button></div></div>`;
+  document.body.appendChild(bg);
+  const redraw = () => { $('#ae-svg', bg).outerHTML = amSvg(v, f.marks, null, 'id="ae-svg"'); wire(); };
+  const toSvg = e => { const s = $('#ae-svg', bg), p = s.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(s.getScreenCTM().inverse()); };
+  function wire(){
+    const s = $('#ae-svg', bg); s.style.touchAction = 'none';
+    let pts = null, live = null, sx = 0, sy = 0;
+    s.onpointerdown = e => { pts = [toSvg(e)]; sx = e.clientX; sy = e.clientY; try { s.setPointerCapture(e.pointerId); } catch(x) {}
+      live = document.createElementNS('http://www.w3.org/2000/svg', 'polyline'); live.setAttribute('fill', 'none'); live.setAttribute('stroke', '#B3261E'); live.setAttribute('stroke-width', '2.5'); s.appendChild(live); };
+    s.onpointermove = e => { if (!pts) return; pts.push(toSvg(e)); live.setAttribute('points', pts.map(p => p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ')); };
+    s.onpointerup = async e => {
+      if (!pts) return; const P = pts; pts = null; if (live) live.remove();
+      const moved = Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 10;
+      if (!moved) {
+        const p = P[0], hit = f.marks.filter(m => m.v === v).find(m => Math.hypot(m.x - p.x, m.y - p.y) <= m.r + 6);
+        if (hit) { if (await askBox('Remove circle ' + hit.n + '?', 'Its line in Remarks stays; delete it there if it is no longer needed.', 'Yes, remove')) { f.marks = f.marks.filter(m => m !== hit); amKeep(); redraw(); } return; }
+        amAddMark(v, p.x, p.y, 14); redraw(); return;
+      }
+      const xs = P.map(p => p.x), ys = P.map(p => p.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      amAddMark(v, (x0 + x1) / 2, (y0 + y1) / 2, Math.max(10, Math.min(90, Math.max(x1 - x0, y1 - y0) / 2))); redraw();
+    };
+    s.onpointercancel = () => { pts = null; if (live) live.remove(); };
+  }
+  wire();
+  $('#ae-u', bg).onclick = () => { const mine = f.marks.filter(m => m.v === v); if (!mine.length) return; const last = mine.reduce((a, b) => a.n > b.n ? a : b); f.marks = f.marks.filter(m => m !== last); amKeep(); redraw(); };
+  const done = () => { bg.remove(); amFaultTab(); };
+  $('#ae-ok', bg).onclick = done;
+  bg.onclick = e => { if (e.target === bg) done(); };
+}
+function amAddMark(v, x, y, r){
+  const f = amDraft(), n = f.marks.reduce((a, m) => Math.max(a, m.n), 0) + 1;
+  f.marks.push({ n, v, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, r: Math.round(r * 10) / 10 });
+  const lines = String(f.remarks || '').split('\n');
+  if (!lines.some(l => new RegExp('^\\s*' + n + '\\s*[.):\\-]').test(l))) f.remarks = (f.remarks && !/\n$/.test(f.remarks) ? f.remarks + '\n' : (f.remarks || '')) + n + '. (' + AM_VNAME[v] + ') ';
+  if (!f.condition || f.condition === 'Usable') f.condition = 'Usable, with faults';
+  amKeep();
+}
+async function amSaveFault(btn, s1, s2){
+  const f = amDraft();
+  if (!f.truckId) return toast('Pick the truck.', true);
+  if (!/^([01]\d|2[0-3])[0-5]\d$/.test(f.time)) return toast('Key in the time as 24hrs, e.g. 0745.', true);
+  const sig1 = s1.data(), sig2 = s2.data();
+  if (!sig1) return toast('Sign in the "Checked by" box.', true);
+  if (sig2 && !f.ackBy) return toast('Pick the manager who signed.', true);
+  const missing = f.marks.filter(m => !new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(\\([^)]*\\))?\\s*\\S').test((f.remarks || '').split('\n').find(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]').test(l)) || ''));
+  const ok = await askBox('Save this fault list?', `<b>${esc((amTruck(f.truckId) || {}).plate || '')}</b>, ${esc(nice(f.date))}, ${f.marks.length ? f.marks.length + ' circled fault' + (f.marks.length === 1 ? '' : 's') : 'no fault circled'}.${missing.length ? `<br><span style="color:var(--flag)">No remarks yet for circle ${missing.map(m => m.n).join(', ')}.</span>` : ''}<br><span class="muted">A PDF is saved in Drive.</span>`, 'Yes, save');
+  if (!ok) return;
+  busy(btn, true);
+  try {
+    const x = { date: f.date, time: f.time, truckId: f.truckId, plate: (amTruck(f.truckId) || {}).plate, mileage: f.mileage, condition: f.condition || (f.marks.length ? 'Usable, with faults' : 'Usable'),
+      checkedBy: S.me.name, remarks: f.remarks, marks: f.marks, sigChecked: sig1, sigAck: sig2, ackBy: sig2 ? f.ackBy : '' };
+    x.pdf = await amFaultPdf(x, true);
+    const r = await call('ammoSaveFault', S.token, x);
+    S.amF = null; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {}
+    toast('Fault list saved' + (f.marks.length ? '; ' + f.marks.length + ' repair' + (f.marks.length === 1 ? '' : 's') + ' added' : ''));
+    amSet(r);
+  } catch(e){ busy(btn, false); fail(e); }
+}
+/* the fault list as a PDF (data URL); also used to share it again */
+async function amFaultPdf(x, asData){
+  await loadPdfLib();
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const M = 12, W = 210 - 2 * M;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('AMMO TRUCK FAULT LIST', M, 18);
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'normal');
+  const info = [['Date', amDmy(x.date) + (x.time ? ', ' + x.time + 'hrs' : '')], ['Truck', x.plate || ''], ['Mileage', x.mileage ? x.mileage + ' km' : '-'],
+    ['Condition', x.condition || ''], ['Checked by', titleCase(x.checkedBy || '')], ['Faults circled', String((x.marks || []).length)]];
+  info.forEach((p, i) => { const cx = M + (i % 3) * (W / 3), cy = 26 + Math.floor(i / 3) * 6; doc.setFont('helvetica', 'bold'); doc.text(p[0] + ':', cx, cy); doc.setFont('helvetica', 'normal'); doc.text(p[1], cx + 24, cy); });
+  let y = 40;
+  const put = async (v, X, Y, w) => { const im = await amPng(v, x.marks, null, 700); doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text(AM_VNAME[v].toUpperCase(), X, Y);
+    if (!im) return 0; const h = w * im.h / im.w; doc.addImage(im.data, 'JPEG', X, Y + 1.5, w, h, undefined, 'FAST'); doc.setDrawColor(210); doc.rect(X, Y + 1.5, w, h); return h + 6; };
+  const half = (W - 6) / 2;
+  let h1 = Math.max(await put('left', M, y, half), await put('right', M + half + 6, y, half)); y += h1 + 2;
+  const fw = half * 0.72;
+  h1 = Math.max(await put('front', M + (half - fw) / 2, y, fw), await put('rear', M + half + 6 + (half - fw) / 2, y, fw)); y += h1 + 2;
+  h1 = Math.max(await put('top', M, y, half), await put('bottom', M + half + 6, y, half)); y += h1 + 2;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.text('Remarks', M, y + 2); y += 6;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  const lines = doc.splitTextToSize(String(x.remarks || '-'), W);
+  lines.forEach(l => { if (y > 255) { doc.addPage(); y = 18; } doc.text(l, M, y); y += 5; });
+  if (y > 240) { doc.addPage(); y = 18; }
+  y += 4;
+  const sig = async (data, label, name, X) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.text(label, X, y);
+    doc.setDrawColor(180); doc.rect(X, y + 2, half, 26);
+    if (data) { const s = await amImgSize(data), hh = Math.min(24, half * s.h / s.w), ww = hh * s.w / s.h; doc.addImage(data, 'PNG', X + (half - ww) / 2, y + 3, ww, hh, undefined, 'FAST'); }
+    doc.setFont('helvetica', 'normal'); doc.text(name || '', X, y + 33); };
+  await sig(x.sigChecked, 'Checked by', titleCase(x.checkedBy || ''), M);
+  await sig(x.sigAck, 'Acknowledged by (Manager)', x.ackBy ? titleCase(x.ackBy) : 'Not acknowledged yet', M + half + 6);
+  doc.setFontSize(8); doc.setTextColor(120); doc.text('Made in the Range Deployment app, ' + nice(S.today), M, 290);
+  return asData ? doc.output('datauristring').replace(/^data:application\/pdf;[^,]*,/, 'data:application/pdf;base64,') : doc.output('blob');
+}
+async function amSharePdf(blob, name, btn){
+  const file = new File([blob], name, { type: 'application/pdf' });
+  if (btn) busy(btn, false);
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name.replace(/\.pdf$/, '') }); return; } catch (x) { if (x && x.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  toast('PDF saved (' + name + ').');
+}
+/* a saved fault list: views, remarks, signatures; share the PDF; a manager can acknowledge it */
+async function amFaultView(id){
+  const bg = document.createElement('div'); bg.className = 'sheet-bg am-sh';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="loading">Loading\u2026</div></div>`;
+  document.body.appendChild(bg);
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  let x;
+  try { x = await call('ammoFault', S.token, id); } catch(e){ bg.remove(); return fail(e); }
+  const reps = (S.am.repairs || []).filter(r => r.faultId === id).sort((a, b) => a.no - b.no);
+  const canAck = S.am.canAck && S.am.canEdit && !x.ackBy;
+  $('.sheet', bg).innerHTML = `<h3>${esc(x.plate)} &middot; ${esc(nice(x.date))}</h3>
+    <div class="src">${x.time ? esc(x.time) + 'hrs &middot; ' : ''}${x.mileage ? esc(x.mileage) + ' km &middot; ' : ''}${esc(x.condition)} &middot; checked by ${esc(titleCase(x.checkedBy))}</div>
+    <div class="am-views ro">${AM_VIEWS.filter(([v]) => (x.marks || []).some(m => m.v === v)).map(([v, l]) => `<div class="am-view${['left','right','top','bottom'].includes(v) ? ' wide' : ''}"><span class="am-vh"><b>${l}</b></span>${amSvg(v, x.marks)}</div>`).join('') || '<p class="muted">No fault circled.</p>'}</div>
+    ${x.remarks ? `<div class="sec" style="white-space:pre-wrap;margin-top:10px">${esc(x.remarks)}</div>` : ''}
+    ${reps.length ? `<div class="small" style="margin:8px 0">${reps.map(r => `<div>${r.no}. ${esc(r.fault)} &middot; <b>${esc(r.status)}</b></div>`).join('')}</div>` : ''}
+    <div class="am-sigs"><div><div class="f"><span>Checked by: ${esc(titleCase(x.checkedBy))}</span></div>${x.sigChecked ? `<img class="am-sigimg" src="${x.sigChecked}" alt="">` : ''}</div>
+      <div><div class="f"><span>Acknowledged by${x.ackBy ? ': ' + esc(titleCase(x.ackBy)) : ' (Manager)'}</span></div>${x.sigAck ? `<img class="am-sigimg" src="${x.sigAck}" alt="">` :
+        canAck ? `<select id="fv-ab" style="margin-bottom:6px">${(S.am.managers || []).map(n => `<option ${n === S.me.name ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select><canvas class="am-sig" id="fv-s"></canvas><button class="linkbtn" id="fv-sx">Clear</button>` : '<p class="muted small">Not acknowledged yet.</p>'}</div></div>
+    <div class="acts"><button class="btn ghost" id="fv-x">Close</button><button class="btn ghost" id="fv-pdf">Share PDF</button>${canAck ? '<button class="btn go" id="fv-ack">Acknowledge</button>' : ''}</div>`;
+  $('#fv-x', bg).onclick = () => bg.remove();
+  $('#fv-pdf', bg).onclick = async e => { busy(e.target, true); try { await amSharePdf(await amFaultPdf(x, false), amDmy(x.date).replace(/\//g, '-') + ' ' + x.plate + ' Fault List.pdf', e.target); } catch(err){ busy(e.target, false); fail(err); } };
+  if (canAck) {
+    const pad = amSigPad($('#fv-s', bg)); $('#fv-sx', bg).onclick = () => pad.clear();
+    $('#fv-ack', bg).onclick = async e => {
+      const sig = pad.data(); if (!sig) return toast('Sign in the box first.', true);
+      busy(e.target, true);
+      try { const who = $('#fv-ab', bg).value; const pdf = await amFaultPdf(Object.assign({}, x, { sigAck: sig, ackBy: who }), true);
+        const r = await call('ammoAck', S.token, id, who, sig, pdf); bg.remove(); toast('Acknowledged; the PDF in Drive is updated'); amSet(r); }
+      catch(err){ busy(e.target, false); fail(err); }
+    };
+  }
+}
+
+/* ---------- Repairs tab ---------- */
+function amRepTab(){
+  const d = S.am, fl = S.amRf = S.amRf || { truck: '', st: 'open' };
+  const all = (d.repairs || []).slice().sort((a, b) => a.found !== b.found ? (a.found < b.found ? 1 : -1) : a.faultId !== b.faultId ? (a.faultId < b.faultId ? 1 : -1) : a.no - b.no);
+  const L = all.filter(r => (!fl.truck || r.truckId === fl.truck) && (fl.st === 'all' || (fl.st === 'open' ? (r.status === 'Open' || r.status === 'At contractor') : r.status === fl.st)));
+  const pill = s => s === 'Open' ? 'Rejected' : s === 'At contractor' ? 'Pending' : s === 'Fixed' ? 'Approved' : 'Cancelled';
+  V().innerHTML = `<h2 class="am-h">Repairs</h2>
+    <div class="row2" style="margin-bottom:10px"><select id="ar-tk"><option value="">All trucks</option>${d.trucks.map(t => `<option value="${esc(t.id)}" ${t.id === fl.truck ? 'selected' : ''}>${esc(t.plate)}</option>`).join('')}</select>
+      <select id="ar-st">${[['open','Not fixed yet'],['Fixed','Fixed'],['Not needed','Not needed'],['all','All']].map(([k, l]) => `<option value="${k}" ${k === fl.st ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${L.length ? L.map(r => { const c = amCon(r.contractorId);
+      return `<div class="am-rep"><span class="am-num">${r.no}</span><div class="b"><div class="h"><b>${esc(r.fault)}</b><span class="pill ${pill(r.status)}">${esc(r.status)}</span></div>
+        <div class="small muted">${esc(r.plate)} &middot; ${esc(r.view)} &middot; found ${esc(nice(r.found))}</div>
+        <div class="small muted">${c ? esc(c.company) : 'No contractor yet'}${r.sentOn ? ' &middot; sent ' + esc(nice(r.sentOn)) : ''}${r.fixedOn && r.status === 'Fixed' ? ' &middot; fixed ' + esc(nice(r.fixedOn)) : ''}${r.total !== '' && r.total != null ? ' &middot; <b style="color:var(--ink)">' + amMoney(r.total) + '</b>' : ''}${(r.receipts || []).length ? ' &middot; ' + r.receipts.length + ' receipt file' + (r.receipts.length === 1 ? '' : 's') : ''}</div>
+        <div class="am-acts sm"><button class="btn ghost" data-are="${esc(r.id)}">${amCan() ? 'Open' : 'View'}</button>${amCan() && r.status !== 'Fixed' && r.status !== 'Not needed' ? `<button class="btn go" data-arx="${esc(r.id)}">Mark fixed</button>` : ''}</div></div></div>`; }).join('')
+      : `<p class="muted">${all.length ? 'Nothing here with these filters.' : 'No repairs yet. Circled faults on a saved fault list show up here.'}</p>`}`;
+  $('#ar-tk').onchange = e => { fl.truck = e.target.value; amRepTab(); };
+  $('#ar-st').onchange = e => { fl.st = e.target.value; amRepTab(); };
+  V().querySelectorAll('[data-are]').forEach(b => b.onclick = () => amRepEdit(b.dataset.are));
+  V().querySelectorAll('[data-arx]').forEach(b => b.onclick = () => amRepEdit(b.dataset.arx, 'Fixed'));
+}
+async function amRepEdit(id, setStatus){
+  const r0 = S.am.repairs.find(x => x.id === id); if (!r0) return;
+  const r = Object.assign({}, r0), can = amCan();
+  if (setStatus) { r.status = setStatus; if (!r.fixedOn) r.fixedOn = S.today; }
+  const cons = S.am.contractors.filter(c => c.active || c.id === r.contractorId);
+  let pics = (r0.receipts || []).map(x => Object.assign({}, x, { loading: /^image\//.test(x.mime) }));
+  const add = [];
+  const bg = document.createElement('div'); bg.className = 'sheet-bg am-sh';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Repair ${r.no}: ${esc(r.fault)}</h3>
+    <div class="src">${esc(r.plate)} &middot; ${esc(r.view)} &middot; found ${esc(nice(r.found))}</div>
+    <fieldset ${can ? '' : 'disabled'} style="border:0;padding:0;margin:0">
+    <div class="am-thumb">${amSvg(AM_VIEWS.find(([, l]) => l === r.view) ? AM_VIEWS.find(([, l]) => l === r.view)[0] : 'left', ((S.am.faults.find(f => f.id === r.faultId) || {}).marks || []), r.no)}</div>
+    <label class="f"><span>Fault</span><input id="re-ft" value="${esc(r.fault)}"></label>
+    <div class="row2"><label class="f"><span>Contractor</span><select id="re-c"><option value="">${cons.length ? 'Pick' : 'None yet (add in Contractors)'}</option>${cons.map(c => `<option value="${esc(c.id)}" ${c.id === r.contractorId ? 'selected' : ''}>${esc(c.company)}</option>`).join('')}</select></label>
+      <label class="f"><span>Status</span><select id="re-s">${AM_STATUS.map(s => `<option ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+      <label class="f"><span>Sent on</span><input type="date" id="re-so" value="${esc(r.sentOn || '')}"></label>
+      <label class="f"><span>Fixed on</span><input type="date" id="re-fo" value="${esc(r.fixedOn || '')}"></label></div>
+    <label class="f"><span>Work done</span><input id="re-w" value="${esc(r.workDone || '')}" placeholder="e.g. Changed left rear tyre"></label>
+    <div class="f"><span>Receipt</span></div>
+    <div class="am-tot"><span>Total amount</span><b id="re-tot">${amMoney(r.total)}</b></div>
+    <div class="row2"><label class="f"><span>Invoice / receipt no.</span><input id="re-in" value="${esc(r.invoiceNo || '')}"></label>
+      <label class="f"><span>Invoice date</span><input type="date" id="re-id" value="${esc(r.invoiceDate || '')}"></label></div>
+    <div class="am-3"><label class="f"><span>Before GST (S$)</span><input type="number" step="0.01" min="0" id="re-n" value="${esc(r.net === '' || r.net == null ? '' : r.net)}"></label>
+      <label class="f"><span>GST %</span><input type="number" step="0.01" min="0" max="100" id="re-p" value="${esc(r.pct === '' || r.pct == null ? 9 : r.pct)}"><small>0 if not GST registered</small></label>
+      <label class="f"><span>GST (S$)</span><input id="re-g" readonly value="${esc(r.gst === '' || r.gst == null ? '' : Number(r.gst).toFixed(2))}"><small>Worked out</small></label></div>
+    <div class="f"><span>Pictures of the receipt</span></div><div class="am-pics" id="re-pics"></div>
+    ${can ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px"><label class="btn ghost sm am-file">Take photo<input type="file" accept="image/*" capture="environment" id="re-cam" hidden></label>
+      <label class="btn ghost sm am-file">Upload picture / PDF<input type="file" accept="image/*,application/pdf" multiple id="re-up" hidden></label></div>
+      <p class="small muted" style="margin:0 0 6px">Saved in Drive: Ammo Truck &rarr; Receipts &rarr; ${esc(r.plate)}. When it is Fixed, a repair PDF goes into Ammo Truck &rarr; Repairs.</p>` : ''}
+    </fieldset>
+    <div class="acts"><button class="btn ghost" id="re-x">${can ? 'Cancel' : 'Close'}</button>${r0.status === 'Fixed' ? '<button class="btn ghost" id="re-pdf">Share PDF</button>' : ''}${can ? '<button class="btn" id="re-ok">Save</button>' : ''}</div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#re-x', bg).onclick = close;
+  bg.onclick = e => { if (e.target === bg) close(); };
+  const calc = () => { const n = Number($('#re-n', bg).value), p = Number($('#re-p', bg).value) || 0;
+    if ($('#re-n', bg).value === '') { $('#re-g', bg).value = ''; $('#re-tot', bg).textContent = amMoney(0); return; }
+    const g = Math.round(n * p) / 100; $('#re-g', bg).value = g.toFixed(2); $('#re-tot', bg).textContent = amMoney(n + g); };
+  ['#re-n', '#re-p'].forEach(s => { $(s, bg).oninput = calc; });
+  const drawPics = () => { $('#re-pics', bg).innerHTML = pics.concat(add).map((p, i) => `<div class="am-pic">${p.data ? `<img src="${p.data}" alt="">` : p.loading ? '<span>Loading\u2026</span>' : `<a href="${esc(p.url || '#')}" target="_blank" rel="noopener">PDF</a>`}
+      ${can ? `<button data-rpx="${i}" aria-label="Remove">\u00d7</button>` : ''}</div>`).join('') || '<p class="muted small" style="margin:0">No pictures yet.</p>';
+    bg.querySelectorAll('[data-rpx]').forEach(b => b.onclick = () => { const i = +b.dataset.rpx; if (i < pics.length) pics.splice(i, 1); else add.splice(i - pics.length, 1); drawPics(); }); };
+  drawPics();
+  if (pics.some(p => p.loading)) call('ammoReceipts', S.token, id).then(list => { pics = pics.map(p => Object.assign(p, { loading: false }, (list || []).find(x => x.id === p.id) || {})); drawPics(); }).catch(() => { pics.forEach(p => { p.loading = false; }); drawPics(); });
+  const onFiles = async e => { try { for (const fl of [...e.target.files]) { const x = await amReadFile(fl); if (x) add.push(x); } drawPics(); } catch(err){ fail(err); } e.target.value = ''; };
+  if ($('#re-cam', bg)) { $('#re-cam', bg).onchange = onFiles; $('#re-up', bg).onchange = onFiles; }
+  const val = () => ({ id, fault: $('#re-ft', bg).value.trim(), contractorId: $('#re-c', bg).value, status: $('#re-s', bg).value, sentOn: $('#re-so', bg).value, fixedOn: $('#re-fo', bg).value,
+    workDone: $('#re-w', bg).value.trim(), invoiceNo: $('#re-in', bg).value.trim(), invoiceDate: $('#re-id', bg).value, net: $('#re-n', bg).value, pct: $('#re-p', bg).value });
+  if ($('#re-pdf', bg)) $('#re-pdf', bg).onclick = async e => { busy(e.target, true);
+    try { const v = Object.assign({}, r0); const imgs = pics.filter(p => p.data); await amSharePdf(await amRepPdf(v, imgs, pics.filter(p => !p.data).length, false), 'Repair ' + r0.no + ' ' + r0.plate + '.pdf', e.target); } catch(err){ busy(e.target, false); fail(err); } };
+  if ($('#re-ok', bg)) $('#re-ok', bg).onclick = async e => {
+    const v = val();
+    if (v.status === 'At contractor' && !v.contractorId) return toast('Pick the contractor it was sent to.', true);
+    if (v.net !== '' && !v.invoiceNo) return toast('Enter the invoice / receipt number.', true);
+    if (v.status === 'Fixed' && !v.fixedOn) v.fixedOn = S.today;
+    busy(e.target, true);
+    try {
+      const out = Object.assign({}, v, { keep: pics.map(p => p.id), add: add.map(a => ({ name: a.name, mime: a.mime, data: a.data })) });
+      if (v.status === 'Fixed') {
+        const n = v.net === '' ? '' : Number(v.net), p = Number(v.pct) || 0, g = n === '' ? '' : Math.round(n * p) / 100;
+        const full = Object.assign({}, r0, v, { net: n, gst: g, total: n === '' ? '' : n + g });
+        out.pdf = await amRepPdf(full, pics.filter(x => x.data).concat(add.filter(a => /^image\//.test(a.mime))), pics.filter(x => !x.data).length + add.filter(a => !/^image\//.test(a.mime)).length, true);
+      }
+      const res = await call('ammoSaveRepair', S.token, out);
+      close(); toast(v.status === 'Fixed' ? 'Saved; repair PDF is in Drive' : 'Saved'); amSet(res);
+    } catch(err){ busy(e.target, false); fail(err); }
+  };
+}
+/* one repair as a PDF: the fault with its circle, contractor, work, receipt amounts and receipt pictures */
+async function amRepPdf(r, imgs, pdfCount, asData){
+  await loadPdfLib();
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const M = 14, W = 210 - 2 * M; let y = 20;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('AMMO TRUCK REPAIR', M, y); y += 8;
+  doc.setFontSize(11); doc.text(r.plate + '  -  Repair ' + r.no + ': ' + r.fault, M, y, { maxWidth: W }); y += 8;
+  const rows = (title, list) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.text(title, M, y); y += 5.5; doc.setFontSize(9.5);
+    list.filter(p => p[1]).forEach(p => { doc.setFont('helvetica', 'bold'); doc.text(p[0], M, y); doc.setFont('helvetica', 'normal'); const t = doc.splitTextToSize(String(p[1]), W - 42); doc.text(t, M + 42, y); y += 5 * t.length; }); y += 3; };
+  const f = (S.am.faults || []).find(x => x.id === r.faultId) || {};
+  rows('Fault', [['Found', amDmy(r.found) + (f.checkedBy ? ' by ' + titleCase(f.checkedBy) : '')], ['Where', r.view], ['Status', r.status], ['Sent on', amDmy(r.sentOn)], ['Fixed on', amDmy(r.fixedOn)], ['Work done', r.workDone]]);
+  const vk = (AM_VIEWS.find(([, l]) => l === r.view) || ['left'])[0];
+  const im = await amPng(vk, f.marks || [], r.no, 700);
+  if (im) { const w = vk === 'front' || vk === 'rear' ? 70 : 110, h = w * im.h / im.w; doc.addImage(im.data, 'JPEG', M, y, w, h, undefined, 'FAST'); doc.setDrawColor(210); doc.rect(M, y, w, h); y += h + 6; }
+  const c = amCon(r.contractorId) || {};
+  rows('Contractor', [['Company', c.company || '-'], ['Trade', c.trade], ['Contact', [c.contact, c.phone].filter(Boolean).join(', ')], ['Email', c.email], ['UEN no.', c.uen], ['GST reg. no.', c.gstNo], ['Address', c.address]]);
+  if (y > 230) { doc.addPage(); y = 20; }
+  rows('Receipt', [['Invoice no.', r.invoiceNo || '-'], ['Invoice date', amDmy(r.invoiceDate)], ['Before GST', r.net === '' || r.net == null ? '' : amMoney(r.net)],
+    ['GST', r.net === '' || r.net == null ? '' : amMoney(r.gst) + ' (' + (Number(r.pct) || 0) + '%)'], ['Total', r.total === '' || r.total == null ? '' : amMoney(r.total)], ['Other files', pdfCount ? pdfCount + ' PDF receipt(s) saved in Drive' : '']]);
+  for (const p of imgs) {
+    const s = p.w ? p : await amImgSize(p.data);
+    doc.addPage(); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.text('Receipt: ' + (r.invoiceNo || ''), M, 16);
+    const mw = W, mh = 260, k = Math.min(mw / s.w, mh / s.h), w = s.w * k, h = s.h * k;
+    doc.addImage(p.data, /png/i.test(p.data.slice(0, 30)) ? 'PNG' : 'JPEG', M + (mw - w) / 2, 22, w, h, undefined, 'FAST');
+  }
+  doc.setPage(1); doc.setFontSize(8); doc.setTextColor(120); doc.text('Made in the Range Deployment app, ' + nice(S.today), M, 290);
+  return asData ? doc.output('datauristring').replace(/^data:application\/pdf;[^,]*,/, 'data:application/pdf;base64,') : doc.output('blob');
+}
+
+/* ---------- Contractors (and trucks) tab ---------- */
+function amConTab(){
+  const d = S.am, yr = S.today.slice(0, 4), can = amCan();
+  const spend = id => (d.repairs || []).filter(r => r.contractorId === id && amSpendDate(r).slice(0, 4) === yr).reduce((a, r) => a + (Number(r.total) || 0), 0);
+  const count = id => (d.repairs || []).filter(r => r.contractorId === id).length;
+  V().innerHTML = `<div class="am-hrow"><h2 class="am-h">Contractors</h2>${can ? '<button class="btn sm" id="ac-add">+ Add contractor</button>' : ''}</div>
+    ${d.contractors.length ? d.contractors.slice().sort((a, b) => (b.active - a.active) || (a.company < b.company ? -1 : 1)).map(c => `<div class="sec am-con${c.active ? '' : ' off'}">
+      <div class="h"><div><b>${esc(c.company)}</b>${c.trade ? `<div class="small muted">${esc(c.trade)}</div>` : ''}</div><span class="pill ${c.active ? 'Approved' : 'Cancelled'}">${c.active ? 'Active' : 'Inactive'}</span></div>
+      <dl>${[['Contact', [c.contact, c.phone].filter(Boolean).join(' \u00b7 ')], ['Email', c.email], ['UEN no.', c.uen], ['GST reg. no.', c.gstNo], ['Address', c.address], ['Notes', c.notes]].filter(p => p[1]).map(p => `<dt>${p[0]}</dt><dd>${esc(p[1])}</dd>`).join('')}</dl>
+      <div class="am-cs"><span>Repairs <b>${count(c.id)}</b></span><span>Spent in ${yr} <b>${amMoney(spend(c.id))}</b></span>${can ? `<button class="linkbtn" data-ace="${esc(c.id)}">Edit</button>` : ''}</div></div>`).join('')
+      : '<p class="muted">No contractors yet.</p>'}
+    <div class="am-hrow" style="margin-top:22px"><h2 class="am-h">Trucks</h2>${can ? '<button class="btn sm" id="at-add">+ Add truck</button>' : ''}</div>
+    ${d.trucks.length ? `<div class="am-list">${d.trucks.map(t => `<div class="am-row"><span><b>${esc(t.plate)}</b>${t.name ? ' &middot; ' + esc(t.name) : ''}${t.notes ? `<small>${esc(t.notes)}</small>` : ''}</span>
+      <span>${t.active ? '' : '<span class="pill Cancelled">Not in use</span> '}${can ? `<button class="linkbtn" data-ate="${esc(t.id)}">Edit</button>` : ''}</span></div>`).join('')}</div>` : '<p class="muted">No trucks yet.</p>'}`;
+  if (!can) return;
+  $('#ac-add').onclick = () => amConEdit();
+  $('#at-add').onclick = () => amTruckEdit();
+  V().querySelectorAll('[data-ace]').forEach(b => b.onclick = () => amConEdit(b.dataset.ace));
+  V().querySelectorAll('[data-ate]').forEach(b => b.onclick = () => amTruckEdit(b.dataset.ate));
+}
+function amConEdit(id){
+  const c = id ? amCon(id) : null, v = c || { company:'', trade:'', contact:'', phone:'', email:'', address:'', uen:'', gstNo:'', notes:'', active:true };
+  const bg = document.createElement('div'); bg.className = 'sheet-bg am-sh';
+  const inp = (k, l, ph) => `<label class="f"><span>${l}</span><input id="ce-${k}" value="${esc(v[k] || '')}" ${ph ? `placeholder="${ph}"` : ''}></label>`;
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${c ? 'Edit contractor' : 'Add contractor'}</h3>
+    <div class="src">${c ? 'Changes apply to their repairs too.' : 'They will appear in the contractor list of each repair.'}</div>
+    <div class="row2">${inp('company', 'Company name *')}${inp('trade', 'Trade', 'e.g. Tyres, panel beating')}${inp('contact', 'Contact person')}${inp('phone', 'Phone')}${inp('uen', 'UEN no.', 'e.g. 23968100B')}${inp('gstNo', 'GST reg. no.', 'e.g. M90362230G')}</div>
+    ${inp('email', 'Email')}${inp('address', 'Address')}
+    <label class="f"><span>Notes</span><textarea id="ce-notes" placeholder="Contract period, response time, rates.">${esc(v.notes || '')}</textarea></label>
+    <label class="f"><span>Status</span><select id="ce-active"><option value="1" ${v.active ? 'selected' : ''}>Active: can be given repairs</option><option value="0" ${v.active ? '' : 'selected'}>Inactive: records kept, no new repairs</option></select></label>
+    <div class="acts"><button class="btn ghost" id="ce-x">Cancel</button><button class="btn" id="ce-ok">${c ? 'Save' : 'Add contractor'}</button></div></div>`;
+  document.body.appendChild(bg);
+  $('#ce-x', bg).onclick = () => bg.remove();
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  $('#ce-ok', bg).onclick = async e => {
+    const g = k => $('#ce-' + k, bg).value;
+    if (!g('company').trim()) return toast('Enter the company name.', true);
+    busy(e.target, true);
+    try { const r = await call('ammoSaveContractor', S.token, { id: id || '', company: g('company'), trade: g('trade'), contact: g('contact'), phone: g('phone'), uen: g('uen'), gstNo: g('gstNo'),
+        email: g('email'), address: g('address'), notes: g('notes'), active: g('active') === '1' });
+      bg.remove(); toast(c ? 'Contractor saved' : 'Contractor added'); amSet(r); }
+    catch(err){ busy(e.target, false); fail(err); }
+  };
+}
+function amTruckEdit(id){
+  const t = id ? amTruck(id) : null, v = t || { plate:'', name:'', notes:'', active:true };
+  const bg = document.createElement('div'); bg.className = 'sheet-bg am-sh';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${t ? 'Edit truck' : 'Add truck'}</h3>
+    <div class="row2"><label class="f"><span>Plate number *</span><input id="te-p" value="${esc(v.plate)}" placeholder="e.g. SMM1234A"></label>
+      <label class="f"><span>Name (optional)</span><input id="te-n" value="${esc(v.name)}" placeholder="e.g. Ammo Truck 1"></label></div>
+    <label class="f"><span>Notes</span><input id="te-no" value="${esc(v.notes || '')}"></label>
+    <label class="f"><span>In use?</span><select id="te-a"><option value="1" ${v.active ? 'selected' : ''}>Yes</option><option value="0" ${v.active ? '' : 'selected'}>No (kept in the records)</option></select></label>
+    <div class="acts"><button class="btn ghost" id="tk-x">Cancel</button><button class="btn" id="tk-ok">${t ? 'Save' : 'Add truck'}</button></div></div>`;
+  document.body.appendChild(bg);
+  $('#tk-x', bg).onclick = () => bg.remove();
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  $('#tk-ok', bg).onclick = async e => {
+    if (!$('#te-p', bg).value.trim()) return toast('Enter the plate number.', true);
+    busy(e.target, true);
+    try { const r = await call('ammoSaveTruck', S.token, { id: id || '', plate: $('#te-p', bg).value, name: $('#te-n', bg).value, notes: $('#te-no', bg).value, active: $('#te-a', bg).value === '1' });
+      bg.remove(); toast(t ? 'Truck saved' : 'Truck added'); amSet(r); }
+    catch(err){ busy(e.target, false); fail(err); }
+  };
+}
+
+/* ---------- Summary tab: monthly repair spend for a year ---------- */
+function amSumData(yr){
+  const reps = (S.am.repairs || []).filter(r => r.total !== '' && r.total != null && amSpendDate(r).slice(0, 4) === yr);
+  const month = AM_MON.map((m, i) => { const L = reps.filter(r => Number(amSpendDate(r).slice(5, 7)) === i + 1); return { m, i, total: L.reduce((a, r) => a + (Number(r.total) || 0), 0), list: L }; });
+  const by = key => { const o = {}; reps.forEach(r => { const k = key(r); o[k] = (o[k] || 0) + (Number(r.total) || 0); }); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
+  return { yr, reps, month, total: month.reduce((a, m) => a + m.total, 0),
+    byCon: by(r => (amCon(r.contractorId) || {}).company || 'No contractor'), byTruck: by(r => r.plate || '-'),
+    count: (S.am.repairs || []).filter(r => (r.found || '').slice(0, 4) === yr).length,
+    open: (S.am.repairs || []).filter(r => r.status === 'Open' || r.status === 'At contractor').length };
+}
+function amSumTab(){
+  const years = [...new Set((S.am.repairs || []).map(r => amSpendDate(r).slice(0, 4)).filter(Boolean).concat([S.today.slice(0, 4)]))].sort().reverse();
+  const yr = S.amYr && years.includes(S.amYr) ? S.amYr : years[0]; S.amYr = yr;
+  const D = amSumData(yr), mx = Math.max(...D.month.map(m => m.total), 0);
+  const step = mx <= 300 ? 100 : mx <= 600 ? 200 : mx <= 1500 ? 500 : mx <= 3000 ? 1000 : Math.ceil(mx / 4 / 1000) * 1000;
+  const top = Math.max(step, Math.ceil(mx / step) * step), H = 150, x0 = 40, bw = 21, gap = 5.5;
+  const sel = S.amMon == null ? null : S.amMon;
+  const bars = D.month.map((m, i) => { const h = m.total / top * H, x = x0 + i * (bw + gap); const r = Math.min(4, h);
+    return `<g class="am-bar${sel === i ? ' on' : ''}" data-amm="${i}"><rect x="${x - gap / 2}" y="8" width="${bw + gap}" height="${H + 22}" fill="transparent"/>
+      ${m.total > 0 ? `<path d="M${x},${158} V${158 - h + r} Q${x},${158 - h} ${x + r},${158 - h} H${x + bw - r} Q${x + bw},${158 - h} ${x + bw},${158 - h + r} V158 Z"/>` : ''}
+      <text x="${x + bw / 2}" y="174" text-anchor="middle">${m.m[0]}</text></g>`; }).join('');
+  const grid = [0, 1, 2, 3].map(k => { const v = top / 3 * k, yy = 158 - v / top * H; return `<line x1="${x0 - 4}" x2="352" y1="${yy}" y2="${yy}" stroke="${k ? '#E4E8E3' : '#9AA6B2'}"/><text x="${x0 - 8}" y="${yy + 4}" text-anchor="end">${Math.round(v)}</text>`; }).join('');
+  const best = D.month.reduce((a, m) => m.total > a.total ? m : a, D.month[0]);
+  const cur = yr === S.today.slice(0, 4) ? D.month[Number(S.today.slice(5, 7)) - 1] : null;
+  V().innerHTML = `<div class="am-hrow"><h2 class="am-h">Summary</h2><select id="as-y">${years.map(y => `<option ${y === yr ? 'selected' : ''}>${y}</option>`).join('')}</select></div>
+    <div class="am-kpi"><div><b>S$ ${Math.round(D.total).toLocaleString('en-SG')}</b><span>Spent in ${yr}</span></div><div><b>${D.count}</b><span>Repairs found in ${yr}</span></div><div><b>${D.open}</b><span>Not fixed yet</span></div></div>
+    <div class="sec"><h3 style="margin:0">Monthly repair spend, ${yr}</h3><div class="small muted">Receipt totals (with GST), by invoice month. Tap a bar for that month's repairs.</div>
+      <svg class="am-chart" viewBox="0 0 360 184" role="img" aria-label="Monthly repair spend ${yr}">${grid}${bars}</svg>
+      <div class="small" id="as-tip">${sel != null ? '' : (mx ? `Highest: <b>${best.m}, ${amMoney(best.total)}</b>${cur ? ' &middot; ' + cur.m + ' so far: <b>' + amMoney(cur.total) + '</b>' : ''}` : 'No receipts entered for ' + yr + ' yet.')}</div>
+      ${sel != null ? `<div class="am-msel"><b>${AM_MON[sel]} ${yr}: ${amMoney(D.month[sel].total)}</b>${D.month[sel].list.map(r => `<div>${esc(r.plate)} &middot; ${r.no}. ${esc(r.fault)} &middot; ${esc((amCon(r.contractorId) || {}).company || '')} &middot; <b>${amMoney(r.total)}</b></div>`).join('') || '<div class="muted">No repairs paid this month.</div>'}</div>` : ''}
+      <div style="margin-top:8px"><button class="linkbtn" id="as-tb">${S.amTable ? 'Hide table' : 'Table view'}</button></div>
+      ${S.amTable ? `<table class="t" style="margin-top:6px"><tr><th>Month</th><th style="text-align:right">Repairs</th><th style="text-align:right">Spent</th></tr>${D.month.map(m => `<tr><td>${m.m}</td><td style="text-align:right">${m.list.length}</td><td style="text-align:right">${amMoney(m.total)}</td></tr>`).join('')}<tr><th>Total</th><th style="text-align:right">${D.reps.length}</th><th style="text-align:right">${amMoney(D.total)}</th></tr></table>` : ''}</div>
+    <div class="sec"><h3 style="margin:0 0 4px">By contractor, ${yr}</h3>${D.byCon.length ? D.byCon.map(([k, v]) => `<div class="am-kv"><span>${esc(k)}</span><b>${amMoney(v)}</b></div>`).join('') : '<p class="muted small">Nothing yet.</p>'}</div>
+    <div class="sec"><h3 style="margin:0 0 4px">By truck, ${yr}</h3>${D.byTruck.length ? D.byTruck.map(([k, v]) => `<div class="am-kv"><span>${esc(k)}</span><b>${amMoney(v)}</b></div>`).join('') : '<p class="muted small">Nothing yet.</p>'}</div>
+    <button class="btn ghost block" id="as-pdf">Share as PDF</button>`;
+  $('#as-y').onchange = e => { S.amYr = e.target.value; S.amMon = null; amSumTab(); };
+  $('#as-tb').onclick = () => { S.amTable = !S.amTable; amSumTab(); };
+  V().querySelectorAll('[data-amm]').forEach(g => g.onclick = () => { const i = +g.dataset.amm; S.amMon = S.amMon === i ? null : i; amSumTab(); });
+  $('#as-pdf').onclick = async e => { busy(e.target, true); try { await amSharePdf(await amSumPdf(D), 'Ammo Truck repair spend ' + yr + '.pdf', e.target); } catch(err){ busy(e.target, false); fail(err); } };
+}
+async function amSumPdf(D){
+  await loadPdfLib();
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' }), M = 16, W = 210 - 2 * M;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('AMMO TRUCK REPAIR SPEND ' + D.yr, M, 20);
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text('Total ' + amMoney(D.total) + '  |  ' + D.reps.length + ' repairs paid  |  made ' + nice(S.today), M, 27);
+  const mx = Math.max(...D.month.map(m => m.total), 1), cy = 100, ch = 60, bw = W / 12 - 3;
+  doc.setDrawColor(154, 166, 178); doc.line(M, cy, M + W, cy);
+  D.month.forEach((m, i) => { const h = m.total / mx * ch, x = M + i * (W / 12) + 1.5;
+    if (h > 0) { doc.setFillColor(44, 83, 120); doc.rect(x, cy - h, bw, h, 'F'); doc.setFontSize(7); doc.setTextColor(23, 33, 43); doc.text(String(Math.round(m.total)), x + bw / 2, cy - h - 1.5, { align: 'center' }); }
+    doc.setFontSize(8); doc.setTextColor(91, 104, 116); doc.text(m.m, x + bw / 2, cy + 5, { align: 'center' }); });
+  doc.setTextColor(23, 33, 43);
+  let y = cy + 16;
+  const table = (title, list) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(title, M, y); y += 6; doc.setFontSize(9.5);
+    list.forEach(([k, v]) => { if (y > 280) { doc.addPage(); y = 20; } doc.setFont('helvetica', 'normal'); doc.text(String(k), M, y); doc.text(amMoney(v), M + W, y, { align: 'right' }); y += 5.5; }); y += 4; };
+  table('By month', D.month.map(m => [m.m + ' (' + m.list.length + ')', m.total]));
+  table('By contractor', D.byCon); table('By truck', D.byTruck);
+  return doc.output('blob');
+}
+
 /* Background refresh without jumping:
    - nothing is redrawn if the data on screen did not change
    - it waits until the finger is off the screen (no scroll / touch for 1s)
