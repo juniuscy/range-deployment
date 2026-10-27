@@ -2272,8 +2272,8 @@ $('#scrim').addEventListener('mousedown', e=>{ if(e.target.id==='scrim') closeMo
 /* ============================================================ Battery charging
    Lithium LiFePO4 batteries: each has a serial number and is tagged to one Movexx (it can be moved).
    Each battery is charged at least once a month (sometimes twice) on one of the chargers.
-   Every charge is signed by the person who charged it (its own signature); at the end of the month
-   a Manager / DY Manager verifies the month, then its PDF goes to Drive (Movexx PDFs / Battery Charging yyyy / "yyyy Mon.pdf"). */
+   Every charge is signed by the person who charged it (its own signature). A Manager / DY Manager verifies
+   each charge any time (one by one, or all waiting ones with one signature); once all are verified the PDF goes to Drive (Movexx PDFs / Battery Charging yyyy / "yyyy Mon.pdf"). */
 const BATT_MIN_VER = 7;
 const battOk = () => !!(DB.version && DB.version() >= BATT_MIN_VER);
 /* who is using the page: passed by the Range Deployment app (#who=NAME&role=ROLE), kept for this tab */
@@ -2305,6 +2305,10 @@ function battInit(){
   // 27 Oct 2026: a page left open from before the update cleared the battery lists. Put the starting list back once.
   if(state.seededBattery && !state.battRestored1 && !state.batteries.length && !state.chargers.length && !state.charges.length) state.seededBattery = false;
   state.battRestored1 = true;
+  // a month verified the old way (one signature for the month) -> every charge of that month carries it
+  state.battsign.forEach(sg=>{ if(!sg.verBy) return;
+    state.charges.forEach(c=>{ if(String(c.date||'').slice(0,7)===sg.month && !c.verBy){ c.verBy = sg.verBy; c.verAt = sg.verAt||''; c.verSig = sg.verSig||''; c.verKey = 'BATTSIGN-'+sg.month; } });
+    sg.verBy = ''; sg.verAt = ''; sg.verSig = ''; });
   if(state.seededBattery) return;
   state.seededBattery = true;
   if(!state.chargers.length) ['2321398','2321260'].forEach((sn,i)=>state.chargers.push({ id:nextId('charger','CHG'), serial:sn, name:'Charger '+(i+1), active:true }));
@@ -2328,7 +2332,7 @@ const shiftMonth = (m,n) => { const d = new Date(Number(m.slice(0,4)), Number(m.
 const hrsTxt = h => { const n = Number(h); return n ? (n===1?'1 hr':n+' hrs') : '—'; };
 const lastCharger = b => { const L = state.charges.filter(c=>c.batteryId===b.id).sort((x,y)=>String(y.date).localeCompare(String(x.date))); return L.length ? L[0].chargerId : ''; };
 const notCharged = m => activeBatts().filter(b=>!state.charges.some(c=>c.batteryId===b.id && String(c.date||'').slice(0,7)===m));
-const isLocked = m => { const s = signOf(m); return !!(s && s.verBy); };
+const isVer = c => !!(c && c.verBy);           // a verified charge can't be changed until a Manager / DY Manager undoes it
 const lastName = () => { try{ return localStorage.getItem('mmrc-batt-name')||''; }catch(e){ return ''; } };
 const keepName = n => { try{ localStorage.setItem('mmrc-batt-name', n); }catch(e){} };
 
@@ -2344,60 +2348,75 @@ function battView(){
 }
 
 function chargeMonth(){
-  const m = bMonth, L = monthCharges(m), miss = notCharged(m), all = activeBatts(), s = signOf(m), locked = isLocked(m);
+  const m = bMonth, L = monthCharges(m), miss = notCharged(m), all = activeBatts(), s = signOf(m);
   const months = [...new Set(state.charges.map(c=>String(c.date||'').slice(0,7)).filter(Boolean).concat([today().slice(0,7), m]))].sort().reverse();
   const done = all.length - miss.length, pct = all.length ? Math.round(done/all.length*100) : 0;
   const past = m < today().slice(0,7), unsigned = L.filter(c=>!c.sig).length;
-  if(L.some(c=>c.sig && !sigData[c.sig]) && !sigTried[m]) loadSigs(m);
-  const status = locked ? '<span class="pill ok"><i></i>Verified</span>' : '<span class="pill"><i></i>Open</span>';
+  if(L.some(c=>(c.sig && !sigData[c.sig]) || (c.verSig && !sigData[c.verSig])) && !sigTried[m]) loadSigs(m);
+  const nVer = L.filter(isVer).length, toVer = L.filter(c=>c.sig && !isVer(c));
+  const status = !L.length ? '' : nVer===L.length ? '<span class="pill ok"><i></i>All verified</span>' : '<span class="pill"><i></i>'+nVer+' of '+L.length+' verified</span>';
   const twice = {}; L.forEach(c=>{ twice[c.batteryId] = (twice[c.batteryId]||0)+1; });
   const seen = {};
   const sigCell = c => c.sig ? (sigData[c.sig] ? '<img class="bsigsm" src="'+sigData[c.sig]+'" alt="Signature of '+esc(c.by||'')+'">' : '<span class="hint">Loading…</span>')
-    : (locked ? '<span class="pill">Not signed</span>' : '<button class="btn small" data-bact="sign-charge" data-id="'+esc(c.id)+'">Sign</button>');
+    : '<button class="btn small" data-bact="sign-charge" data-id="'+esc(c.id)+'">Sign</button>';
+  const verCell = c => isVer(c)
+      ? '<div class="bby">'+esc(c.verBy)+'</div>'+(c.verSig ? (sigData[c.verSig] ? '<img class="bsigsm" src="'+sigData[c.verSig]+'" alt="Signature of '+esc(c.verBy)+'">' : '<span class="hint">Loading…</span>') : '') +
+        (isMgrB() ? '<button class="linkbtn" data-bact="unver" data-id="'+esc(c.id)+'" style="font-size:12px">Undo</button>' : '')
+    : !isMgrB() ? '<span class="pill">Not verified</span>'
+    : c.sig ? '<button class="btn small" data-bact="ver-one" data-id="'+esc(c.id)+'">Verify</button>'
+    : '<span class="hint" style="font-size:12px">Needs the charger\'s signature first</span>';
   const rows = L.map((c,i)=>{ seen[c.batteryId] = (seen[c.batteryId]||0)+1;
     return '<tr><td class="num">'+(i+1)+'</td><td class="money">'+esc(c.serial)+'</td><td>'+esc(unitShortB(c.unit))+'</td><td class="money">'+esc(c.charger||'—')+'</td>' +
       '<td>'+esc(fdate(c.date))+(twice[c.batteryId]>1?' <span class="pill info" style="padding:1px 7px">'+(seen[c.batteryId]===1?'1st':seen[c.batteryId]===2?'2nd':seen[c.batteryId]+'th')+'</span>':'')+'</td>' +
-      '<td>'+esc(hrsTxt(c.hours))+'</td><td><div class="bby">'+esc(c.by||'—')+'</div>'+sigCell(c)+'</td><td>'+esc(s && s.verBy ? s.verBy : '')+'</td>' +
-      '<td style="text-align:right;white-space:nowrap">'+(locked?'':'<button class="linkbtn" data-bact="edit-charge" data-id="'+esc(c.id)+'">Edit</button>')+'</td></tr>'; }).join('');
+      '<td>'+esc(hrsTxt(c.hours))+'</td><td><div class="bby">'+esc(c.by||'—')+'</div>'+sigCell(c)+'</td><td>'+verCell(c)+'</td>' +
+      '<td style="text-align:right;white-space:nowrap">'+(isVer(c)?'':'<button class="linkbtn" data-bact="edit-charge" data-id="'+esc(c.id)+'">Edit</button>')+'</td></tr>'; }).join('');
   return '<div class="card" style="padding:16px 18px;margin-bottom:14px">' +
       '<div class="row" style="justify-content:space-between">' +
         '<div class="row" style="gap:6px"><button class="btn ghost small" data-bact="month" data-id="-1" aria-label="Previous month">&lsaquo;</button>' +
           '<select id="b-month" style="width:auto;min-width:170px">'+months.map(x=>'<option value="'+x+'"'+(x===m?' selected':'')+'>'+monthLabel(x)+'</option>').join('')+'</select>' +
           '<button class="btn ghost small" data-bact="month" data-id="1" aria-label="Next month"'+(m>=today().slice(0,7)?' disabled':'')+'>&rsaquo;</button></div>' +
-        '<div class="row">'+status+(locked?'':'<button class="btn" data-bact="new-charge">Record a charge</button>')+'</div></div>' +
+        '<div class="row">'+status+'<button class="btn" data-bact="new-charge">Record a charge</button></div></div>' +
       '<div class="bprog"><div class="bprog-t"><b>'+done+' of '+all.length+'</b> batteries charged in '+esc(monthLabel(m))+(unsigned ? ' &middot; <span style="color:var(--warn)">'+unsigned+' not signed yet</span>' : '')+'</div><div class="bar"><i style="width:'+pct+'%"></i></div></div>' +
       (miss.length ? '<div class="bmiss'+(past?' hot':'')+'"><b>'+(past?'Not charged in '+esc(monthLabel(m))+':':'Not charged yet this month:')+'</b> ' +
-        miss.map(b=>'<button class="unitchip" data-bact="new-charge" data-id="'+esc(b.id)+'"'+(locked?' disabled':'')+'>'+esc(unitShortB(b.unit))+' &middot; '+esc(b.serial)+'</button>').join(' ')+'</div>'
+        miss.map(b=>'<button class="unitchip" data-bact="new-charge" data-id="'+esc(b.id)+'">'+esc(unitShortB(b.unit))+' &middot; '+esc(b.serial)+'</button>').join(' ')+'</div>'
         : (all.length ? '<div class="bmiss ok">Every battery has been charged this month.</div>' : '')) +
     '</div>' +
     (L.length ? '<div class="tbl-wrap"><table class="btab"><thead><tr><th class="num">S/N</th><th>Battery serial no.</th><th>T-1000</th><th>Charger #</th><th>Date of charging</th><th>Duration</th><th>Record by (signature)</th><th>Verified by</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
       : '<div class="empty" style="padding:34px 20px">'+glyph('doc')+'<h3>No charging recorded for '+esc(monthLabel(m))+'</h3><p>Each time a battery is charged, tap Record a charge and sign.</p></div>') +
-    signBlock(m, L) +
+    signBlock(m, L, toVer) +
     '<div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" data-bact="pdf" data-id="drive"'+(L.length?'':' disabled')+'>Save as PDF</button></div>' +
     '<p class="hint" style="text-align:right;margin-top:8px">'+(s && s.pdfUrl ? 'Last saved in Google Drive: <a href="'+esc(s.pdfUrl)+'" target="_blank" rel="noopener">'+esc(s.pdfName||'PDF')+'</a>'+(s.pdfAt ? ', '+esc(fdate(String(s.pdfAt).slice(0,10)))+' '+esc(ftime(s.pdfAt)) : '')+'<br>' : '') +
-      'Saves the month as a PDF in Google Drive (Movexx PDFs &rsaquo; Battery Charging '+esc(m.slice(0,4))+', file &ldquo;'+esc(m.slice(0,4)+' '+MONTH_NAMES[+m.slice(5,7)-1].slice(0,3))+'&rdquo;). Saving again replaces the older copy'+(locked ? '.' : '; it is also saved when the month is verified.')+'</p>';
+      'Saves the month as a PDF in Google Drive (Movexx PDFs &rsaquo; Battery Charging '+esc(m.slice(0,4))+', file &ldquo;'+esc(m.slice(0,4)+' '+MONTH_NAMES[+m.slice(5,7)-1].slice(0,3))+'&rdquo;). Saving again replaces the older copy; it is also saved when every charge of the month is verified.</p>';
 }
 
-function signBlock(m, L){
-  const s = signOf(m) || {};
-  if(s.verSig && !sigData[s.verSig] && !sigTried[m]) loadSigs(m);
-  const img = id => id ? (sigData[id] ? '<img class="bsigimg" src="'+sigData[id]+'" alt="Signature">' : '<div class="bsigimg load">Loading signature…</div>') : '';
-  const ver = s.verBy
-    ? '<div class="bsigname">'+esc(s.verBy)+'<small>'+esc(fdate(String(s.verAt||'').slice(0,10)))+'</small></div>'+img(s.verSig) +
-      (isMgrB() ? '<button class="linkbtn" data-bact="unsign" data-id="ver" style="font-size:12.5px;margin-top:6px">Reopen this month</button>' : '')
-    : !L.length ? '<p class="hint">At the end of the month a Manager / DY Manager verifies the charging record here.</p>'
-    : isMgrB() ? '<p class="hint" style="margin-bottom:8px">Sign at the end of the month, after checking every charge above.</p><div class="bsigname">'+esc(ME.name)+'<small>'+esc(ME.role)+'</small></div><canvas class="bsig" id="b-ver-pad"></canvas>' +
-          '<div class="row" style="justify-content:space-between;margin-top:6px"><button class="linkbtn" data-bact="clear-pad" data-id="b-ver-pad">Clear</button>' +
-          '<button class="btn small" data-bact="sign-ver">Verify '+esc(monthLabel(m))+'</button></div>'
-    : '<p class="hint">At the end of the month a Manager / DY Manager verifies it. They open Movexx from the Range Deployment app with their own login.</p>';
-  setTimeout(()=>{ const c = document.getElementById('b-ver-pad'); if(c && !c._pad) c._pad = sigPadB(c); },0);
-  return '<div class="bsign one"><div class="card"><h4>Verified by <small>Manager / DY Manager, end of the month</small></h4>'+ver+'</div></div>';
+function signBlock(m, L, toVer){
+  if(!L.length) return '';
+  const nVer = L.filter(isVer).length;
+  const body = isMgrB()
+    ? (toVer.length ? '<p class="hint" style="margin-bottom:10px">Tap <b>Verify</b> in the last column to sign one charge, or sign all '+toVer.length+' waiting charge'+(toVer.length===1?'':'s')+' at once. You can verify any time.</p>' +
+        '<button class="btn" data-bact="ver-all">Verify all '+toVer.length+' waiting</button>'
+      : '<p class="hint">'+(nVer===L.length ? 'Every charge this month is verified.' : 'Nothing waiting. Charges show a Verify button once the person who charged them has signed.')+'</p>')
+    : '<p class="hint">A Manager / DY Manager verifies each charge in the last column, any time. They open Movexx from the Range Deployment app with their own login.</p>';
+  return '<div class="bsign one"><div class="card"><h4>Verified by <small>Manager / DY Manager &middot; '+nVer+' of '+L.length+' verified</small></h4>'+body+'</div></div>';
+}
+/* sign once to verify one charge, or every waiting charge of the month */
+function verifyForm(ids){
+  const L = ids.map(id=>state.charges.find(c=>c.id===id)).filter(c=>c && c.sig && !isVer(c));
+  if(!L.length) return toast('Nothing to verify.');
+  if(!isMgrB()) return toast('Only a Manager / DY Manager can verify.');
+  openModal('<div class="modal-head"><div><h3>Verify '+(L.length===1 ? 'this charge' : L.length+' charges')+'</h3><p>Manager / DY Manager signature</p></div><button class="x" data-act="close" aria-label="Close">&times;</button></div>' +
+    '<div class="modal-body"><ul class="hint" style="margin:0 0 12px 18px;padding:0">'+L.map(c=>'<li>'+esc(unitShortB(c.unit))+' &middot; '+esc(c.serial)+' &middot; '+esc(fdate(c.date))+' &middot; '+esc(c.by||'')+'</li>').join('')+'</ul>' +
+      '<div class="bsigname">'+esc(ME.name)+'<small>'+esc(ME.role)+'</small></div><canvas class="bsig" id="b-ver-pad"></canvas>' +
+      '<button class="linkbtn" data-bact="clear-pad" data-id="b-ver-pad" style="font-size:13px;margin-top:6px">Clear</button></div>' +
+    '<div class="modal-foot"><button class="btn ghost" data-act="close">Cancel</button><button class="btn" data-bact="sign-ver" data-id="'+esc(L.map(c=>c.id).join(','))+'">Verify</button></div>');
+  setTimeout(()=>{ const c = document.getElementById('b-ver-pad'); if(c && !c._pad) c._pad = sigPadB(c); },30);
 }
 /* every signature of the month in one call */
 async function loadSigs(m){
   sigTried[m] = true;
-  const s = signOf(m), L = monthCharges(m).filter(c=>c.sig && !sigData[c.sig]);
-  const ids = L.map(c=>'BATTCHG-'+c.id).concat(s && s.verSig && !sigData[s.verSig] ? ['BATTSIGN-'+m] : []);
+  const M = monthCharges(m);
+  const ids = [...new Set(M.filter(c=>c.sig && !sigData[c.sig]).map(c=>'BATTCHG-'+c.id)
+    .concat(M.filter(c=>c.verSig && !sigData[c.verSig] && c.verKey).map(c=>c.verKey)))];
   if(!ids.length) return;
   try{ const out = await DB.getPhotosMany(ids); Object.keys(out||{}).forEach(k=>(out[k]||[]).forEach(p=>{ sigData[p.id] = p.data; })); }catch(e){ /* shown as loading */ }
   if(view==='battery' && bMonth===m && bSub==='charge') render();
@@ -2416,30 +2435,29 @@ function sigPadB(cv){
   return { clear: fit, data: ()=>{ if(!drawn) return ''; const k = Math.min(1, 420/cv.width), c = document.createElement('canvas'); c.width = Math.round(cv.width*k); c.height = Math.round(cv.height*k);
     const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(cv,0,0,c.width,c.height); return c.toDataURL('image/png'); } };
 }
-async function signMonth(){
-  const m = bMonth, pad = document.getElementById('b-ver-pad');
-  const data = pad && pad._pad ? pad._pad.data() : '';
+async function signVerify(idList){
+  const pad = document.getElementById('b-ver-pad'), data = pad && pad._pad ? pad._pad.data() : '';
   if(!isMgrB()) return toast('Only a Manager / DY Manager can verify.');
   if(!data) return toast('Sign in the box first.');
-  const L = monthCharges(m), miss = notCharged(m), uns = L.filter(c=>!c.sig);
-  const warn = [miss.length ? miss.length+' batter'+(miss.length===1?'y was':'ies were')+' not charged ('+miss.map(b=>unitShortB(b.unit)).join(', ')+')' : '',
-    uns.length ? uns.length+' charge'+(uns.length===1?' is':'s are')+' not signed' : ''].filter(Boolean);
-  if(warn.length && !confirm(monthLabel(m)+': '+warn.join('; ')+'.\n\nVerify the month anyway?')) return;
+  const L = String(idList||'').split(',').map(id=>state.charges.find(c=>c.id===id)).filter(c=>c && !isVer(c));
+  if(!L.length){ closeModal(); return; }
   const btn = document.querySelector('[data-bact="sign-ver"]'); if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
   try{
-    const out = await DB.putPhotos('BATTSIGN-'+m, [{ name:'verify-'+m+'.png', type:'image/png', data }]);
-    const id = out[0].id; sigData[id] = data;
-    let s = signOf(m); if(!s){ s = { id:m, month:m }; state.battsign.push(s); }
-    s.verBy = ME.name; s.verAt = new Date().toISOString(); s.verSig = id;
-    save(); render(); toast(monthLabel(m)+' verified. Saving the PDF to Drive…'); battPdf('drive');
-  }catch(err){ if(btn){ btn.disabled = false; btn.textContent = 'Verify '+monthLabel(m); } toast('Not saved: '+((err&&err.message)||err)); }
+    const key = 'BATTVER-'+Date.now().toString(36);
+    const out = await DB.putPhotos(key, [{ name:'verify.png', type:'image/png', data }]);
+    const id = out[0].id, at = new Date().toISOString(); sigData[id] = data;
+    L.forEach(c=>{ c.verBy = ME.name; c.verAt = at; c.verSig = id; c.verKey = key; });
+    save(); closeModal(); render();
+    const m = bMonth, all = monthCharges(m);
+    if(all.length && all.every(isVer)){ toast('Verified. Every charge of '+monthLabel(m)+' is verified, saving the PDF to Drive…'); battPdf('drive'); }
+    else toast(L.length===1 ? unitShortB(L[0].unit)+' verified.' : L.length+' charges verified.');
+  }catch(err){ if(btn){ btn.disabled = false; btn.textContent = 'Verify'; } toast('Not saved: '+((err&&err.message)||err)); }
 }
-async function unsign(){
-  const m = bMonth, s = signOf(m); if(!s) return;
-  if(!isMgrB()) return toast('Only a Manager / DY Manager can reopen a month.');
-  if(!confirm('Reopen '+monthLabel(m)+'? The verification is removed so the records can be changed. It needs to be verified again.')) return;
-  try{ await DB.dropPhotos('BATTSIGN-'+m); s.verBy = ''; s.verAt = ''; s.verSig = ''; save(); render(); toast(monthLabel(m)+' reopened.'); }
-  catch(err){ toast('Not changed: '+((err&&err.message)||err)); }
+function unver(id){
+  const c = state.charges.find(x=>x.id===id); if(!c || !isVer(c)) return;
+  if(!isMgrB()) return toast('Only a Manager / DY Manager can undo a verification.');
+  if(!confirm('Undo the verification of '+unitShortB(c.unit)+' ('+fdate(c.date)+')? The record can then be changed, and it needs to be verified again.')) return;
+  c.verBy = ''; c.verAt = ''; c.verSig = ''; c.verKey = ''; save(); render(); toast('Verification removed.');
 }
 
 /* ---- record one charge: battery, charger, date, hours, name and the signature of the person who charged it ---- */
@@ -2476,7 +2494,7 @@ async function saveCharge(id){
   if(date > today()) return toast('The date cannot be in the future.');
   if(!(hrs > 0)) return toast('Key in how long it was charged (hours).');
   if(!by) return toast('Key in your name under Record by.');
-  if(isLocked(date.slice(0,7)) || (c && isLocked(String(c.date).slice(0,7)))) return toast('That month is verified. A Manager / DY Manager has to reopen it first.');
+  if(isVer(c)) return toast('This charge is verified. A Manager / DY Manager has to undo the verification first.');
   const cv = $('#bc-pad'), padOn = cv && !cv.closest('[hidden]'), sig = padOn && cv._pad ? cv._pad.data() : '';
   if(!c && !sig) return toast('Sign in the box first.');
   const btn = document.querySelector('[data-bact="save-charge"]'); if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -2575,42 +2593,40 @@ function delCharger(id){
 
 /* ---- the month as a PDF (landscape, like the paper form): each row has the recorder's signature ---- */
 async function battPdf(where){
-  const m = bMonth, L = monthCharges(m), s = signOf(m) || {};
+  const m = bMonth, L = monthCharges(m);
   if(!L.length) return toast('Nothing recorded for '+monthLabel(m)+'.');
   const doc = pdfDoc(true); if(!doc) return;
-  if(L.some(c=>c.sig && !sigData[c.sig]) || (s.verSig && !sigData[s.verSig])){ sigTried[m] = false; await loadSigs(m); }
+  if(L.some(c=>(c.sig && !sigData[c.sig]) || (c.verSig && !sigData[c.verSig]))){ sigTried[m] = false; await loadSigs(m); }
   const imgOf = d => new Promise(r=>{ if(!d) return r(null); const i = new Image(); i.onload = ()=>r(i); i.onerror = ()=>r(null); i.src = d; });
   const W = pgW(doc), H = pgH(doc);
   let y = pdfHeader(doc, 'Movexx battery (Lithium LiFePO4) maintenance file', monthLabel(m));
-  const cols = [['S/N',30,'c'],['Battery serial number',104],['T-1000',50,'c'],['Charger #',72],['Date of charging',78,'c'],['Duration (hrs)',66,'c'],['Record by',168],['Verified by',0]];
+  const cols = [['S/N',30,'c'],['Battery serial number',104],['T-1000',50,'c'],['Charger #',72],['Date of charging',78,'c'],['Duration (hrs)',66,'c'],['Record by',150],['Verified by',0]];
   const x0 = M, tw = W-M*2; cols[cols.length-1][1] = tw - cols.slice(0,-1).reduce((a,c)=>a+c[1],0);
-  const row = async (cells, head, sig)=>{ let x = x0; const h = head ? 24 : 34;
+  const row = async (cells, head, sigs)=>{ let x = x0; const h = head ? 24 : 34;
     if(y + h > H-60){ doc.addPage(); y = 50; }
     if(head){ doc.setFillColor(238,242,246); doc.rect(x0,y,tw,h,'F'); }
     doc.setDrawColor(190,197,207).setLineWidth(.6);
     for(let i=0;i<cols.length;i++){ const c = cols[i]; doc.rect(x,y,c[1],h);
       doc.setFont('helvetica',head?'bold':'normal').setFontSize(head?8.5:9.5).setTextColor(16,24,40);
       const t = doc.splitTextToSize(String(cells[i]==null?'':cells[i]), c[1]-8)[0] || '';
-      if(!head && i===6){
+      if(!head && i>=6){
+        const sig = sigs[i-6];
         doc.setFontSize(7.5).setTextColor(102,112,133); doc.text(t, x+5, y+10);
         const im = await imgOf(sig);
         if(im){ const k = Math.min((c[1]-12)/im.width, 20/im.height); doc.addImage(sig,'PNG', x+6, y+12, im.width*k, im.height*k); }
-        else { doc.setFontSize(8).setTextColor(180,35,24); doc.text('Not signed', x+5, y+26); }
+        else if(i===6){ doc.setFontSize(8).setTextColor(180,35,24); doc.text('Not signed', x+5, y+26); }
+        else if(!cells[i]){ doc.setFontSize(8).setTextColor(152,162,179); doc.text('Not verified yet', x+5, y+22); }
       } else doc.text(t, c[2]==='c' ? x+c[1]/2 : x+5, y+h/2+3.2, c[2]==='c' ? {align:'center'} : undefined);
       x += c[1]; }
     y += h; };
   await row(cols.map(c=>c[0]), true);
   for(let i=0;i<L.length;i++){ const c = L[i];
-    await row([i+1, c.serial, unitShortB(c.unit), c.charger||'', c.date ? c.date.slice(8,10)+'/'+c.date.slice(5,7)+'/'+c.date.slice(2,4) : '', String(Number(c.hours)||'')+(Number(c.hours)?' hrs':''), c.by||'', s.verBy||''], false, c.sig ? sigData[c.sig] : ''); }
+    await row([i+1, c.serial, unitShortB(c.unit), c.charger||'', c.date ? c.date.slice(8,10)+'/'+c.date.slice(5,7)+'/'+c.date.slice(2,4) : '', String(Number(c.hours)||'')+(Number(c.hours)?' hrs':''), c.by||'', c.verBy ? c.verBy+'  '+fdate(String(c.verAt||'').slice(0,10)) : ''], false, [c.sig ? sigData[c.sig] : '', c.verSig ? sigData[c.verSig] : '']); }
   const miss = notCharged(m);
   y += 14; doc.setFont('helvetica','normal').setFontSize(9.5).setTextColor(16,24,40);
   doc.text(miss.length ? 'Not charged in '+monthLabel(m)+': '+miss.map(b=>unitShortB(b.unit)+' ('+b.serial+')').join(', ') : 'Every battery was charged in '+monthLabel(m)+'.', x0, y, { maxWidth: tw });
-  y += 22; if(y > H-110){ doc.addPage(); y = 50; }
-  const bw = (tw-24)/2, X = x0+bw+24;
-  pdfLabel(doc, 'Verified by (Manager / DY Manager)', X, y); doc.setDrawColor(190,197,207); doc.rect(X, y+6, bw, 64);
-  const vd = s.verSig ? sigData[s.verSig] : '', vim = await imgOf(vd);
-  if(vim){ const k = Math.min((bw-16)/vim.width, 56/vim.height), ww = vim.width*k, hh = vim.height*k; doc.addImage(vd,'PNG', X+(bw-ww)/2, y+10+(56-hh)/2, ww, hh); }
-  pdfValue(doc, s.verBy ? s.verBy+'   '+fdate(String(s.verAt||'').slice(0,10)) : 'Not verified yet', X, y+84, 10);
+  const nv = L.filter(isVer).length;
+  y += 16; doc.text('Verified by Manager / DY Manager: '+nv+' of '+L.length+' charges'+(nv===L.length ? '.' : ' ('+(L.length-nv)+' not verified yet).'), x0, y, { maxWidth: tw });
   pdfFooter(doc);
   const name = fileSafe(m.slice(0,4)+' '+MONTH_NAMES[+m.slice(5,7)-1].slice(0,3))+'.pdf';   // e.g. 2026 Oct.pdf
   if(where==='drive'){
@@ -2630,18 +2646,20 @@ document.addEventListener('click', e=>{
     case 'sub': bSub = id; render(); break;
     case 'go-batts': view = 'battery'; bSub = 'batteries'; render(); window.scrollTo({top:0,behavior:'smooth'}); break;
     case 'month': { const n = shiftMonth(bMonth, Number(id)); if(n > today().slice(0,7)){ toast('That month has not started yet.'); break; } bMonth = n; render(); break; }
-    case 'new-charge': if(isLocked(bMonth)){ toast(monthLabel(bMonth)+' is verified. A Manager / DY Manager has to reopen it first.'); break; } chargeForm(id); break;
+    case 'new-charge': chargeForm(id); break;
     case 'edit-charge': chargeForm('', id); break;
     case 'sign-charge': chargeForm('', id, true); setTimeout(()=>{ const w = $('#bc-padwrap'); if(w){ w.hidden = false; const cv = $('#bc-pad'); if(cv && !cv._pad) cv._pad = sigPadB(cv); w.scrollIntoView({block:'center'}); } },60); break;
     case 'resign': { const w = $('#bc-padwrap'); if(w){ w.hidden = false; const cv = $('#bc-pad'); if(cv && !cv._pad) cv._pad = sigPadB(cv); } b.hidden = true; break; }
     case 'save-charge': saveCharge(id); break;
     case 'del-charge': { const c = state.charges.find(x=>x.id===id); if(!c) break;
-      if(isLocked(String(c.date).slice(0,7))){ toast('That month is verified. A Manager / DY Manager has to reopen it first.'); break; }
+      if(isVer(c)){ toast('This charge is verified. A Manager / DY Manager has to undo the verification first.'); break; }
       if(confirm('Delete this charging record ('+unitShortB(c.unit)+', '+fdate(c.date)+') and its signature?')){ if(c.sig) DB.dropPhotos('BATTCHG-'+c.id).catch(()=>{}); state.charges = state.charges.filter(x=>x.id!==id); save(); closeModal(); render(); toast('Charging record deleted.'); }
       break; }
     case 'clear-pad': { const c = document.getElementById(id); if(c && c._pad) c._pad.clear(); break; }
-    case 'sign-ver': signMonth(); break;
-    case 'unsign': unsign(); break;
+    case 'sign-ver': signVerify(id); break;
+    case 'ver-one': verifyForm([id]); break;
+    case 'ver-all': verifyForm(monthCharges(bMonth).filter(c=>c.sig && !isVer(c)).map(c=>c.id)); break;
+    case 'unver': unver(id); break;
     case 'pdf': battPdf(id); break;
     case 'new-batt': battForm(); break;
     case 'edit-batt': battForm(id); break;
