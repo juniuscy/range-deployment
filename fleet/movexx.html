@@ -2273,7 +2273,7 @@ $('#scrim').addEventListener('mousedown', e=>{ if(e.target.id==='scrim') closeMo
    Lithium LiFePO4 batteries: each has a serial number and is tagged to one Movexx (it can be moved).
    Each battery is charged at least once a month (sometimes twice) on one of the chargers.
    Every charge is signed by the person who charged it (its own signature); at the end of the month
-   a Manager / DY Manager verifies the month, then its PDF goes to Drive (Movexx PDFs / Battery Charging yyyy). */
+   a Manager / DY Manager verifies the month, then its PDF goes to Drive (Movexx PDFs / Battery Charging yyyy / "yyyy Mon.pdf"). */
 const BATT_MIN_VER = 7;
 const battOk = () => !!(DB.version && DB.version() >= BATT_MIN_VER);
 /* who is using the page: passed by the Range Deployment app (#who=NAME&role=ROLE), kept for this tab */
@@ -2375,7 +2375,7 @@ function chargeMonth(){
     signBlock(m, L) +
     '<div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" data-bact="pdf" data-id="drive"'+(L.length?'':' disabled')+'>Save as PDF</button></div>' +
     '<p class="hint" style="text-align:right;margin-top:8px">'+(s && s.pdfUrl ? 'Last saved in Google Drive: <a href="'+esc(s.pdfUrl)+'" target="_blank" rel="noopener">'+esc(s.pdfName||'PDF')+'</a>'+(s.pdfAt ? ', '+esc(fdate(String(s.pdfAt).slice(0,10)))+' '+esc(ftime(s.pdfAt)) : '')+'<br>' : '') +
-      'Saves the month as a PDF in Google Drive (Movexx PDFs &rsaquo; Battery Charging '+esc(m.slice(0,4))+'). Saving again replaces the older copy'+(locked ? '.' : '; it is also saved when the month is verified.')+'</p>';
+      'Saves the month as a PDF in Google Drive (Movexx PDFs &rsaquo; Battery Charging '+esc(m.slice(0,4))+', file &ldquo;'+esc(m.slice(0,4)+' '+MONTH_NAMES[+m.slice(5,7)-1].slice(0,3))+'&rdquo;). Saving again replaces the older copy'+(locked ? '.' : '; it is also saved when the month is verified.')+'</p>';
 }
 
 function signBlock(m, L){
@@ -2612,7 +2612,7 @@ async function battPdf(where){
   if(vim){ const k = Math.min((bw-16)/vim.width, 56/vim.height), ww = vim.width*k, hh = vim.height*k; doc.addImage(vd,'PNG', X+(bw-ww)/2, y+10+(56-hh)/2, ww, hh); }
   pdfValue(doc, s.verBy ? s.verBy+'   '+fdate(String(s.verAt||'').slice(0,10)) : 'Not verified yet', X, y+84, 10);
   pdfFooter(doc);
-  const name = fileSafe(m+' Movexx battery charging')+'.pdf';
+  const name = fileSafe(m.slice(0,4)+' '+MONTH_NAMES[+m.slice(5,7)-1].slice(0,3))+'.pdf';   // e.g. 2026 Oct.pdf
   if(where==='drive'){
     if(!driveReady()){ downloadPdf(doc,name); return; }
     toast('Saving '+name+' to Google Drive…');
