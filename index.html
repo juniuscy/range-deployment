@@ -736,7 +736,7 @@ const S = { token:null, me:null, types:[], today:null, view:'home', monday:null,
 const $ = (s, el=document) => el.querySelector(s);
 const MGR_ROLES = ['Manager','DY Manager'];   /* DY Manager = same rights as Manager */
 const MEDIC_ROLES = ['Medic','Medic Certis'];   /* Medic Certis = a medic who can also edit the medics part of the plan */
-const isMedCertis = () => S.me && S.me.role === 'Medic Certis';
+const isMedCertis = () => S.me && S.me.role === 'Medic Certis';   /* only Medic Certis edits the medics part of the plan; Medic is otherwise the same */
 function inRole(p, role){ return p.role === role || (role === 'APO' && APO_LIKE.includes(p.role)) || (role === 'Manager' && MGR_ROLES.includes(p.role)) || (role === 'Medic' && MEDIC_ROLES.includes(p.role)); }
 const canManage = () => S.me && (S.me.role === 'Admin' || MGR_ROLES.includes(S.me.role));   // same rights
 const APO_LIKE = ['APO', 'APO Supervisor', 'Non-APO'];   // deployable as APO
@@ -3848,9 +3848,8 @@ async function admOil(){
 }
 
 /* Tick-list of Managers then APOs (Managers: JAMES LAI first) */
-/* Medics who earn OIL (the other medics are from partner companies). Add names here as needed. */
-const OIL_MEDICS = ['FAHMI'];
-const earnsOil = p => !MEDIC_ROLES.includes(p.role) || OIL_MEDICS.some(n => p.name.indexOf(n) === 0 || (p.aliases || []).includes(n));
+/* Who can be given OIL here: everyone in the groups below, medics included (Medic and Medic Certis). Backup medics are not listed. */
+const earnsOil = () => true;
 /* Scan results: tick who gets the OIL, add anyone missing by hand, then add the ticked ones to AMO OILs */
 function drawOilScan(){
   const sc = S.oilScan, box = $('#s-res'); if (!sc || !box) return;
