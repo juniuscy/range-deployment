@@ -5604,7 +5604,7 @@ const MOCK = (() => {
       const warnings = ['rmk','loc','note'].includes(slot.field) ? [] : clashes(d, v, slot.kind, slot.label, slot.field);
       let old = '';
       const ppl = x => namesIn(x);
-      if (slot.kind === 'range') { const r = d.ranges.find(x => x.range === slot.label); old = r[slot.field]; r[slot.field] = v; r.people = ppl(r.emp); r.active = !!(r.sup || r.emp);
+      if (slot.kind === 'range') { const r = d.ranges.find(x => x.range === slot.label); old = r[slot.field]; r[slot.field] = v; r.people = ppl(r.emp); r.active = !!(r.sup || r.emp || r.tf || r.unit);
         const sp = splitOf(r.emp); if (sp) { d.report = d.report || {}; sp.pmNames.forEach(n => { d.report[n] = sp.pmAt; }); } }
       if (slot.kind === 'duty') { const x = d.duties.find(y => y.duty === slot.label); old = x[slot.field]; x[slot.field] = v; x.mainPeople = ppl(x.main); x.sparePeople = ppl(x.spare);
         const sp = splitOf(x.main); if (sp) { d.report = d.report || {}; sp.pmNames.forEach(n => { d.report[n] = sp.pmAt; }); } }
