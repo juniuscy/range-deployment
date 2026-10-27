@@ -396,6 +396,32 @@
     .job-foot .row{width:100%}
   }
   a.btn{text-decoration:none;display:inline-block}
+  /* ---------- battery ---------- */
+  .badge.due{background:var(--warn-bg);color:var(--warn)}
+  .tab[aria-selected="true"] .badge.due{background:var(--warn-bg);color:var(--warn)}
+  .bprog{margin-top:14px}.bprog-t{font-size:13.5px;margin-bottom:6px;color:var(--body)}.bprog-t b{color:var(--ink)}
+  .bmiss{margin-top:12px;padding:10px 12px;border-radius:var(--r-sm);background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn);font-size:13.5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .bmiss.hot{background:var(--down-bg);border-color:var(--down-line);color:var(--down)}
+  .bmiss.ok{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
+  .bmiss .unitchip{background:#fff}
+  .btab td{padding:11px 12px}.btab th{padding:11px 12px}
+  .bsign{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  .bsign.one{grid-template-columns:minmax(0,560px);justify-content:end}
+  .bsigsm{display:block;height:34px;max-width:150px;object-fit:contain;margin-top:3px}
+  .bby{font-size:12.5px;color:var(--ink);font-weight:600;white-space:nowrap}
+  .btab td .btn.small{padding:4px 12px;margin-top:3px}
+  .bsign .card{padding:16px 18px}.bsign h4{font-size:14.5px;font-weight:700;margin-bottom:10px}.bsign h4 small{font-weight:500;color:var(--muted);font-size:12px;margin-left:4px}
+  .bsig{display:block;width:100%;height:110px;border:1px dashed #9AA6B2;border-radius:var(--r-sm);background:#fff;touch-action:none}
+  .bsigimg{display:block;width:100%;max-height:110px;object-fit:contain;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;margin-top:8px}
+  .bsigimg.load{height:70px;display:grid;place-items:center;color:var(--muted);font-size:12.5px}
+  .bsigname{font-weight:600;color:var(--ink)}.bsigname small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+  .bpick{display:grid;gap:8px}
+  .bpk{display:grid;grid-template-columns:22px 1fr 128px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px;cursor:pointer}
+  .bpk:has(input:checked){background:var(--brand-tint);border-color:var(--brand)}
+  .bpk input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--brand)}
+  .bpk-n{font-family:var(--mono);font-size:13px;color:var(--ink)}.bpk-n small{display:block;font-family:var(--text);font-size:11.5px;color:var(--warn)}
+  .bpk select{padding:7px 8px;font-size:13.5px}
+  @media (max-width:560px){ .bsign{grid-template-columns:1fr} .bpk{grid-template-columns:22px 1fr 110px} }
   .switch{display:inline-flex;align-items:center;gap:6px}
   .switch svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
@@ -423,6 +449,7 @@
     <button class="tab" role="tab" data-view="receipts" aria-selected="false">Receipts <span class="badge" id="c-receipts">0</span></button>
     <button class="tab" role="tab" data-view="history" aria-selected="false">History <span class="badge" id="c-history">0</span></button>
     <button class="tab" role="tab" data-view="vendors" aria-selected="false">Vendors <span class="badge" id="c-vendors">0</span></button>
+    <button class="tab" role="tab" data-view="battery" aria-selected="false">Battery <span class="badge" id="c-batt">0</span></button>
     <button class="tab" role="tab" data-view="summary" aria-selected="false">Summary</button>
   </div>
 </nav>
@@ -466,6 +493,7 @@ async function loadData(){
     state.trolleys.forEach(t=>{ if(!t.size){ t.size=m.name; t.color=m.color; } });
   }
   state.jobs.forEach(j=>{ if(!j.usable) j.usable='yes'; });
+  battInit();
   // Fill in the Drive web app address once. After that, whatever is set in the
   // Drive window wins — including Turn off — and this never overrides it again.
   if(!state.driveSeeded){
@@ -645,7 +673,9 @@ function render(){
   $('#c-fleet').textContent    = state.trolleys.filter(t=>t.active).length;
   $('#c-vendors').textContent  = state.vendors.filter(v=>v.active).length;
   $('#c-receipts').textContent = state.jobs.filter(j=>j.receipt).length;
-  $('#view').innerHTML = view==='board' ? boardView()
+  const cb = $('#c-batt'); if(cb){ const n = battOk() ? notCharged(today().slice(0,7)).length : 0; cb.textContent = n; cb.classList.toggle('due', n>0); cb.title = n ? n+' not charged this month' : ''; }
+  $('#view').innerHTML = view==='battery' ? battView()
+    : view==='board' ? boardView()
     : view==='jobs' ? jobsView()
     : view==='history' ? historyView()
     : view==='summary' ? summaryView()
@@ -2222,6 +2252,388 @@ document.addEventListener('change', e=>{
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && $('#scrim').classList.contains('open')) closeModal(); });
 $('#scrim').addEventListener('mousedown', e=>{ if(e.target.id==='scrim') closeModal(); });
+
+
+/* ============================================================ Battery charging
+   Lithium LiFePO4 batteries: each has a serial number and is tagged to one Movexx (it can be moved).
+   Each battery is charged at least once a month (sometimes twice) on one of the chargers.
+   Every charge is signed by the person who charged it (its own signature); at the end of the month
+   a Manager / DY Manager verifies the month, then its PDF goes to Drive (Movexx PDFs / Battery Charging yyyy). */
+const BATT_MIN_VER = 6;
+const battOk = () => !!(DB.version && DB.version() >= BATT_MIN_VER);
+/* who is using the page: passed by the Range Deployment app (#who=NAME&role=ROLE), kept for this tab */
+const ME = (function(){
+  let who = '', role = '';
+  try{
+    const p = new URLSearchParams(String(location.hash||'').replace(/^#/,''));
+    who = p.get('who') || ''; role = p.get('role') || '';
+    if(who){ sessionStorage.setItem('mmrc-who', JSON.stringify({ who, role })); history.replaceState(null,'',location.pathname+location.search); }
+    else { const s = JSON.parse(sessionStorage.getItem('mmrc-who')||'null'); if(s){ who = s.who||''; role = s.role||''; } }
+  }catch(e){}
+  return { name:String(who).toUpperCase(), role:String(role) };
+})();
+const MGR_ROLES_B = ['Manager','DY Manager'];
+const isMgrB = () => MGR_ROLES_B.indexOf(ME.role) >= 0;
+let bMonth = today().slice(0,7), bSub = 'charge';
+const sigData = {};             // Drive file id -> picture (signatures already loaded)
+const sigTried = {};            // month -> loading started
+
+const BATT_SEED = [
+  ['8105-01336','01','2321398'],['9106-00519','02','2321260'],['8105-01275','03','2321398'],['9107-0881','04','2321260'],
+  ['8105-01316','05','2321398'],['8105-01389','06','2321260'],['8105-01352','07','2321398'],['8105-01201','08','2321260'],
+  ['9107-0880','09','2321398'],['8105-01214','10','2321260']];
+const CHARGE_SEED = { '01':'2026-10-20','02':'2026-10-20','03':'2026-10-20','04':'2026-10-20','05':'2026-10-20','07':'2026-10-20',
+  '06':'2026-10-27','08':'2026-10-27','09':'2026-10-27','10':'2026-10-27' };
+function battInit(){
+  ['batteries','chargers','charges','battsign'].forEach(k=>{ if(!Array.isArray(state[k])) state[k] = []; });
+  if(state.seededBattery || !battOk()) return;
+  state.seededBattery = true;
+  if(!state.chargers.length) ['2321398','2321260'].forEach((sn,i)=>state.chargers.push({ id:nextId('charger','CHG'), serial:sn, name:'Charger '+(i+1), active:true }));
+  if(!state.batteries.length) BATT_SEED.forEach(([sn,u])=>state.batteries.push({ id:nextId('battery','BAT'), serial:sn, unit:UNIT_PREFIX+u, since:'', notes:'', active:true }));
+  if(!state.charges.length) BATT_SEED.forEach(([sn,u,cs])=>{
+    const b = state.batteries.find(x=>x.serial===sn), c = state.chargers.find(x=>x.serial===cs);
+    if(b && c && CHARGE_SEED[u]) state.charges.push({ id:nextId('charge','CHR'), batteryId:b.id, serial:sn, unit:UNIT_PREFIX+u, chargerId:c.id, charger:cs,
+      date:CHARGE_SEED[u], hours:'2', by:'From paper record', at:'' });
+  });
+}
+const batById = id => state.batteries.find(b=>b.id===id);
+const chgById = id => state.chargers.find(c=>c.id===id);
+const unitShortB = u => { const n = unitNum(u||''); return u ? 'T'+String(n).padStart(2,'0') : '—'; };
+const unitOrder = u => Number(unitNum(u||'')) || 999;
+const activeBatts = () => state.batteries.filter(b=>b.active!==false).sort((a,b)=>unitOrder(a.unit)-unitOrder(b.unit) || String(a.serial).localeCompare(String(b.serial)));
+const monthCharges = m => state.charges.filter(c=>String(c.date||'').slice(0,7)===m)
+  .sort((a,b)=>String(a.date).localeCompare(String(b.date)) || unitOrder(a.unit)-unitOrder(b.unit));
+const signOf = m => state.battsign.find(s=>s.month===m) || null;
+const monthLabel = m => MONTH_NAMES[Number(m.slice(5,7))-1]+' '+m.slice(0,4);
+const shiftMonth = (m,n) => { const d = new Date(Number(m.slice(0,4)), Number(m.slice(5,7))-1+n, 1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
+const hrsTxt = h => { const n = Number(h); return n ? (n===1?'1 hr':n+' hrs') : '—'; };
+const lastCharger = b => { const L = state.charges.filter(c=>c.batteryId===b.id).sort((x,y)=>String(y.date).localeCompare(String(x.date))); return L.length ? L[0].chargerId : ''; };
+const notCharged = m => activeBatts().filter(b=>!state.charges.some(c=>c.batteryId===b.id && String(c.date||'').slice(0,7)===m));
+const isLocked = m => { const s = signOf(m); return !!(s && s.verBy); };
+const lastName = () => { try{ return localStorage.getItem('mmrc-batt-name')||''; }catch(e){ return ''; } };
+const keepName = n => { try{ localStorage.setItem('mmrc-batt-name', n); }catch(e){} };
+
+function battView(){
+  if(!battOk()) return '<div class="sec-head"><div><h2>Battery charging</h2><p class="sub">Lithium LiFePO4 battery charging record</p></div></div>' +
+    '<div class="empty">'+glyph('doc')+'<h3>One more step on the Google side</h3><p>The Fleet Log web app needs its new version before battery records can be saved. ' +
+    'Paste the new Code.gs into the Fleet Log Apps Script, then Deploy &gt; Manage deployments &gt; Edit &gt; New version. Then reload this page.</p></div>';
+  const tabs = [['charge','Charging'],['batteries','Batteries'],['chargers','Chargers']].map(([k,l])=>
+    '<button class="btn '+(bSub===k?'':'ghost ')+'small" data-bact="sub" data-id="'+k+'">'+l+'</button>').join('');
+  const head = '<div class="sec-head"><div><h2>Battery charging</h2><p class="sub">Lithium LiFePO4 batteries &middot; each battery is charged at least once a month</p></div>' +
+    '<div class="row">'+tabs+'</div></div>';
+  return head + (bSub==='batteries' ? battList() : bSub==='chargers' ? chargerList() : chargeMonth());
+}
+
+function chargeMonth(){
+  const m = bMonth, L = monthCharges(m), miss = notCharged(m), all = activeBatts(), s = signOf(m), locked = isLocked(m);
+  const months = [...new Set(state.charges.map(c=>String(c.date||'').slice(0,7)).filter(Boolean).concat([today().slice(0,7), m]))].sort().reverse();
+  const done = all.length - miss.length, pct = all.length ? Math.round(done/all.length*100) : 0;
+  const past = m < today().slice(0,7), unsigned = L.filter(c=>!c.sig).length;
+  if(L.some(c=>c.sig && !sigData[c.sig]) && !sigTried[m]) loadSigs(m);
+  const status = locked ? '<span class="pill ok"><i></i>Verified</span>' : '<span class="pill"><i></i>Open</span>';
+  const twice = {}; L.forEach(c=>{ twice[c.batteryId] = (twice[c.batteryId]||0)+1; });
+  const seen = {};
+  const sigCell = c => c.sig ? (sigData[c.sig] ? '<img class="bsigsm" src="'+sigData[c.sig]+'" alt="Signature of '+esc(c.by||'')+'">' : '<span class="hint">Loading…</span>')
+    : (locked ? '<span class="pill">Not signed</span>' : '<button class="btn small" data-bact="sign-charge" data-id="'+esc(c.id)+'">Sign</button>');
+  const rows = L.map((c,i)=>{ seen[c.batteryId] = (seen[c.batteryId]||0)+1;
+    return '<tr><td class="num">'+(i+1)+'</td><td class="money">'+esc(c.serial)+'</td><td>'+esc(unitShortB(c.unit))+'</td><td class="money">'+esc(c.charger||'—')+'</td>' +
+      '<td>'+esc(fdate(c.date))+(twice[c.batteryId]>1?' <span class="pill info" style="padding:1px 7px">'+(seen[c.batteryId]===1?'1st':seen[c.batteryId]===2?'2nd':seen[c.batteryId]+'th')+'</span>':'')+'</td>' +
+      '<td>'+esc(hrsTxt(c.hours))+'</td><td><div class="bby">'+esc(c.by||'—')+'</div>'+sigCell(c)+'</td><td>'+esc(s && s.verBy ? s.verBy : '')+'</td>' +
+      '<td style="text-align:right;white-space:nowrap">'+(locked?'':'<button class="linkbtn" data-bact="edit-charge" data-id="'+esc(c.id)+'">Edit</button>')+'</td></tr>'; }).join('');
+  return '<div class="card" style="padding:16px 18px;margin-bottom:14px">' +
+      '<div class="row" style="justify-content:space-between">' +
+        '<div class="row" style="gap:6px"><button class="btn ghost small" data-bact="month" data-id="-1" aria-label="Previous month">&lsaquo;</button>' +
+          '<select id="b-month" style="width:auto;min-width:170px">'+months.map(x=>'<option value="'+x+'"'+(x===m?' selected':'')+'>'+monthLabel(x)+'</option>').join('')+'</select>' +
+          '<button class="btn ghost small" data-bact="month" data-id="1" aria-label="Next month"'+(m>=today().slice(0,7)?' disabled':'')+'>&rsaquo;</button></div>' +
+        '<div class="row">'+status+(locked?'':'<button class="btn" data-bact="new-charge">Record a charge</button>')+'</div></div>' +
+      '<div class="bprog"><div class="bprog-t"><b>'+done+' of '+all.length+'</b> batteries charged in '+esc(monthLabel(m))+(unsigned ? ' &middot; <span style="color:var(--warn)">'+unsigned+' not signed yet</span>' : '')+'</div><div class="bar"><i style="width:'+pct+'%"></i></div></div>' +
+      (miss.length ? '<div class="bmiss'+(past?' hot':'')+'"><b>'+(past?'Not charged in '+esc(monthLabel(m))+':':'Not charged yet this month:')+'</b> ' +
+        miss.map(b=>'<button class="unitchip" data-bact="new-charge" data-id="'+esc(b.id)+'"'+(locked?' disabled':'')+'>'+esc(unitShortB(b.unit))+' &middot; '+esc(b.serial)+'</button>').join(' ')+'</div>'
+        : (all.length ? '<div class="bmiss ok">Every battery has been charged this month.</div>' : '')) +
+    '</div>' +
+    (L.length ? '<div class="tbl-wrap"><table class="btab"><thead><tr><th class="num">S/N</th><th>Battery serial no.</th><th>T-1000</th><th>Charger #</th><th>Date of charging</th><th>Duration</th><th>Record by (signature)</th><th>Verified by</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+      : '<div class="empty" style="padding:34px 20px">'+glyph('doc')+'<h3>No charging recorded for '+esc(monthLabel(m))+'</h3><p>Each time a battery is charged, tap Record a charge and sign.</p></div>') +
+    signBlock(m, L) +
+    '<div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost" data-bact="pdf" data-id="dl"'+(L.length?'':' disabled')+'>Download PDF</button>' +
+      (locked ? '<button class="btn" data-bact="pdf" data-id="drive">Save PDF to Drive</button>' : '') + '</div>' +
+    (s && s.pdfUrl ? '<p class="hint" style="text-align:right;margin-top:8px">In Drive: <a href="'+esc(s.pdfUrl)+'" target="_blank" rel="noopener">'+esc(s.pdfName||'PDF')+'</a></p>' :
+      !locked ? '<p class="hint" style="text-align:right;margin-top:8px">The PDF goes to Drive once the month is verified. Until then you can download it to this phone.</p>' : '');
+}
+
+function signBlock(m, L){
+  const s = signOf(m) || {};
+  if(s.verSig && !sigData[s.verSig] && !sigTried[m]) loadSigs(m);
+  const img = id => id ? (sigData[id] ? '<img class="bsigimg" src="'+sigData[id]+'" alt="Signature">' : '<div class="bsigimg load">Loading signature…</div>') : '';
+  const ver = s.verBy
+    ? '<div class="bsigname">'+esc(s.verBy)+'<small>'+esc(fdate(String(s.verAt||'').slice(0,10)))+'</small></div>'+img(s.verSig) +
+      (isMgrB() ? '<button class="linkbtn" data-bact="unsign" data-id="ver" style="font-size:12.5px;margin-top:6px">Reopen this month</button>' : '')
+    : !L.length ? '<p class="hint">At the end of the month a Manager / DY Manager verifies the charging record here.</p>'
+    : isMgrB() ? '<p class="hint" style="margin-bottom:8px">Sign at the end of the month, after checking every charge above.</p><div class="bsigname">'+esc(ME.name)+'<small>'+esc(ME.role)+'</small></div><canvas class="bsig" id="b-ver-pad"></canvas>' +
+          '<div class="row" style="justify-content:space-between;margin-top:6px"><button class="linkbtn" data-bact="clear-pad" data-id="b-ver-pad">Clear</button>' +
+          '<button class="btn small" data-bact="sign-ver">Verify '+esc(monthLabel(m))+'</button></div>'
+    : '<p class="hint">At the end of the month a Manager / DY Manager verifies it. They open Movexx from the Range Deployment app with their own login.</p>';
+  setTimeout(()=>{ const c = document.getElementById('b-ver-pad'); if(c && !c._pad) c._pad = sigPadB(c); },0);
+  return '<div class="bsign one"><div class="card"><h4>Verified by <small>Manager / DY Manager, end of the month</small></h4>'+ver+'</div></div>';
+}
+/* every signature of the month in one call */
+async function loadSigs(m){
+  sigTried[m] = true;
+  const s = signOf(m), L = monthCharges(m).filter(c=>c.sig && !sigData[c.sig]);
+  const ids = L.map(c=>'BATTCHG-'+c.id).concat(s && s.verSig && !sigData[s.verSig] ? ['BATTSIGN-'+m] : []);
+  if(!ids.length) return;
+  try{ const out = await DB.getPhotosMany(ids); Object.keys(out||{}).forEach(k=>(out[k]||[]).forEach(p=>{ sigData[p.id] = p.data; })); }catch(e){ /* shown as loading */ }
+  if(view==='battery' && bMonth===m && bSub==='charge') render();
+}
+/* small signature pad: draws with finger / mouse; .data() = '' while empty, else a small PNG */
+function sigPadB(cv){
+  const g = cv.getContext('2d'); let drawn = false, on = false, last = null;
+  const fit = ()=>{ const r = cv.getBoundingClientRect(); cv.width = Math.max(10, Math.round(r.width*2)); cv.height = Math.max(10, Math.round(r.height*2));
+    g.lineWidth = 4.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#0E2A44'; drawn = false; };
+  const pt = e=>{ const r = cv.getBoundingClientRect(); return { x:(e.clientX-r.left)*cv.width/r.width, y:(e.clientY-r.top)*cv.height/r.height }; };
+  cv.style.touchAction = 'none';
+  cv.onpointerdown = e=>{ on = true; last = pt(e); try{ cv.setPointerCapture(e.pointerId); }catch(x){} };
+  cv.onpointermove = e=>{ if(!on) return; const p = pt(e); g.beginPath(); g.moveTo(last.x,last.y); g.lineTo(p.x,p.y); g.stroke(); last = p; drawn = true; };
+  cv.onpointerup = cv.onpointercancel = ()=>{ on = false; };
+  fit();
+  return { clear: fit, data: ()=>{ if(!drawn) return ''; const k = Math.min(1, 420/cv.width), c = document.createElement('canvas'); c.width = Math.round(cv.width*k); c.height = Math.round(cv.height*k);
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(cv,0,0,c.width,c.height); return c.toDataURL('image/png'); } };
+}
+async function signMonth(){
+  const m = bMonth, pad = document.getElementById('b-ver-pad');
+  const data = pad && pad._pad ? pad._pad.data() : '';
+  if(!isMgrB()) return toast('Only a Manager / DY Manager can verify.');
+  if(!data) return toast('Sign in the box first.');
+  const L = monthCharges(m), miss = notCharged(m), uns = L.filter(c=>!c.sig);
+  const warn = [miss.length ? miss.length+' batter'+(miss.length===1?'y was':'ies were')+' not charged ('+miss.map(b=>unitShortB(b.unit)).join(', ')+')' : '',
+    uns.length ? uns.length+' charge'+(uns.length===1?' is':'s are')+' not signed' : ''].filter(Boolean);
+  if(warn.length && !confirm(monthLabel(m)+': '+warn.join('; ')+'.\n\nVerify the month anyway?')) return;
+  const btn = document.querySelector('[data-bact="sign-ver"]'); if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  try{
+    const out = await DB.putPhotos('BATTSIGN-'+m, [{ name:'verify-'+m+'.png', type:'image/png', data }]);
+    const id = out[0].id; sigData[id] = data;
+    let s = signOf(m); if(!s){ s = { id:m, month:m }; state.battsign.push(s); }
+    s.verBy = ME.name; s.verAt = new Date().toISOString(); s.verSig = id;
+    save(); render(); toast(monthLabel(m)+' verified. Saving the PDF to Drive…'); battPdf('drive');
+  }catch(err){ if(btn){ btn.disabled = false; btn.textContent = 'Verify '+monthLabel(m); } toast('Not saved: '+((err&&err.message)||err)); }
+}
+async function unsign(){
+  const m = bMonth, s = signOf(m); if(!s) return;
+  if(!isMgrB()) return toast('Only a Manager / DY Manager can reopen a month.');
+  if(!confirm('Reopen '+monthLabel(m)+'? The verification is removed so the records can be changed. It needs to be verified again.')) return;
+  try{ await DB.dropPhotos('BATTSIGN-'+m); s.verBy = ''; s.verAt = ''; s.verSig = ''; save(); render(); toast(monthLabel(m)+' reopened.'); }
+  catch(err){ toast('Not changed: '+((err&&err.message)||err)); }
+}
+
+/* ---- record one charge: battery, charger, date, hours, name and the signature of the person who charged it ---- */
+function chargeForm(preId, editId, signing){
+  const c = editId ? state.charges.find(x=>x.id===editId) : null;
+  const m = bMonth, d = c ? c.date : (m===today().slice(0,7) ? today() : m+'-01');
+  const chs = state.chargers.filter(x=>x.active!==false || (c && x.id===c.chargerId));
+  if(!chs.length) return toast('Add a charger first (Chargers).');
+  const bs = activeBatts().concat(c && !activeBatts().some(b=>b.id===c.batteryId) && batById(c.batteryId) ? [batById(c.batteryId)] : []);
+  if(!bs.length) return toast('Add the batteries first (Batteries).');
+  const done = new Set(state.charges.filter(x=>String(x.date||'').slice(0,7)===m).map(x=>x.batteryId));
+  const bSel = c ? c.batteryId : (preId || (bs.find(b=>!done.has(b.id)) || bs[0]).id);
+  const chSel = c ? c.chargerId : (lastCharger(batById(bSel)||{id:''}) || chs[0].id);
+  openModal('<div class="modal-head"><div><h3>'+(c?'Charging record':'Record a charge')+'</h3><p>'+(c?esc(unitShortB(c.unit))+' &middot; '+esc(c.serial):'One battery, signed by the person who charged it')+'</p></div><button class="x" data-act="close" aria-label="Close">&times;</button></div>' +
+    '<div class="modal-body"><div class="grid2"><label class="f"><span class="lbl">Battery</span><select id="bc-bat">'+bs.map(b=>'<option value="'+esc(b.id)+'"'+(b.id===bSel?' selected':'')+'>'+esc(unitShortB(b.unit)+' · '+b.serial)+(done.has(b.id)&&!c?' (charged)':'')+'</option>').join('')+'</select></label>' +
+      '<label class="f"><span class="lbl">Charger #</span><select id="bc-chg">'+chs.map(x=>'<option value="'+esc(x.id)+'"'+(x.id===chSel?' selected':'')+'>'+esc(x.serial)+(x.name?' ('+esc(x.name)+')':'')+'</option>').join('')+'</select></label>' +
+      '<label class="f"><span class="lbl">Date of charging</span><input type="date" id="bc-date" value="'+esc(d)+'" max="'+today()+'"></label>' +
+      '<label class="f"><span class="lbl">Duration (hrs)</span><input type="number" id="bc-hrs" min="0.5" max="24" step="0.5" value="'+esc(c?c.hours:'2')+'" inputmode="decimal"></label></div>' +
+      '<label class="f"><span class="lbl">Record by</span><input id="bc-by" value="'+esc(c ? (signing && !c.sig && (c.by==='From paper record' || !c.by) ? (ME.name||lastName()) : c.by) : (ME.name || lastName()))+'" placeholder="Your name"></label>' +
+      (c && c.sig ? '<div class="f"><span class="lbl" style="display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">Signature</span>'+(sigData[c.sig]?'<img class="bsigimg" src="'+sigData[c.sig]+'" alt="Signature">':'<p class="hint">Signed.</p>') +
+          '<button class="linkbtn" data-bact="resign" style="font-size:13px;margin-top:6px">Sign again</button></div><div id="bc-padwrap" hidden>' : '<div id="bc-padwrap">') +
+        '<span class="lbl" style="display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">Signature of the person who charged it</span><canvas class="bsig" id="bc-pad"></canvas>' +
+        '<button class="linkbtn" data-bact="clear-pad" data-id="bc-pad" style="font-size:13px;margin-top:6px">Clear</button></div></div>' +
+    '<div class="modal-foot">'+(c?'<button class="btn danger" data-bact="del-charge" data-id="'+esc(c.id)+'" style="margin-right:auto">Delete</button>':'')+'<button class="btn ghost" data-act="close">Cancel</button><button class="btn" data-bact="save-charge" data-id="'+esc(c?c.id:'')+'">'+(c?'Save':'Save and sign')+'</button></div>');
+  const bat = $('#bc-bat'); if(bat && !c) bat.onchange = ()=>{ const lc = lastCharger(batById(bat.value)||{id:''}); if(lc && $('#bc-chg')) $('#bc-chg').value = lc; };
+  setTimeout(()=>{ const cv = $('#bc-pad'); if(cv && !cv.closest('[hidden]') && !cv._pad) cv._pad = sigPadB(cv); },30);
+}
+async function saveCharge(id){
+  const c = id ? state.charges.find(x=>x.id===id) : null;
+  const date = $('#bc-date').value, hrs = Number($('#bc-hrs').value), by = String($('#bc-by').value||'').trim().toUpperCase();
+  const b = batById($('#bc-bat').value), ch = chgById($('#bc-chg').value);
+  if(!b) return toast('Pick the battery.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toast('Pick the date of charging.');
+  if(date > today()) return toast('The date cannot be in the future.');
+  if(!(hrs > 0)) return toast('Key in how long it was charged (hours).');
+  if(!by) return toast('Key in your name under Record by.');
+  if(isLocked(date.slice(0,7)) || (c && isLocked(String(c.date).slice(0,7)))) return toast('That month is verified. A Manager / DY Manager has to reopen it first.');
+  const cv = $('#bc-pad'), padOn = cv && !cv.closest('[hidden]'), sig = padOn && cv._pad ? cv._pad.data() : '';
+  if(!c && !sig) return toast('Sign in the box first.');
+  const btn = document.querySelector('[data-bact="save-charge"]'); if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  try{
+    const rec = c || { id:nextId('charge','CHR'), at:new Date().toISOString() };
+    if(sig){ const out = await DB.putPhotos('BATTCHG-'+rec.id, [{ name:'charge-'+rec.id+'.png', type:'image/png', data:sig }]); rec.sig = out[0].id; sigData[rec.sig] = sig; rec.signedAt = new Date().toISOString(); }
+    if(!c || b.id!==c.batteryId){ rec.batteryId = b.id; rec.serial = b.serial; rec.unit = b.unit||''; }
+    rec.chargerId = ch ? ch.id : ''; rec.charger = ch ? ch.serial : '';
+    rec.date = date; rec.hours = String(hrs); rec.by = c && by === String(c.by||'').toUpperCase() ? c.by : by;   // an unchanged name stays as it was (e.g. From paper record)
+    if(!c) state.charges.push(rec);
+    keepName(by); bMonth = date.slice(0,7);
+    save(); closeModal(); render(); toast(c ? 'Charging record saved.' : unitShortB(rec.unit)+' charge recorded and signed.');
+  }catch(err){ if(btn){ btn.disabled = false; btn.textContent = c?'Save':'Save and sign'; } toast('Not saved: '+((err&&err.message)||err)); }
+}
+
+/* ---- batteries: serial number and the Movexx it is tagged to ---- */
+function battList(){
+  const L = state.batteries.slice().sort((a,b)=>(a.active===false)-(b.active===false) || unitOrder(a.unit)-unitOrder(b.unit));
+  const last = b => { const x = state.charges.filter(c=>c.batteryId===b.id).sort((p,q)=>String(q.date).localeCompare(String(p.date)))[0]; return x ? fdate(x.date) : 'Never'; };
+  return '<div class="row" style="justify-content:space-between;margin-bottom:12px"><p class="hint">Each battery is tagged to one Movexx. To move a battery, tap Edit and pick the other Movexx; if that one already has a battery, the two are swapped.</p>' +
+      '<button class="btn" data-bact="new-batt">Add battery</button></div>' +
+    (L.length ? '<div class="tbl-wrap"><table class="btab"><thead><tr><th>Battery serial no.</th><th>Tagged to</th><th>Last charged</th><th>Notes</th><th></th></tr></thead><tbody>' +
+      L.map(b=>'<tr'+(b.active===false?' style="opacity:.55"':'')+'><td class="money">'+esc(b.serial)+'</td><td>'+(b.unit?esc(b.unit):'<span class="pill">Spare, not fitted</span>')+(b.active===false?' <span class="pill">Not in use</span>':'')+'</td>' +
+        '<td>'+esc(last(b))+'</td><td>'+esc(b.notes||'')+'</td><td style="text-align:right;white-space:nowrap"><button class="linkbtn" data-bact="edit-batt" data-id="'+esc(b.id)+'">Edit</button></td></tr>').join('') +
+      '</tbody></table></div>' : '<div class="empty">'+glyph('doc')+'<h3>No batteries yet</h3><p>Add each battery with its serial number and the Movexx it is fitted to.</p></div>');
+}
+function battForm(id){
+  const b = id ? batById(id) : null, v = b || { serial:'', unit:'', notes:'', active:true };
+  const units = state.trolleys.filter(t=>t.active || t.id===v.unit).map(t=>t.id).sort((a,c)=>unitOrder(a)-unitOrder(c));
+  const holder = u => state.batteries.find(x=>x.unit===u && x.id!==id && x.active!==false);
+  openModal('<div class="modal-head"><div><h3>'+(b?'Edit battery':'Add battery')+'</h3><p>Lithium LiFePO4</p></div><button class="x" data-act="close" aria-label="Close">&times;</button></div>' +
+    '<div class="modal-body"><div class="grid2"><label class="f"><span class="lbl">Battery serial number <em>*</em></span><input id="bb-sn" value="'+esc(v.serial)+'" placeholder="e.g. 8105-01336"></label>' +
+      '<label class="f"><span class="lbl">Tagged to (T-1000)</span><select id="bb-unit"><option value="">Spare, not fitted</option>'+units.map(u=>{ const h = holder(u);
+        return '<option value="'+esc(u)+'"'+(u===v.unit?' selected':'')+'>'+esc(u)+(h?' (has '+esc(h.serial)+')':'')+'</option>'; }).join('')+'</select></label></div>' +
+      '<label class="f"><span class="lbl">Notes</span><input id="bb-notes" value="'+esc(v.notes||'')+'"></label>' +
+      (b ? '<label class="f"><span class="lbl">In use?</span><select id="bb-act"><option value="1"'+(v.active!==false?' selected':'')+'>Yes</option><option value="0"'+(v.active===false?' selected':'')+'>No (kept in the records)</option></select></label>' : '') +
+      '<p class="hint">Charging records keep the serial number and Movexx at the time they were charged.</p></div>' +
+    '<div class="modal-foot">'+(b?'<button class="btn danger" data-bact="del-batt" data-id="'+esc(b.id)+'" style="margin-right:auto">Delete</button>':'')+'<button class="btn ghost" data-act="close">Cancel</button><button class="btn" data-bact="save-batt" data-id="'+esc(id||'')+'">'+(b?'Save':'Add battery')+'</button></div>');
+}
+function saveBatt(id){
+  const sn = String($('#bb-sn').value||'').trim().toUpperCase(), unit = $('#bb-unit').value, notes = String($('#bb-notes').value||'').trim();
+  if(!sn) return toast('Key in the battery serial number.');
+  if(state.batteries.some(x=>x.id!==id && String(x.serial).toUpperCase()===sn)) return toast(sn+' is already in the list.');
+  const b = id ? batById(id) : null;
+  const other = unit ? state.batteries.find(x=>x.unit===unit && x.id!==id && x.active!==false) : null;
+  if(other){
+    const from = b && b.unit ? b.unit : '';
+    if(!confirm(unit+' already has battery '+other.serial+'.\n\n'+(from ? 'Swap them? '+other.serial+' goes to '+from+'.' : other.serial+' becomes a spare (not fitted).'))) return;
+    other.unit = from; other.since = today();
+  }
+  if(b){ if(b.unit!==unit) b.since = today(); b.serial = sn; b.unit = unit; b.notes = notes; if($('#bb-act')) b.active = $('#bb-act').value==='1'; }
+  else state.batteries.push({ id:nextId('battery','BAT'), serial:sn, unit, since:today(), notes, active:true });
+  save(); closeModal(); render(); toast(b ? 'Battery saved.' : 'Battery added.');
+}
+function delBatt(id){
+  const b = batById(id); if(!b) return;
+  const n = state.charges.filter(c=>c.batteryId===id).length;
+  if(!confirm('Delete battery '+b.serial+'?'+(n?'\n\nIts '+n+' charging record'+(n===1?'':'s')+' stay in the months they were charged (with the serial number).':''))) return;
+  state.batteries = state.batteries.filter(x=>x.id!==id); save(); closeModal(); render(); toast('Battery deleted.');
+}
+
+/* ---- chargers ---- */
+function chargerList(){
+  const L = state.chargers;
+  const used = c => state.charges.filter(x=>x.chargerId===c.id).length;
+  return '<div class="row" style="justify-content:space-between;margin-bottom:12px"><p class="hint">The chargers used for the batteries. Deleting one keeps its serial number on the past charging records.</p>' +
+      '<button class="btn" data-bact="new-chg">Add charger</button></div>' +
+    (L.length ? '<div class="vendors">'+L.map(c=>'<div class="vendor'+(c.active===false?' off':'')+'"><div class="unithead"><h4>'+esc(c.name||'Charger')+'</h4>'+(c.active===false?'<span class="pill">Not in use</span>':'<span class="pill ok"><i></i>In use</span>')+'</div>' +
+        '<div class="vlines"><div><span>Serial no.</span><b class="money">'+esc(c.serial)+'</b></div>'+(c.notes?'<div><span>Notes</span>'+esc(c.notes)+'</div>':'')+'</div>' +
+        '<div class="vstats"><div>Charges recorded<b>'+used(c)+'</b></div><div style="margin-left:auto;align-self:flex-end"><button class="btn ghost small" data-bact="edit-chg" data-id="'+esc(c.id)+'">Edit</button></div></div></div>').join('')+'</div>'
+      : '<div class="empty">'+glyph('doc')+'<h3>No chargers yet</h3><p>Add each charger with its serial number.</p></div>');
+}
+function chargerForm(id){
+  const c = id ? chgById(id) : null, v = c || { name:'Charger '+(state.chargers.length+1), serial:'', notes:'', active:true };
+  openModal('<div class="modal-head"><div><h3>'+(c?'Edit charger':'Add charger')+'</h3></div><button class="x" data-act="close" aria-label="Close">&times;</button></div>' +
+    '<div class="modal-body"><div class="grid2"><label class="f"><span class="lbl">Name</span><input id="cg-name" value="'+esc(v.name||'')+'"></label>' +
+      '<label class="f"><span class="lbl">Serial number <em>*</em></span><input id="cg-sn" value="'+esc(v.serial)+'" placeholder="e.g. 2321398"></label></div>' +
+      '<label class="f"><span class="lbl">Notes</span><input id="cg-notes" value="'+esc(v.notes||'')+'"></label>' +
+      (c ? '<label class="f"><span class="lbl">In use?</span><select id="cg-act"><option value="1"'+(v.active!==false?' selected':'')+'>Yes</option><option value="0"'+(v.active===false?' selected':'')+'>No (kept in the records)</option></select></label>' : '') + '</div>' +
+    '<div class="modal-foot">'+(c?'<button class="btn danger" data-bact="del-chg" data-id="'+esc(c.id)+'" style="margin-right:auto">Delete</button>':'')+'<button class="btn ghost" data-act="close">Cancel</button><button class="btn" data-bact="save-chg" data-id="'+esc(id||'')+'">'+(c?'Save':'Add charger')+'</button></div>');
+}
+function saveCharger(id){
+  const sn = String($('#cg-sn').value||'').trim().toUpperCase(), name = String($('#cg-name').value||'').trim() || 'Charger', notes = String($('#cg-notes').value||'').trim();
+  if(!sn) return toast('Key in the charger serial number.');
+  if(state.chargers.some(x=>x.id!==id && String(x.serial).toUpperCase()===sn)) return toast(sn+' is already in the list.');
+  const c = id ? chgById(id) : null;
+  if(c){ c.serial = sn; c.name = name; c.notes = notes; if($('#cg-act')) c.active = $('#cg-act').value==='1'; }
+  else state.chargers.push({ id:nextId('charger','CHG'), serial:sn, name, notes, active:true });
+  save(); closeModal(); render(); toast(c ? 'Charger saved.' : 'Charger added.');
+}
+function delCharger(id){
+  const c = chgById(id); if(!c) return;
+  if(!confirm('Delete charger '+c.serial+'?\n\nPast charging records keep its serial number.')) return;
+  state.chargers = state.chargers.filter(x=>x.id!==id); save(); closeModal(); render(); toast('Charger deleted.');
+}
+
+/* ---- the month as a PDF (landscape, like the paper form): each row has the recorder's signature ---- */
+async function battPdf(where){
+  const m = bMonth, L = monthCharges(m), s = signOf(m) || {};
+  if(!L.length) return toast('Nothing recorded for '+monthLabel(m)+'.');
+  const doc = pdfDoc(true); if(!doc) return;
+  if(L.some(c=>c.sig && !sigData[c.sig]) || (s.verSig && !sigData[s.verSig])){ sigTried[m] = false; await loadSigs(m); }
+  const imgOf = d => new Promise(r=>{ if(!d) return r(null); const i = new Image(); i.onload = ()=>r(i); i.onerror = ()=>r(null); i.src = d; });
+  const W = pgW(doc), H = pgH(doc);
+  let y = pdfHeader(doc, 'Movexx battery (Lithium LiFePO4) maintenance file', monthLabel(m));
+  const cols = [['S/N',30,'c'],['Battery serial number',104],['T-1000',50,'c'],['Charger #',72],['Date of charging',78,'c'],['Duration (hrs)',66,'c'],['Record by',168],['Verified by',0]];
+  const x0 = M, tw = W-M*2; cols[cols.length-1][1] = tw - cols.slice(0,-1).reduce((a,c)=>a+c[1],0);
+  const row = async (cells, head, sig)=>{ let x = x0; const h = head ? 24 : 34;
+    if(y + h > H-60){ doc.addPage(); y = 50; }
+    if(head){ doc.setFillColor(238,242,246); doc.rect(x0,y,tw,h,'F'); }
+    doc.setDrawColor(190,197,207).setLineWidth(.6);
+    for(let i=0;i<cols.length;i++){ const c = cols[i]; doc.rect(x,y,c[1],h);
+      doc.setFont('helvetica',head?'bold':'normal').setFontSize(head?8.5:9.5).setTextColor(16,24,40);
+      const t = doc.splitTextToSize(String(cells[i]==null?'':cells[i]), c[1]-8)[0] || '';
+      if(!head && i===6){
+        doc.setFontSize(7.5).setTextColor(102,112,133); doc.text(t, x+5, y+10);
+        const im = await imgOf(sig);
+        if(im){ const k = Math.min((c[1]-12)/im.width, 20/im.height); doc.addImage(sig,'PNG', x+6, y+12, im.width*k, im.height*k); }
+        else { doc.setFontSize(8).setTextColor(180,35,24); doc.text('Not signed', x+5, y+26); }
+      } else doc.text(t, c[2]==='c' ? x+c[1]/2 : x+5, y+h/2+3.2, c[2]==='c' ? {align:'center'} : undefined);
+      x += c[1]; }
+    y += h; };
+  await row(cols.map(c=>c[0]), true);
+  for(let i=0;i<L.length;i++){ const c = L[i];
+    await row([i+1, c.serial, unitShortB(c.unit), c.charger||'', c.date ? c.date.slice(8,10)+'/'+c.date.slice(5,7)+'/'+c.date.slice(2,4) : '', String(Number(c.hours)||'')+(Number(c.hours)?' hrs':''), c.by||'', s.verBy||''], false, c.sig ? sigData[c.sig] : ''); }
+  const miss = notCharged(m);
+  y += 14; doc.setFont('helvetica','normal').setFontSize(9.5).setTextColor(16,24,40);
+  doc.text(miss.length ? 'Not charged in '+monthLabel(m)+': '+miss.map(b=>unitShortB(b.unit)+' ('+b.serial+')').join(', ') : 'Every battery was charged in '+monthLabel(m)+'.', x0, y, { maxWidth: tw });
+  y += 22; if(y > H-110){ doc.addPage(); y = 50; }
+  const bw = (tw-24)/2, X = x0+bw+24;
+  pdfLabel(doc, 'Verified by (Manager / DY Manager)', X, y); doc.setDrawColor(190,197,207); doc.rect(X, y+6, bw, 64);
+  const vd = s.verSig ? sigData[s.verSig] : '', vim = await imgOf(vd);
+  if(vim){ const k = Math.min((bw-16)/vim.width, 56/vim.height), ww = vim.width*k, hh = vim.height*k; doc.addImage(vd,'PNG', X+(bw-ww)/2, y+10+(56-hh)/2, ww, hh); }
+  pdfValue(doc, s.verBy ? s.verBy+'   '+fdate(String(s.verAt||'').slice(0,10)) : 'Not verified yet', X, y+84, 10);
+  pdfFooter(doc);
+  const name = fileSafe(m+' Movexx battery charging')+'.pdf';
+  if(where==='drive'){
+    if(!isLocked(m)) return toast('The PDF goes to Drive once '+monthLabel(m)+' is verified.');
+    if(!driveReady()){ downloadPdf(doc,name); return; }
+    const r = await postToDrive(driveCfg(), { subfolder:'Battery Charging '+m.slice(0,4), name, b64: doc.output('datauristring').split(',')[1] });
+    if(r.ok){ const sg = signOf(m); if(sg && r.out.url){ sg.pdfUrl = r.out.url; sg.pdfName = r.out.name || name; save(); render(); } driveDone(r.out); }
+    else { downloadPdf(doc,name); driveFailed(r, name); }
+  } else downloadPdf(doc,name);
+}
+
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-bact]'); if(!b) return;
+  const id = b.dataset.id;
+  switch(b.dataset.bact){
+    case 'sub': bSub = id; render(); break;
+    case 'month': { const n = shiftMonth(bMonth, Number(id)); if(n > today().slice(0,7)){ toast('That month has not started yet.'); break; } bMonth = n; render(); break; }
+    case 'new-charge': if(isLocked(bMonth)){ toast(monthLabel(bMonth)+' is verified. A Manager / DY Manager has to reopen it first.'); break; } chargeForm(id); break;
+    case 'edit-charge': chargeForm('', id); break;
+    case 'sign-charge': chargeForm('', id, true); setTimeout(()=>{ const w = $('#bc-padwrap'); if(w){ w.hidden = false; const cv = $('#bc-pad'); if(cv && !cv._pad) cv._pad = sigPadB(cv); w.scrollIntoView({block:'center'}); } },60); break;
+    case 'resign': { const w = $('#bc-padwrap'); if(w){ w.hidden = false; const cv = $('#bc-pad'); if(cv && !cv._pad) cv._pad = sigPadB(cv); } b.hidden = true; break; }
+    case 'save-charge': saveCharge(id); break;
+    case 'del-charge': { const c = state.charges.find(x=>x.id===id); if(!c) break;
+      if(isLocked(String(c.date).slice(0,7))){ toast('That month is verified. A Manager / DY Manager has to reopen it first.'); break; }
+      if(confirm('Delete this charging record ('+unitShortB(c.unit)+', '+fdate(c.date)+') and its signature?')){ if(c.sig) DB.dropPhotos('BATTCHG-'+c.id).catch(()=>{}); state.charges = state.charges.filter(x=>x.id!==id); save(); closeModal(); render(); toast('Charging record deleted.'); }
+      break; }
+    case 'clear-pad': { const c = document.getElementById(id); if(c && c._pad) c._pad.clear(); break; }
+    case 'sign-ver': signMonth(); break;
+    case 'unsign': unsign(); break;
+    case 'pdf': battPdf(id); break;
+    case 'new-batt': battForm(); break;
+    case 'edit-batt': battForm(id); break;
+    case 'save-batt': saveBatt(id); break;
+    case 'del-batt': delBatt(id); break;
+    case 'new-chg': chargerForm(); break;
+    case 'edit-chg': chargerForm(id); break;
+    case 'save-chg': saveCharger(id); break;
+    case 'del-chg': delCharger(id); break;
+  }
+});
+document.addEventListener('change', e=>{ if(e.target.id==='b-month'){ bMonth = e.target.value; render(); } });
 
 
 /* ============================================================ start-up */

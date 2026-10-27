@@ -11,7 +11,7 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
 (function(){
   const K_URL = 'mmrc-fleet-url', K_USER = 'mmrc-fleet-user', K_PASS = 'mmrc-fleet-pass';
   const DEFAULT_URL = WEB_APP_URL;
-  const LISTS = ['jobs','vendors','trolleys'];
+  const LISTS = ['jobs','vendors','trolleys','batteries','chargers','charges','battsign'];   // battery lists need Fleet Log server version 6
   const JSON_KEYS = new Set(['trolleyIds','receipt.file','receipt.files']);
   const NUM_KEYS  = new Set(['receipt.net','receipt.gst','receipt.total','receipt.pct']);
 
@@ -101,11 +101,11 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
   }
 
   function open(fleet){
-    let rev = 0, last = null, inflight = null, queued = null;
+    let rev = 0, last = null, inflight = null, queued = null, ver = 0;
 
     async function load(){
       const out = await call('load', { fleet });
-      rev = out.rev || 0;
+      rev = out.rev || 0; ver = Number(out.version) || 0;
       if(out.empty) return null;
       const st = Object.assign({}, out.settings || {});
       LISTS.forEach(k=>{ st[k] = (out.lists[k]||[]).map(unflatten); });
@@ -142,8 +142,10 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
     }
     return {
       fleet, load, save, overwrite,
+      version: ()=> ver,
       busy: ()=> !!inflight || queued!==null,
       getPhotos:  async jobId => (await call('getPhotos', { fleet, jobId })).photos || [],
+      getPhotosMany: async jobIds => (await call('getPhotosMany', { fleet, jobIds })).photos || {},
       putPhotos:  async (jobId,list) => (await call('putPhotos', { fleet, jobId,
         photos:(list||[]).map(p=> p.id ? { id:p.id } : { name:p.name, type:p.type, data:p.data }) })).photos || [],
       dropPhotos: async jobId => { await call('dropPhotos', { fleet, jobId }); }
