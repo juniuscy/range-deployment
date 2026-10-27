@@ -1050,7 +1050,7 @@ async function openHubApp(k){
   hubPush(k);
   S.view = 'app:' + k;
   $('#app').innerHTML = `<div class="appbar"><button id="app-home">&#8249; Home</button><b>${esc(a.name.toUpperCase())}</b><span>${esc(S.me.name)}</span></div>
-    <iframe class="appframe" src="${esc(APPS_BASE + a.url)}" title="${esc(a.name)}" allow="camera; clipboard-read; clipboard-write; fullscreen"></iframe>`;
+    <iframe class="appframe" src="${esc(APPS_BASE + a.url + (/^fleet\//.test(a.url) ? '#who=' + encodeURIComponent(S.me.name) + '&role=' + encodeURIComponent(S.me.role) : ''))}" title="${esc(a.name)}" allow="camera; clipboard-read; clipboard-write; fullscreen"></iframe>`;
   $('#app-home').onclick = () => renderHub();
 }
 
