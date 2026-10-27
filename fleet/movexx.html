@@ -406,6 +406,10 @@
   .bmiss .unitchip{background:#fff}
   .btab td{padding:11px 12px}.btab th{padding:11px 12px}
   .bsign{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  .battline{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:12.5px;color:var(--muted)}
+  .battline span{font-weight:600;color:var(--body)}.battline .linkbtn{font-size:13px;font-weight:600;color:var(--ink)}
+  .battline small{font-size:11.5px}.battline small.ok{color:var(--ok)}.battline small.due{color:var(--warn);font-weight:600}
+  .battline.none .linkbtn{color:var(--warn);font-weight:600}
   .bsign.one{grid-template-columns:minmax(0,560px);justify-content:end}
   .bsigsm{display:block;height:34px;max-width:150px;object-fit:contain;margin-top:3px}
   .bby{font-size:12.5px;color:var(--ink);font-weight:600;white-space:nowrap}
@@ -911,6 +915,16 @@ function fleetView(){
   ).join('');
 }
 
+/* the battery tagged to this Movexx (Battery tab), with when it was last charged */
+function unitBattLine(t){
+  if(typeof battOk!=='function' || !battOk() || !Array.isArray(state.batteries)) return '';
+  const bs = state.batteries.filter(b=>b.unit===t.id && b.active!==false);
+  if(!bs.length) return t.active ? '<div class="battline none"><span>Battery</span><button class="linkbtn" data-bact="go-batts">None tagged</button></div>' : '';
+  return bs.map(b=>{ const L = state.charges.filter(c=>c.batteryId===b.id).map(c=>c.date).sort(), last = L[L.length-1] || '';
+    const thisMonth = last && last.slice(0,7)===today().slice(0,7);
+    return '<div class="battline"><span>Battery</span><button class="linkbtn money" data-bact="edit-batt" data-id="'+esc(b.id)+'" title="Battery details">'+esc(b.serial)+'</button>' +
+      '<small class="'+(thisMonth?'ok':'due')+'">'+(last ? (thisMonth?'charged ':'last charged ')+esc(fdate(last)) : 'never charged')+'</small></div>'; }).join('');
+}
 function unitCard(t,down){
   const st = unitStatus(t,down);
   const col = trolleyColor(t);
@@ -930,6 +944,7 @@ function unitCard(t,down){
     '<div style="margin-top:10px">'+pill+'</div>' +
     '<div class="certline">'+servicePill(t) +
       (serviceDue(t)?'<span class="jobref">cert '+esc(fdate(serviceDue(t)))+'</span>':'')+'</div>' +
+    unitBattLine(t) +
     '<div class="nt">'+(t.notes?esc(t.notes):n+' repair'+(n===1?'':'s')+' on record')+'</div>' +
     '<div class="acts"><button class="btn ghost small" data-act="edit-trolley" data-id="'+esc(t.id)+'">Edit</button>' +
     (t.active?'<button class="btn ghost small" data-act="serviced" data-id="'+esc(t.id)+'">Serviced</button>':'')+'</div></div>';
@@ -2354,10 +2369,9 @@ function chargeMonth(){
     (L.length ? '<div class="tbl-wrap"><table class="btab"><thead><tr><th class="num">S/N</th><th>Battery serial no.</th><th>T-1000</th><th>Charger #</th><th>Date of charging</th><th>Duration</th><th>Record by (signature)</th><th>Verified by</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
       : '<div class="empty" style="padding:34px 20px">'+glyph('doc')+'<h3>No charging recorded for '+esc(monthLabel(m))+'</h3><p>Each time a battery is charged, tap Record a charge and sign.</p></div>') +
     signBlock(m, L) +
-    '<div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost" data-bact="pdf" data-id="dl"'+(L.length?'':' disabled')+'>Download PDF</button>' +
-      (locked ? '<button class="btn" data-bact="pdf" data-id="drive">Save PDF to Drive</button>' : '') + '</div>' +
-    (s && s.pdfUrl ? '<p class="hint" style="text-align:right;margin-top:8px">In Drive: <a href="'+esc(s.pdfUrl)+'" target="_blank" rel="noopener">'+esc(s.pdfName||'PDF')+'</a></p>' :
-      !locked ? '<p class="hint" style="text-align:right;margin-top:8px">The PDF goes to Drive once the month is verified. Until then you can download it to this phone.</p>' : '');
+    '<div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" data-bact="pdf" data-id="drive"'+(L.length?'':' disabled')+'>Save as PDF</button></div>' +
+    '<p class="hint" style="text-align:right;margin-top:8px">'+(s && s.pdfUrl ? 'Last saved in Google Drive: <a href="'+esc(s.pdfUrl)+'" target="_blank" rel="noopener">'+esc(s.pdfName||'PDF')+'</a>'+(s.pdfAt ? ', '+esc(fdate(String(s.pdfAt).slice(0,10)))+' '+esc(ftime(s.pdfAt)) : '')+'<br>' : '') +
+      'Saves the month as a PDF in Google Drive (Movexx PDFs &rsaquo; Battery Charging '+esc(m.slice(0,4))+'). Saving again replaces the older copy'+(locked ? '.' : '; it is also saved when the month is verified.')+'</p>';
 }
 
 function signBlock(m, L){
@@ -2596,10 +2610,11 @@ async function battPdf(where){
   pdfFooter(doc);
   const name = fileSafe(m+' Movexx battery charging')+'.pdf';
   if(where==='drive'){
-    if(!isLocked(m)) return toast('The PDF goes to Drive once '+monthLabel(m)+' is verified.');
     if(!driveReady()){ downloadPdf(doc,name); return; }
-    const r = await postToDrive(driveCfg(), { subfolder:'Battery Charging '+m.slice(0,4), name, b64: doc.output('datauristring').split(',')[1] });
-    if(r.ok){ const sg = signOf(m); if(sg && r.out.url){ sg.pdfUrl = r.out.url; sg.pdfName = r.out.name || name; save(); render(); } driveDone(r.out); }
+    toast('Saving '+name+' to Google Drive…');
+    const r = await postToDrive(driveCfg(), { subfolder:'Battery Charging '+m.slice(0,4), name, replace:true, b64: doc.output('datauristring').split(',')[1] });
+    if(r.ok){ let sg = signOf(m); if(!sg){ sg = { id:m, month:m }; state.battsign.push(sg); }
+      if(r.out.url){ sg.pdfUrl = r.out.url; sg.pdfName = r.out.name || name; sg.pdfAt = new Date().toISOString(); save(); render(); } driveDone(r.out); }
     else { downloadPdf(doc,name); driveFailed(r, name); }
   } else downloadPdf(doc,name);
 }
@@ -2609,6 +2624,7 @@ document.addEventListener('click', e=>{
   const id = b.dataset.id;
   switch(b.dataset.bact){
     case 'sub': bSub = id; render(); break;
+    case 'go-batts': view = 'battery'; bSub = 'batteries'; render(); window.scrollTo({top:0,behavior:'smooth'}); break;
     case 'month': { const n = shiftMonth(bMonth, Number(id)); if(n > today().slice(0,7)){ toast('That month has not started yet.'); break; } bMonth = n; render(); break; }
     case 'new-charge': if(isLocked(bMonth)){ toast(monthLabel(bMonth)+' is verified. A Manager / DY Manager has to reopen it first.'); break; } chargeForm(id); break;
     case 'edit-charge': chargeForm('', id); break;
