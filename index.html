@@ -558,6 +558,10 @@ main.am #af-go{margin-top:2px}
 .tg th.nm{text-align:left;width:74px;color:var(--ink);font-size:12px}
 .tg th.nm small{display:block;font-weight:400;color:var(--muted);font-size:10.5px}
 .tg.ro td{cursor:default}
+.tg.tg-pes{min-width:430px}.tg.tg-pes th.nm{position:sticky;left:0;z-index:1;background:var(--card);box-shadow:3px 0 4px -3px rgba(23,33,43,.25)}
+.tg-hint{display:none;font-size:12.5px;color:var(--muted);margin:0 0 4px}@media (max-width:480px){.tg-hint{display:block}}.tg th.pes{width:58px}.tg td.pes{padding:0;cursor:default;overflow:visible}
+.tg td.pes input{width:100%;min-height:30px;padding:3px 4px;border:1px solid #B9C3BA;border-radius:5px;font:600 11.5px var(--body);text-align:center;text-transform:uppercase;background:#fff}
+.tg td.pes input.wait{border-color:#1D4ED8}.tg td.pes input.ok{border-color:var(--go);background:#EAF6EE}.tg td.pes input.bad{border-color:var(--flag);background:#FBEBEB}
 .tg td{text-align:center;border-radius:5px;padding:7px 0;font-weight:600;font-size:11px;cursor:pointer;white-space:nowrap;overflow:hidden}
 .ts-done{background:#DCFCE7;color:#166534}.ts-arr,.ts-wait{background:#DBEAFE;color:#1E40AF}.ts-todo{background:#FEF9C3;color:#854D0E}
 .ts-late,.ts-missed,.ts-fail{background:#FDE2E1;color:#B3261E}.ts-na,.ts-locked,.ts-soon2{background:#ECEFF1;color:#8A959E}
@@ -1318,13 +1322,15 @@ function drawTraining(d){
     ${d.canEdit ? '' : '<p class="small muted" style="margin:-4px 0 8px">View only. Managers arrange the dates.</p>'}
     <div class="sub" style="margin-bottom:8px"><button class="chip" data-tf="" aria-pressed="${!S.trnFilter}">All APO</button>
       <button class="chip" data-tf="1" aria-pressed="${!!S.trnFilter}">Needs action (${grid.filter(x => needs(x.cs)).length})</button></div>
-    ${shown.length ? `<div class="scroll" style="background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:4px"><table class="tg${d.canEdit ? '' : ' ro'}">
-      <tr><th class="nm"></th>${head}</tr>
+    ${shown.length ? `<p class="tg-hint">Swipe the table sideways to see IPPT and PES.</p><div class="scroll" style="background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:4px"><table class="tg tg-pes${d.canEdit ? '' : ' ro'}">
+      <tr><th class="nm"></th>${head}<th class="pes">PES</th></tr>
       ${shown.map(x => `<tr><th class="nm">${esc(x.p.name)}${x.p.sid ? `<small>${esc(x.p.sid)}</small>` : ''}</th>${x.cs.map(c =>
-        `<td class="ts-${c.st}" data-tc="${esc(x.p.name)}|${c.per.k}">${esc(cellTxt(c))}</td>`).join('')}</tr>`).join('')}</table></div>`
+        `<td class="ts-${c.st}" data-tc="${esc(x.p.name)}|${c.per.k}">${esc(cellTxt(c))}</td>`).join('')}<td class="pes">${d.canEdit
+          ? `<input type="text" data-pes="${esc(x.p.name)}" value="${esc(x.p.pes || '')}" maxlength="40" autocomplete="off" aria-label="PES for ${esc(x.p.name)}">`
+          : esc(x.p.pes || '-')}</td></tr>`).join('')}</table></div>`
       : '<div class="sec"><p>Nothing needs action.</p></div>'}
     <div class="tlg"><span><i class="ts-done"></i>Done</span><span><i class="ts-arr"></i>Arranged</span><span><i class="ts-todo"></i>Not arranged</span><span><i class="ts-fail"></i>Failed / overdue</span><span><i class="ts-na"></i>N/A</span></div>
-    <p class="small muted">${d.canEdit ? 'Tap a box to arrange a date or record a result. ' : ''}A date with "?" has passed and is waiting for the APO to enter the result. Arranged dates go into that day's IPPT/ TRG row.</p>`;
+    <p class="small muted">${d.canEdit ? 'Tap a box to arrange a date or record a result. Type each APO\'s physical fitness status in <b>PES</b>; it saves when you leave the box. ' : ''}A date with "?" has passed and is waiting for the APO to enter the result. Arranged dates go into that day's IPPT/ TRG row.</p>`;
   $('#t-rf').onclick = () => admTraining();
   A().querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { S.trnFilter = b.dataset.tf; drawTraining(S.trn); });
   if ($('#t-wa')) $('#t-wa').onclick = () => {
@@ -1337,6 +1343,18 @@ function drawTraining(d){
     if (L.length === 2) L.push('', 'All trainings are arranged or done.');
     openWaSheet('Training reminder', 'For the managers. You can edit it before sending.', '', L.join('\n'), { key: 'trn-rem' });
   };
+  /* PES: saved when the box is left (or Enter); the table is not redrawn, so typing in the next box is not interrupted */
+  if (d.canEdit) A().querySelectorAll('[data-pes]').forEach(inp => {
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } };
+    inp.onchange = async () => {
+      const name = inp.dataset.pes, v = inp.value.replace(/\s+/g, ' ').trim().toUpperCase();
+      inp.value = v; inp.classList.remove('ok', 'bad'); inp.classList.add('wait');
+      try { const r = await call('trainingSetPes', S.token, name, v);
+        const p = (S.trn.people || []).find(x => x.name === name); if (p) p.pes = ((r.people || []).find(x => x.name === name) || {}).pes || v;
+        inp.classList.remove('wait'); inp.classList.add('ok'); setTimeout(() => inp.classList.remove('ok'), 1500); }
+      catch(err){ inp.classList.remove('wait'); inp.classList.add('bad'); fail(err); }
+    };
+  });
   if (d.canEdit) A().querySelectorAll('[data-tc]').forEach(td => td.onclick = () => {
     const [nm, k] = td.dataset.tc.split('|');
     const row = grid.find(x => x.p.name === nm);
@@ -5217,13 +5235,14 @@ const MOCK = (() => {
     const put = (k, dt, arrOnly) => { if (!dt) return; const d = TDF.find(z => z.k === k), done = !arrOnly && dt <= today;
       mrows.push({ id:'M' + (++mid), name:x[0], t:d.t, period:mPer(d, dt).id, arranged:dt, result: done ? (d.doneWord || 'PASSED') : '', resultDate: done ? dt : '' }); };
     put('WHT1', x[1]); put('WHT2', x[2]); put('PCT', x[3]); put('TS', x[4]); put('TESTTS', x[5]); put('TESTTS', x[6], true); put('MA', x[7]); put('IPPT', x[8]); });
+  const mPes = { CHEW: 'B1' };
   function mTrn(own){
     const apos = (S.staff || []).filter(p => TRAINEES.includes(p.role) && MB[p.name]);
     const mine = !own && (canView() || S.me.role === 'APO Supervisor') ? apos : apos.filter(p => p.name === S.me.name);
     const periods = TDF.map(d => Object.assign({ k:d.k, t:d.t, label:d.label, needs:d.needs || '', minAge:d.minAge || 0, doneWord:d.doneWord || 'PASSED' }, mPer(d, today)));
     const keys = {}; periods.forEach(p => { keys[p.t + '|' + p.id] = 1; });
     const names = mine.map(p => p.name);
-    return { today, canEdit: canManage(), periods, people: mine.map(p => ({ name:p.name, sid:MID[p.name] || '', age:mAge(MB[p.name]), ex:(x => x && x.role === 'APO' ? [x.noMa ? 'MA' : '', x.noIppt ? 'IPPT' : ''].filter(Boolean) : [])(staffList.find(y => y.name === p.name)) })),
+    return { today, canEdit: canManage(), periods, people: mine.map(p => ({ name:p.name, sid:MID[p.name] || '', pes: mPes[p.name] || '', age:mAge(MB[p.name]), ex:(x => x && x.role === 'APO' ? [x.noMa ? 'MA' : '', x.noIppt ? 'IPPT' : ''].filter(Boolean) : [])(staffList.find(y => y.name === p.name)) })),
       rows: mrows.filter(r => names.includes(r.name) && keys[r.t + '|' + r.period]) };
   }
   const mBdays = () => Object.keys(MB).filter(n => MB[n].slice(5) === today.slice(5));
@@ -5534,6 +5553,7 @@ const MOCK = (() => {
     adminAllergoUndo: (t, keys) => { const x = mAlg.find(i => i.keys.join() === keys.join()); x.ticked = null; return MOCK.getAllergo(t); },
     reportSent: (t, id, undo) => { if (undo) delete mRep.sent[id]; else mRep.sent[id] = { by:S.me.name, at:String(new Date().getHours()).padStart(2,'0') + ':' + String(new Date().getMinutes()).padStart(2,'0') }; return mRep; },
     getTraining: () => mTrn(),
+    trainingSetPes: (t, n, v) => { if (!canManage()) throw new Error('Admins only'); mPes[n] = String(v || '').trim().toUpperCase(); return mTrn(); },
     getBirthdays: () => mBdays(),
     trainingArrange: (t, f) => { const d = TDF.find(z => z.k === f.k), per = mPer(d, today);
       const open = mrows.filter(r => r.name === f.name && r.t === d.t && r.period === per.id && !r.result).pop();
