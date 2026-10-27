@@ -2274,7 +2274,7 @@ $('#scrim').addEventListener('mousedown', e=>{ if(e.target.id==='scrim') closeMo
    Each battery is charged at least once a month (sometimes twice) on one of the chargers.
    Every charge is signed by the person who charged it (its own signature); at the end of the month
    a Manager / DY Manager verifies the month, then its PDF goes to Drive (Movexx PDFs / Battery Charging yyyy). */
-const BATT_MIN_VER = 6;
+const BATT_MIN_VER = 7;
 const battOk = () => !!(DB.version && DB.version() >= BATT_MIN_VER);
 /* who is using the page: passed by the Range Deployment app (#who=NAME&role=ROLE), kept for this tab */
 const ME = (function(){
@@ -2301,7 +2301,11 @@ const CHARGE_SEED = { '01':'2026-10-20','02':'2026-10-20','03':'2026-10-20','04'
   '06':'2026-10-27','08':'2026-10-27','09':'2026-10-27','10':'2026-10-27' };
 function battInit(){
   ['batteries','chargers','charges','battsign'].forEach(k=>{ if(!Array.isArray(state[k])) state[k] = []; });
-  if(state.seededBattery || !battOk()) return;
+  if(!battOk()) return;
+  // 27 Oct 2026: a page left open from before the update cleared the battery lists. Put the starting list back once.
+  if(state.seededBattery && !state.battRestored1 && !state.batteries.length && !state.chargers.length && !state.charges.length) state.seededBattery = false;
+  state.battRestored1 = true;
+  if(state.seededBattery) return;
   state.seededBattery = true;
   if(!state.chargers.length) ['2321398','2321260'].forEach((sn,i)=>state.chargers.push({ id:nextId('charger','CHG'), serial:sn, name:'Charger '+(i+1), active:true }));
   if(!state.batteries.length) BATT_SEED.forEach(([sn,u])=>state.batteries.push({ id:nextId('battery','BAT'), serial:sn, unit:UNIT_PREFIX+u, since:'', notes:'', active:true }));

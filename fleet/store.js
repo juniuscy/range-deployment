@@ -114,7 +114,7 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
     }
     async function send(s){
       const lists = {}, settings = {};
-      LISTS.forEach(k=>{ lists[k] = (s[k]||[]).map(flatten); });
+      LISTS.forEach(k=>{ if(Array.isArray(s[k])) lists[k] = s[k].map(flatten); });   // a list the page does not have is not sent, so it is never wiped
       Object.keys(s).forEach(k=>{ if(LISTS.indexOf(k)<0) settings[k] = s[k]; });
       const out = await call('save', { fleet, baseRev:rev, lists, settings });
       rev = out.rev;
