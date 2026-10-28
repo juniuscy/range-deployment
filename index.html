@@ -61,6 +61,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .top-in{max-width:880px;margin:0 auto;display:flex;align-items:center;gap:12px}
 .brand{font:700 20px/1 var(--cond);letter-spacing:.02em}
 .who{margin-left:auto;font-size:14px;opacity:.85;text-align:right}
+.who .rotag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;background:rgba(255,255,255,.18);font-size:11.5px;font-weight:600;white-space:nowrap}
 .who button{background:none;border:0;color:#fff;text-decoration:underline;padding:0 0 0 8px;cursor:pointer;font-size:14px}
 main{max-width:880px;margin:0 auto;padding:16px 16px 110px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
@@ -747,10 +748,12 @@ const APO_LIKE = ['APO', 'APO Supervisor', 'Non-APO'];   // deployable as APO
 const TRAINEES = ['APO', 'APO Supervisor'];              // have yearly training
 const hasOil = () => S.me && !NOSTAFF(S.me.role);                                         // admin / PD: no off days
 /* PD (Project Director): sees everything Admin / Managers see, but cannot change anything */
-const isPD = () => !!(S.me && S.me.role === 'PD');
+const isPD = () => !!(S.me && (S.me.role === 'PD' || S.me.viewOnly));   // view-only PD: sees the app as a DY Manager (S.me), changes nothing
 const canView = () => !!(S.me && (canManage() || isPD()));
 const NOSTAFF = r => r === 'Admin' || r === 'PD';          // not part of the team: no deployment, OIL, leave, attendance
-const RO_MSG = 'View only: the PD account cannot change anything.';
+const RO_MSG = 'View only: this account cannot change anything.';
+/* who is signed in, for the header: the PD sees "PETER TAN - View only (as CHAN YANG)" */
+const meLabel = () => S.me.viewOnly ? `${esc(S.me.realName)} <span class="rotag">View only &middot; as ${esc(S.me.name)}</span>` : esc(S.me.name);
 /* what the PD may call (reading only); anything else is stopped here, and on the server */
 const PD_READ = ['ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
   'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
@@ -902,7 +905,7 @@ function renderLogin(){
 function firstPin(r){
   $('#app').innerHTML = `<main class="login">
     <h1>Choose your own PIN</h1>
-    <p class="muted">Hi ${esc(r.me.name)}. You signed in with a PIN from your admin. Pick your own 4 to 6 digit PIN; only you will know it.</p>
+    <p class="muted">Hi ${esc(r.me.realName || r.me.name)}. You signed in with a PIN from your admin. Pick your own 4 to 6 digit PIN; only you will know it.</p>
     <div class="sec">
       <label class="f"><span>PIN from your admin</span><input id="fp-c" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></label>
       <label class="f"><span>New PIN</span><input id="fp-n" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></label>
@@ -963,7 +966,7 @@ function renderShell(){
   $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
   <header class="top"><div class="top-in">
     <button class="homeb" id="homebtn" aria-label="Home">&#8249; Home</button><div class="brand">Range Deployment</div>
-    <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
+    <div class="who">${meLabel()}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div>
   </div></header>
   <nav class="tabs" aria-label="Sections"><div class="in${tabs.length >= 7 ? ' many' : ''}">
     ${tabs.map(([k,l]) => `<button data-v="${k}">${tabs.length >= 7 && k === 'board' ? 'Deploy Plan' : l}${k === dotTab() && canView() ? '<span class="dot" id="pcount" hidden></span>' : ''}</button>`).join('')}
@@ -1002,9 +1005,9 @@ function renderHub(fromBack){
   const d = pd(S.today);
   $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
   <header class="top"><div class="top-in"><div class="brand">Range Deployment</div>
-    <div class="who">${esc(S.me.name)}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div></div></header>
+    <div class="who">${meLabel()}<button id="pinbtn">PIN</button><button id="out">Sign out</button></div></div></header>
   <main id="view" class="hub">
-    <h2>Hi ${esc(S.me.name)}</h2><div class="sub">${esc(DOW[dowIdx(S.today)] + ' ' + d.getDate() + ' ' + MON[d.getMonth()])} &middot; pick an app</div>
+    <h2>Hi ${esc(S.me.viewOnly ? S.me.realName : S.me.name)}</h2>${S.me.viewOnly ? `<div class="note" style="margin:6px 0 10px">View only: you see the app exactly as ${esc(S.me.name)} (${esc(S.me.role)}) does. Nothing you tap is saved.</div>` : ''}<div class="sub">${esc(DOW[dowIdx(S.today)] + ' ' + d.getDate() + ' ' + MON[d.getMonth()])} &middot; pick an app</div>
     <button class="hbig" id="hub-plan"><b>DEPLOYMENT PLAN</b><span>My Deploy, plan, OIL, leave, attendance and admin</span><div class="hchips" id="hub-chips"></div></button>
     <div class="hrow" style="grid-template-columns:repeat(${Math.max(hubApps().length, 1)},1fr)">${hubApps().map(a => `<button class="htile${a.url || a.native ? '' : ' soon'}" data-hub="${a.k}" style="background:${a.col}">
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${a.ico}</svg>
@@ -1049,8 +1052,8 @@ async function openHubApp(k){
   }
   hubPush(k);
   S.view = 'app:' + k;
-  $('#app').innerHTML = `<div class="appbar"><button id="app-home">&#8249; Home</button><b>${esc(a.name.toUpperCase())}</b><span>${esc(S.me.name)}</span></div>
-    <iframe class="appframe" src="${esc(APPS_BASE + a.url + (/^fleet\//.test(a.url) ? '#who=' + encodeURIComponent(S.me.name) + '&role=' + encodeURIComponent(S.me.role) : ''))}" title="${esc(a.name)}" allow="camera; clipboard-read; clipboard-write; fullscreen"></iframe>`;
+  $('#app').innerHTML = `<div class="appbar"><button id="app-home">&#8249; Home</button><b>${esc(a.name.toUpperCase())}</b><span>${esc(S.me.viewOnly ? S.me.realName + ' (view only)' : S.me.name)}</span></div>
+    <iframe class="appframe" src="${esc(APPS_BASE + a.url + (/^fleet\//.test(a.url) ? '#who=' + encodeURIComponent(S.me.viewOnly ? S.me.realName : S.me.name) + '&role=' + encodeURIComponent(S.me.role) + (S.me.viewOnly ? '&ro=1' : '') : ''))}" title="${esc(a.name)}" allow="camera; clipboard-read; clipboard-write; fullscreen"></iframe>`;
   $('#app-home').onclick = () => renderHub();
 }
 
@@ -5103,6 +5106,8 @@ function editStaff(p){
     <div class="f" style="margin-bottom:4px"><span>Can open on the Home screen</span></div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">${APP_PICK.map(([k, l]) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-sapp="${k}" ${(p.apps || []).includes(k) ? 'checked' : ''} style="width:20px;height:20px"><span>${l}</span></label>`).join('')}</div>
     ${exBox('s', p)}
+    <label class="f" id="s-va-w" ${p.role === 'PD' ? '' : 'hidden'}><span>Sees the app as (view only)</span><select id="s-va"><option value="">First DY Manager</option>${(S.staff || []).filter(x => MGR_ROLES.includes(x.role)).map(x => `<option value="${esc(x.name)}" ${x.name === p.viewAs ? 'selected' : ''}>${esc(x.name)} (${esc(x.role)})</option>`).join('')}</select>
+      <small class="muted" style="display:block;margin-top:4px">The PD signs in with their own name and PIN and sees every screen this person sees, but cannot change anything.</small></label>
     ${p.locked ? `<div class="note red" style="display:flex;align-items:center;gap:10px;justify-content:space-between">Locked after 5 wrong PINs.<button class="btn" id="s-unl" style="min-height:38px">Unlock</button></div>` : ''}
     <label class="f"><span>${p.hasPin ? 'Give a new PIN (if they forgot theirs)' : 'Give a first PIN'}</span>
       <span style="display:flex;gap:8px"><input type="text" id="s-np" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits" style="min-width:0">
@@ -5112,6 +5117,7 @@ function editStaff(p){
   document.body.appendChild(bg);
   const close = () => bg.remove();
   exWire('s', bg);
+  $('#s-r', bg).addEventListener('change', () => { $('#s-va-w', bg).hidden = $('#s-r', bg).value !== 'PD'; });
   $('#s-x', bg).onclick = close;
   bg.onclick = e => { if (e.target === bg) close(); };
   $('#s-pin', bg).onclick = async e => {
@@ -5127,7 +5133,7 @@ function editStaff(p){
   $('#s-ok', bg).onclick = async e => {
     busy(e.target, true);
     try {
-      const r = await call('adminSaveStaff', S.token, { name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, apps:[...bg.querySelectorAll('[data-sapp]:checked')].map(x => x.dataset.sapp), noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value, noMa:$('#s-xma', bg).checked, noIppt:$('#s-xip', bg).checked });
+      const r = await call('adminSaveStaff', S.token, { viewAs:$('#s-va', bg).value, name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, apps:[...bg.querySelectorAll('[data-sapp]:checked')].map(x => x.dataset.sapp), noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value, noMa:$('#s-xma', bg).checked, noIppt:$('#s-xip', bg).checked });
       setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -5375,6 +5381,11 @@ const MOCK = (() => {
       const who = staffList.find(x => x.name === n) || staffList.find(x => (x.aliases || []).includes(n));
       if (!who) throw new Error('Name or PIN is wrong.');
       n = who.name;
+      if (who.role === 'PD') {           // the PD sees the app as a DY Manager, view only (same as the server)
+        const mg = staffList.filter(x => x.active && MGR_ROLES.includes(x.role));
+        const m = mg.find(x => x.name === who.viewAs) || mg.find(x => x.role === 'DY Manager') || mg[0];
+        if (m) return { token:'demo', me:{ name:m.name, role:m.role, apps: m.apps || [], viewOnly:true, realName:n }, types: types.filter(t => t.code !== 'OIL' || !NOSTAFF(m.role)), today, staff: staffList.filter(p => p.active) };
+      }
       const role = who ? who.role : 'APO';
       return { token:'demo', me:{ name:n, role, apps: who.apps || [] }, types: types.filter(t => t.code !== 'OIL' || !NOSTAFF(role)), today, staff: staffList.filter(p => p.active) }; },
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
@@ -6092,7 +6103,7 @@ const amSpendDate = r => r.invoiceDate || r.fixedOn || r.found || '';
 async function openAmmo(){
   hubPush('ammo');
   S.view = 'ammo'; S.amTab = S.amTab || 'fault';
-  $('#app').innerHTML = `<div class="appbar am-bar"><button id="app-home">&#8249; Home</button><b>AMMO TRUCK</b><span>${esc(S.me.name)}</span></div>
+  $('#app').innerHTML = `<div class="appbar am-bar"><button id="app-home">&#8249; Home</button><b>AMMO TRUCK</b><span>${esc(S.me.viewOnly ? S.me.realName + ' (view only)' : S.me.name)}</span></div>
     <div class="am-tabs" role="tablist">${[['fault','Fault list'],['ack','Acknowledge'],['his','History'],['rep','Repairs'],['con','Contractors'],['sum','Summary']].map(([k, l]) =>
       `<button data-amt="${k}" aria-pressed="${S.amTab === k}">${l}${k === 'rep' ? '<em id="am-open" hidden></em>' : k === 'ack' ? '<em id="am-ack" hidden></em>' : ''}</button>`).join('')}</div>
     <main id="view" class="am"><div class="loading">Loading\u2026</div></main>`;
