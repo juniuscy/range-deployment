@@ -324,6 +324,49 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .editbar .btn{min-height:40px;padding:6px 14px}
 .freebox{background:var(--go-soft);border-radius:var(--r-md);padding:10px 12px;margin-bottom:12px;font-size:15px}
 .freebox b{font-family:var(--cond);font-size:17px;margin-right:6px}
+.vc-bg{align-items:stretch;justify-content:center}
+.vc-full{background:var(--paper);width:100%;max-width:640px;height:100%;overflow:auto;display:flex;flex-direction:column}
+.vc-top{position:sticky;top:0;z-index:2;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;font-size:17px}
+.vc-top button{background:none;border:0;color:#fff;font-size:15px;cursor:pointer;padding:4px 0 4px 10px}
+.vc-body{padding:14px 14px calc(30px + env(safe-area-inset-bottom))}
+.vc-sh{font-size:14px;letter-spacing:.04em;color:var(--steel);margin:14px 2px 8px;display:flex;justify-content:space-between;align-items:baseline}
+.vc-sh small{font:500 12px var(--body);color:var(--muted);letter-spacing:0}
+.vc-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin-bottom:6px;flex-wrap:wrap}
+.vc-row.bad{border-color:var(--flag);background:var(--flag-soft)}
+.vc-ck{width:30px;height:30px;flex:none;border-radius:7px;border:0;background:var(--go);color:#fff;font-size:17px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.vc-ck.off{background:#fff;border:2px solid var(--flag);color:var(--flag)}
+.vc-ck.fuel{background:var(--steel);font-size:15px;cursor:default}
+.vc-n{flex:1;min-width:0;font-weight:600;cursor:pointer}.vc-n small{display:block;font-weight:500;color:var(--flag);font-size:13px}
+.vc-row.sel .vc-n{cursor:default}.vc-row select{width:auto;min-width:110px;min-height:40px}
+.vc-s{font-size:12px;font-weight:700;color:var(--go)}.vc-row.bad .vc-s{color:var(--flag)}
+.vc-fault{width:100%;display:block;margin:2px 0 0}.vc-fault small{display:block;color:var(--flag);font-weight:700;font-size:11.5px;margin-bottom:3px}
+.vc-fault textarea{width:100%;border:1.5px solid var(--flag);border-radius:8px;padding:8px;font:15px var(--body);min-height:46px;resize:vertical}
+.vc-sum{display:flex;gap:8px;margin:12px 0}.vc-sum>div{flex:1;text-align:center;border-radius:10px;padding:8px 4px;font-size:11.5px;font-weight:700}
+.vc-sum b{display:block;font:700 22px var(--cond)}.vc-sum .ok{background:var(--go-soft);color:var(--go)}.vc-sum .bad{background:var(--flag-soft);color:var(--flag)}
+.vc-sum .fu{background:var(--steel-soft);color:var(--steel)}.vc-sum .nd{background:var(--wait-soft);color:var(--wait)}
+.vc-sigimg{display:block;max-width:100%;height:90px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff}
+.vc-todo{border:2px solid var(--wait)}.vc-todo.ok{border-color:var(--go)}.vc-todo.bad{border-color:var(--flag)}
+.vc-th{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.vc-th b{font:700 18px var(--cond)}
+.vc-it{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin:10px 0 0;background:#fff}
+.vc-it>div{flex:1;min-width:0}.vc-it small{display:block;color:var(--muted);font-size:13px}.vc-it .btn{min-height:40px;padding:6px 14px}
+.vc-ic{width:28px;height:28px;flex:none;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:900}
+.vc-ic.warn{border:2px solid var(--wait);color:var(--wait)}.vc-ic.ok{background:var(--go);color:#fff}
+.vc-todo .btn.block{margin-top:10px}.vc-amm{background:#6D28D9;border-color:#6D28D9}
+.vc-ban{border-radius:10px;padding:10px 12px;margin-top:8px;border:2px solid}.vc-ban b{display:block;font-size:16px}.vc-ban small{display:block;color:var(--ink);font-size:13.5px}
+.vc-ban.ok{border-color:var(--go);background:var(--go-soft)}.vc-ban.ok b{color:var(--go)}.vc-ban.bad{border-color:var(--flag);background:var(--flag-soft)}.vc-ban.bad b{color:var(--flag)}
+.vc-res{text-align:center}.vc-res.bad{border:2px solid var(--flag)}.vc-res.ok{border:2px solid var(--go)}.vc-big{font:900 34px var(--cond)}.vc-res.bad .vc-big{color:var(--flag)}.vc-res.ok .vc-big{color:var(--go)}
+.vc-pick{display:flex;gap:8px}.vc-pick button{flex:1;border-radius:12px;padding:12px 6px;font-weight:800;font-size:14px;cursor:pointer;border:2px solid;background:#fff}
+.vc-pick small{display:block;font-weight:500;color:var(--muted);font-size:12.5px}.vc-pick .ok{border-color:var(--go);color:var(--go)}.vc-pick .bad{border-color:var(--flag);color:var(--flag)}
+.vc-pick .ok.on{background:var(--go-soft);box-shadow:0 0 0 3px var(--go-soft)}.vc-pick .bad.on{background:var(--flag-soft);box-shadow:0 0 0 3px var(--flag-soft)}
+.btn.vc-red{background:var(--flag);border-color:var(--flag);color:#fff}
+.vc-mhead{display:flex;gap:6px;align-items:center;margin-bottom:10px}.vc-mhead select{flex:1;min-width:0}.vc-mhead .ib{min-height:42px;padding:6px 12px}
+.vc-day{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;padding:11px 12px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;font:15px var(--body);color:var(--ink);cursor:pointer}
+.vc-day:last-child{border-bottom:0}.vc-day[disabled]{cursor:default;color:var(--ink);opacity:1}.vc-pills{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.vc-closebox{border:2px solid var(--steel)}.vc-ct{font:700 18px var(--cond)}
+.vc-pdf{display:flex;gap:10px;align-items:center;margin:10px 0}.vc-pdf small{display:block;color:var(--muted);font-size:12.5px}.vc-pdfic{background:var(--flag);color:#fff;font-weight:800;font-size:11px;border-radius:6px;padding:8px 6px}
+.vc-fc{padding:10px 12px}.vc-fh{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.vc-ed{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px}
+.vc-ed .vc-n{cursor:default}.vc-ed small{color:var(--muted)!important}.ib2{border:1px solid var(--line);background:#fff;border-radius:8px;width:36px;height:36px;cursor:pointer;color:var(--muted)}.ib2.x{color:var(--flag)}
 .sheet-bg{position:fixed;inset:0;background:rgba(23,33,43,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--card);width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:14px 14px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom))}
 @media (min-width:640px){.sheet-bg{align-items:center}.sheet{border-radius:14px}}
@@ -755,7 +798,7 @@ const RO_MSG = 'View only: this account cannot change anything.';
 /* who is signed in, for the header: the PD sees "PETER TAN - View only (as CHAN YANG)" */
 const meLabel = () => S.me.viewOnly ? `${esc(S.me.realName)} <span class="rotag">View only &middot; as ${esc(S.me.name)}</span>` : esc(S.me.name);
 /* what the PD may call (reading only); anything else is stopped here, and on the server */
-const PD_READ = ['ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
+const PD_READ = ['vcForm','vcRecord','vcMonth','ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
   'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
   'adminActions','adminAttendance','adminAwayList','adminChanges','adminLib','adminOil','adminPending','adminScanOil','adminStaff','adminTeam',
   'getMyOil','getMyOilHistory','getMyRequests','getMySchedule','ammoGet','ammoFault','ammoReceipts','fleetLogin'];
@@ -1105,6 +1148,7 @@ function drawHome(h, stale){
         <div class="idno">${h.sid ? 'ID ' + esc(h.sid) : esc(h.me.role)}</div></div>${stale ? '<span class="upd">Updating\u2026</span>' : ''}</div>
       <div class="hirow2">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div>
       ${h.attendance ? clockNotes(h.attendance) + sickBox(h.attendance) : ''}
+      ${vcHomeCard(h.vc)}
       ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
       ${canView() || dmMine ? strCard() : ''}
@@ -1129,6 +1173,8 @@ function drawHome(h, stale){
     wireClock();
     wireSick();
     wireNews(h.news, !stale);
+    S.vcDue = h.vc && h.vc.decide ? h.vc.decide.length : 0;
+    wireVcHome(h.vc);
     if (canView() || dmMine) loadStrCard();
     if (h.inspections || dmMine) wireInsp(h.inspections);
     if (h.grab) { S.gc = h.grab; wireGc(h.grab); }
@@ -3056,6 +3102,10 @@ function openSlotEditor(wk, day, kind, label){
     const others = added.map(n => ({ n, posts: postingsOf(day, n).concat(othersTime(n) ? [{ slot: { kind: 'others', label: 'OTHERS', field: 'report' }, text: '', title: 'OTHERS (report ' + hrs(othersTime(n)) + ')' }] : [])
       .filter(p => !(p.slot.kind === kind && p.slot.label === label) && (canManage() || p.slot.kind === 'medic')) }))
       .filter(x => x.posts.length);
+    if (kind === 'duty' && lettersKey(label) === 'PLADDRIVER' && $('#ed-main', bg) && (S.staff || []).some(p => p.pladDriver)) {
+      const notDrv = namesIn($('#ed-main', bg).value).filter(n => !((S.staff || []).find(p => p.name === n) || {}).pladDriver);
+      if (notDrv.length && !(await askBox('Not a PLAD Driver', esc(notDrv.map(titleCase).join(', ')) + (notDrv.length === 1 ? ' is' : ' are') + ' not ticked as a PLAD Driver in Admin &rsaquo; Staff. Put ' + (notDrv.length === 1 ? 'them' : 'them') + ' in anyway?', 'Yes, put in'))) return;
+    }
     let pulls = [];
     if (others.length) { pulls = await askPull(others, label, day); if (!pulls) return; }
     busy(e.target, true);
@@ -3614,14 +3664,15 @@ async function refreshPendingDot(){
   try {
     const p = await call('adminPending', S.token);
     const dot = $('#pcount'); if (!dot) return;
-    dot.hidden = !p.length; dot.textContent = p.length;
+    const n = p.length + (S.vcDue || 0);         // requests waiting + vehicle checklists waiting for Usable / Unserviceable
+    dot.hidden = !n; dot.textContent = n;
   } catch(e){}
 }
 function viewAdmin(){
   const rows = [[['pending','Pending'],['att','Attendance'],['trn','Training'],['lib','LIB']],
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
     [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']],
-    [['duty','Duty Count'],['away','Away List'],['clr','Clearance']]];
+    [['duty','Duty Count'],['away','Away List'],['clr','Clearance'],['vc','Vehicle Checks']]];
   V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
@@ -3633,7 +3684,7 @@ const A = () => $('#adm');
 /* "Loading" placeholder for an Admin sub-tab; skipped on a background refresh so the page does not collapse and jump */
 const loadingA = () => { if (!S.quiet) A().innerHTML = '<div class="loading">Loading\u2026</div>'; };
 /* (re)load the open Admin sub-tab only */
-function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, duty:admDuty, away:admAway, clr:admClearance, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges })[S.adminTab](); }
+function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, duty:admDuty, away:admAway, clr:admClearance, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges, vc:admVc })[S.adminTab](); }
 
 async function admPending(){
   loadingA();
@@ -4314,15 +4365,21 @@ function autoDraft(wk, idxs, st){
     };
     const slotOpen = (x, field) => !String(x[field] || '').trim() || ovr[sk({ kind: 'duty', label: x.duty, field })] != null;
     const dutyX = (label, field) => { const x = d.duties.find(y => lettersKey(y.duty) === lettersKey(label)); return x && slotOpen(x, field) ? { kind: 'duty', label: x.duty, field } : null; };
-    // 0. PLAD-Driver first (Mon, Wed, Fri): Wong, else Ong. If Ong is already posted somewhere, he is taken off and that slot is refilled.
+    // 0. PLAD-Driver first (Mon, Wed, Fri): the staff ticked "PLAD Driver" in Staff (Wong first, then Ong, then any other ticked driver).
+    //    If the only driver left is already posted somewhere, he is taken off and that slot is refilled.
     let driver = '';
     const driverSlot = plad && dutyX('PLAD-Driver', 'main');
-    let driverNote = '';
+    let driverNote = '', driverFirst = '';
     if (driverSlot) {
-      const [w, o] = R.pladDriver.map(N);
-      if (free(w)) driver = w;
-      else if (notAway(o)) {
-        driver = o; driverNote = T(w) + ' is ' + why(w);
+      const ticked = (S.staff || []).filter(p => p.pladDriver).map(p => p.name);
+      const drivers = (ticked.length ? R.pladDriver.filter(n => ticked.includes(n)).concat(ticked.filter(n => !R.pladDriver.includes(n))) : R.pladDriver).map(N);
+      const first = drivers[0]; driverFirst = first;
+      const fr = drivers.find(free);
+      if (fr) { driver = fr; if (fr !== first) driverNote = T(first) + ' is ' + why(first); }
+      else {
+        const o = drivers.find(notAway);
+        if (o) {
+        driver = o; driverNote = o !== first ? T(first) + ' is ' + why(first) : T(o) + ' was posted elsewhere';
         const posts = [];
         d.ranges.forEach(r => { if (r.people.includes(o)) posts.push([{ kind: 'range', label: r.range, field: 'emp' }, r.emp]); });
         d.duties.forEach(x => { if (lettersKey(x.duty) === 'PLADDRIVER') return;
@@ -4334,6 +4391,7 @@ function autoDraft(wk, idxs, st){
           else ovr[sk(sl)] = cur;                                               // emptied: filled again below by its own rule
           driverNote += '; taken off ' + sl.label + (sl.kind === 'duty' ? ' ' + sl.field : '');
         });
+        }
       }
       if (driver) busy.add(driver);                                             // keep the driver free for the other steps
     }
@@ -4398,8 +4456,8 @@ function autoDraft(wk, idxs, st){
     }
     // 5. PLAD-Driver (decided in step 0)
     if (driverSlot) {
-      if (driver) addX(driverSlot, driver, driverNote ? 'Backup driver: ' + driverNote : 'PLAD driver', !!driverNote, 'duty:PLAD-Driver:main');
-      else out.notes.push('PLAD-Driver: Wong and Ong are both unavailable.');
+      if (driver) addX(driverSlot, driver, driverNote ? (driver !== driverFirst ? 'Backup driver: ' : 'PLAD driver: ') + driverNote : 'PLAD driver', !!driverNote, 'duty:PLAD-Driver:main');
+      else out.notes.push('PLAD-Driver: no PLAD driver is free (tick the drivers in Admin -> Staff -> PLAD Driver).');
     }
     // 6. PLAD (Mon, Wed, Fri): any APO except those ticked "Not able to go PLAD" (Chew), fewest this year
     sl = plad && dutyX('PLAD', 'main');
@@ -5102,6 +5160,7 @@ function editStaff(p){
       <small class="muted" style="display:block;margin-top:4px">After this date they are left out of the plan, Auto-fill, undeployed lists, attendance and training.</small></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-act" ${p.active?'checked':''} style="width:20px;height:20px"><span>Active (unticked hides them from sign-in and lists)</span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-att" ${p.att !== false ? 'checked' : ''} style="width:20px;height:20px"><span>Counted in daily attendance</span></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px"><input type="checkbox" id="s-pdrv" ${p.pladDriver ? 'checked' : ''} style="width:20px;height:20px;flex:none"><span>PLAD Driver<small class="muted" style="display:block">Can be planned as PLAD-Driver; fills in the Vehicle First Parade Checklist and can open Ammo Truck</small></span></label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="s-noplad" ${p.noPlad ? 'checked' : ''} style="width:20px;height:20px"><span>Not able to go PLAD</span></label>
     <div class="f" style="margin-bottom:4px"><span>Can open on the Home screen</span></div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">${APP_PICK.map(([k, l]) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-sapp="${k}" ${(p.apps || []).includes(k) ? 'checked' : ''} style="width:20px;height:20px"><span>${l}</span></label>`).join('')}</div>
@@ -5133,7 +5192,7 @@ function editStaff(p){
   $('#s-ok', bg).onclick = async e => {
     busy(e.target, true);
     try {
-      const r = await call('adminSaveStaff', S.token, { viewAs:$('#s-va', bg).value, name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, apps:[...bg.querySelectorAll('[data-sapp]:checked')].map(x => x.dataset.sapp), noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value, noMa:$('#s-xma', bg).checked, noIppt:$('#s-xip', bg).checked });
+      const r = await call('adminSaveStaff', S.token, { viewAs:$('#s-va', bg).value, pladDriver:$('#s-pdrv', bg).checked, name:p.name, role:$('#s-r', bg).value, aliases:$('#s-a', bg).value, email:$('#s-e', bg).value, active:$('#s-act', bg).checked, att:$('#s-att', bg).checked, birthday:$('#s-b', bg).value, sid:$('#s-id', bg).value, apps:[...bg.querySelectorAll('[data-sapp]:checked')].map(x => x.dataset.sapp), noPlad:$('#s-noplad', bg).checked, lastDay:$('#s-ld', bg).value, noMa:$('#s-xma', bg).checked, noIppt:$('#s-xip', bg).checked });
       setStaff(r.staff); close(); toast('Saved'); drawStaff(r.list);
     } catch(x){ fail(x); busy(e.target, false); }
   };
@@ -5165,7 +5224,7 @@ const SNAP = { weeks:{}, staff:[], oil:[], lib:{} }   /* preview data lives in P
 const MOCK = (() => {
   const today = ymd(new Date());
   const mAmSig = {}, mAmRc = {}, mAmPh = {}, mAmDr = [];
-  const mAm = { trucks: [{ id:'TK1', plate:'SMM1234A', name:'Ammo Truck 1', notes:'', active:true }],
+  const mAm = { trucks: [{ id:'TK0', plate:'GBJ8874R', name:'PLAD vehicle', notes:'', active:true }, { id:'TK1', plate:'SMM1234A', name:'Ammo Truck 1', notes:'', active:true }],
     contractors: [{ id:'CT1', company:'KRANJI TYRE CENTRE', trade:'Tyres', contact:'Mr Lee', phone:'6123 4567', email:'', address:'', uen:'', gstNo:'', notes:'', active:true }],
     faults: [{ id:'AF0', date: addD(today, -40), time:'0750', truckId:'TK1', plate:'SMM1234A', mileage:'47,900', condition:'Usable, with faults', checkedBy:'ARIF', remarks:'1. (Left side) Front tyre low', marks:[{ n:1, v:'left', x:70, y:104, r:24 }], ackBy:'JAMES LAI', ackAt:'', pdf:'x' }],
     repairs: [{ id:'AR0', faultId:'AF0', no:1, truckId:'TK1', plate:'SMM1234A', view:'Left side', fault:'Front tyre low', found: addD(today, -40), status:'Fixed', contractorId:'CT1', sentOn: addD(today, -39), fixedOn: addD(today, -38),
@@ -5196,6 +5255,35 @@ const MOCK = (() => {
   const week = m => ({ monday:m, sheet:'Sample', days:[0,1,2,3,4,5,6].map(day).map((d, i) => Object.assign(d, { date:addD(m, i) })) });
   const staffList = SNAP.staff.map(p => ({ name:p.name, role: p.name === 'JAMES LAI' ? 'Manager' : ['DANIEL FOO','CHAN YANG'].includes(p.name) ? 'DY Manager' : ['KUMAR (SWIFT)','KISHORE','HAJA'].includes(p.name) ? 'Backup Medic' : p.name === 'FAHMI (CERTIS)' ? 'Medic Certis' : ['JAMES TOH','IVAN LIM'].includes(p.name) ? 'Non-APO' : p.name === 'LEONARD' ? 'APO Supervisor' : p.role, aliases:p.aliases, email:'', active:true, att: !['KUMAR (SWIFT)','KISHORE'].includes(p.name), hasPin:p.role === 'APO', noPlad: p.name === 'CHEW', apps: p.name === 'CHAN YANG' ? ['movexx','trolley','ammo'] : p.name === 'ARIF' ? ['ammo'] : [] }))
     .concat([{ name:'ADMIN', role:'Admin', aliases:[], email:'', active:true, hasPin:true }, { name:'TAN PD', role:'PD', aliases:[], email:'', active:true, hasPin:true }]);
+  staffList.forEach(p => { if (['WONG', 'ONG'].includes(p.name)) p.pladDriver = true; });
+  /* Vehicle First Parade Checklist (demo): WONG is the PLAD driver on Mon / Wed / Fri */
+  const mVcItems = [['E','Body Work (External)'],['E','Tyre Pressure'],['E','Tyre Condition'],['E','Brake Light'],['E','Signal Light'],['E','Side Mirrors'],['E','Wipers Condition'],
+    ['E','Fuel Tank (No Leakages)'],['E','Tailgate (Operational)'],['E','CENCON Lock'],['I','Body Work (Internal)'],['I','Fire Extinguisher'],['I','In Vehicle Camera'],['I','Horn'],['I','Aircon'],['I','Fuel Gauge',1]]
+    .map(([s2, n, sel], i) => ({ id: 'IT' + (i + 1), s: s2, n, t: sel ? 'select' : 'tick', o: sel ? ['Red Light','1/4','1/3','1/2','2/3','3/4','FULL'] : [] }));
+  let mVcCfg = mVcItems.map(x => Object.assign({}, x));
+  const mVcDrv = d => [1, 3, 5].includes(pd(d).getDay()) ? (pd(d).getDate() % 7 === 2 ? 'ONG' : 'WONG') : '';
+  const mVcSig = (() => { let c = null; return () => { if (c) return c; const cv = document.createElement('canvas'); cv.width = 360; cv.height = 120; const g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 360, 120); g.strokeStyle = '#0F2A44'; g.lineWidth = 4; g.beginPath(); g.moveTo(30, 80);
+    for (let i = 0; i < 7; i++) g.bezierCurveTo(40 + i * 40, 20, 60 + i * 40, 110, 80 + i * 40, 60); g.stroke(); return (c = cv.toDataURL('image/png')); }; })();
+  const mVc = [], mVcMon = [];
+  (() => { const ym = today.slice(0, 7); for (let d = 1; ; d++) { const ds = ym + '-' + String(d).padStart(2, '0'); if (ds >= today || pd(ds).getMonth() !== pd(today).getMonth()) break;
+    const drv = mVcDrv(ds); if (!drv || pd(ds).getDate() === 23) continue;
+    const items = mVcItems.map(x => x.t === 'select' ? { id: x.id, s: x.s, n: x.n, t: 'select', v: ['FULL','3/4','1/2','2/3'][d % 4] } : { id: x.id, s: x.s, n: x.n, t: 'tick', ok: true, f: '' });
+    if (d === 7) { const w = items.find(x => x.n === 'Wipers Condition'); w.ok = false; w.f = 'Driver side wiper blade torn'; }
+    if (d === 14) { const w = items.find(x => x.n === 'Signal Light'); w.ok = false; w.f = 'Left rear signal not blinking'; }
+    const nF = items.filter(x => x.ok === false).length;
+    mVc.push({ id: 'VC' + d, date: ds, truckId: 'TK0', plate: 'GBJ8874R', driver: drv, time: '07' + String(d % 50).padStart(2, '0'), items, sig: '', submitted: ds + ' 07:10',
+      status: nF ? (d === 7 ? 'Usable' : '') : 'Usable', statusBy: nF && d === 7 ? 'CHAN YANG' : '', statusAt: nF && d === 7 ? ds + ' 07:40' : '', statusRemark: '', ammoFault: '' }); } })();
+  const mVcFaults = r => r.items.filter(x => x.t !== 'select' && x.ok === false).map((x, i) => { const rp = r.ammoFault ? mAm.repairs.find(a => a.faultId === r.ammoFault && Number(a.no) === i + 1) : null;
+    const st2 = !r.ammoFault ? 'Not reported' : !rp ? 'Open' : rp.status === 'Fixed' ? 'Repaired' : rp.status === 'At contractor' ? 'At repair' : rp.status === 'Not needed' ? 'Not needed' : 'Open';
+    return { n: i + 1, item: x.n, text: x.f, status: st2, sentOn: rp ? rp.sentOn : '', fixedOn: rp ? rp.fixedOn : '', repUpdated: '' }; });
+  const mVcOut = (r, sig) => Object.assign({}, r, { faults: mVcFaults(r), fuel: (r.items.find(x => x.t === 'select') || {}).v || '', closed: mVcMon.some(m => m.month === r.date.slice(0, 7) && m.truckId === r.truckId && m.closedBy) },
+    sig ? { sig: r.sig || mVcSig() } : { sig: undefined });
+  const mVcHome = () => { const o = {}; const me = staffList.find(p => p.name === S.me.name) || {};
+    if (me.pladDriver && mVcDrv(today) === S.me.name) o.driver = { date: today, recs: mVc.filter(r => r.date === today).map(r => mVcOut(r)), trucks: mAm.trucks.filter(t => t.active).map(t => ({ id: t.id, plate: t.plate, name: t.name })) };
+    if (canView()) o.decide = mVc.filter(r => mVcFaults(r).length && !r.status && !mVcMon.some(m => m.month === r.date.slice(0, 7) && m.truckId === r.truckId && m.closedBy))
+      .map(r => ({ id: r.id, date: r.date, plate: r.plate, driver: r.driver, time: r.time, faults: mVcFaults(r).length }));
+    return o; };
   const weeks = {};
   const mFx = {};                                                  // ?fxdemo: weekend DAO main shows FAIZAL from a sheet formula
   const fxDemo = w => { if (/wkdemo/.test(location.search) && w.days) w.days.forEach((d, i) => { if (i >= 5 && d.date >= today && !d.ranges.some(r => r.active) && d.ranges[0]) { d.ranges[0].sup = 'AG'; d.ranges[0].active = true; } });
@@ -5393,7 +5481,40 @@ const MOCK = (() => {
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
       news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: isPD() ? { date: today, lateAfter, clockIn: '', status: '', viewOnly: true } : NOSTAFF(S.me.role) ? null : mockMyAtt(S.me.name), inspections: canView() ? mockInsp() : null, grab: canView() ? mockGrab() : null, reports: canView() || isMeDm(mDm[today]) ? mRep : null, allergo: NOSTAFF(S.me.role) ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
-      birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null }),
+      birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null, vc: mVcHome() }),
+    vcForm: (t, d) => ({ date: d, items: mVcCfg, fuel: ['Red Light','1/4','1/3','1/2','2/3','3/4','FULL'], trucks: mAm.trucks.filter(x => x.active).map(x => ({ id: x.id, plate: x.plate, name: x.name })), driverOn: mVcDrv(d),
+      recs: mVc.filter(r => r.date === d).map(r => mVcOut(r, true)) }),
+    vcRecord: (t, id) => { const r = mVc.find(x => x.id === id); if (!r) throw new Error('That checklist was not found.'); return mVcOut(r, true); },
+    vcSubmit: (t, f) => { const me = staffList.find(p => p.name === S.me.name) || {};
+      if (!canManage() && !me.pladDriver) throw new Error('Only staff ticked "PLAD Driver" in Admin -> Staff fill in this checklist.');
+      if (!canManage() && mVcDrv(f.date) !== S.me.name) throw new Error('You are not the PLAD driver on ' + f.date + ' in the plan.');
+      if (mVcMon.some(m => m.month === f.date.slice(0, 7) && m.truckId === f.truckId && m.closedBy)) throw new Error('That month is closed.');
+      if (!f.sig) throw new Error('Sign in the box first.');
+      const tk = mAm.trucks.find(x => x.id === f.truckId); const items = mVcCfg.map(c => { const g = f.items.find(x => x.id === c.id) || {};
+        if (c.t === 'select') { if (!g.v) throw new Error('Pick the ' + c.n + '.'); return { id: c.id, s: c.s, n: c.n, t: 'select', v: g.v }; }
+        if (g.ok === false && !String(g.f || '').trim()) throw new Error('Write what the fault is for ' + c.n + '.');
+        return { id: c.id, s: c.s, n: c.n, t: 'tick', ok: g.ok !== false, f: g.ok === false ? g.f : '' }; });
+      let r = mVc.find(x => x.date === f.date && x.truckId === f.truckId);
+      const nF = items.filter(x => x.ok === false).length, same = r && JSON.stringify(mVcFaults(r).map(x => x.item + x.text)) === JSON.stringify(items.filter(x => x.ok === false).map(x => x.n + x.f));
+      if (!r) { r = { id: 'VC' + Date.now(), date: f.date, truckId: f.truckId, plate: tk.plate, ammoFault: '' }; mVc.push(r); }
+      Object.assign(r, { driver: String(f.by || S.me.name).toUpperCase(), time: f.time, items, sig: f.sig, submitted: today + ' ' + f.time.slice(0, 2) + ':' + f.time.slice(2) });
+      if (!nF) Object.assign(r, { status: 'Usable', statusBy: '', statusAt: '', statusRemark: '' }); else if (!same) Object.assign(r, { status: '', statusBy: '', statusAt: '', statusRemark: '', ammoFault: '' });
+      window.__vcSubmitted = (window.__vcSubmitted || 0) + 1;
+      return Object.assign(mVcOut(r), { notified: staffList.filter(p => MGR_ROLES.includes(p.role)).length }); },
+    vcDecide: (t, id, st2, rm) => { if (!canManage()) throw new Error('Only admins and managers can do this.'); const r = mVc.find(x => x.id === id);
+      Object.assign(r, { status: st2, statusBy: S.me.name, statusAt: today + ' 07:40', statusRemark: rm || '' }); return mVcOut(r); },
+    vcMonth: (t, ym, sigs) => { const days = [];
+      for (let d = 1; d <= 31; d++) { const ds = ym + '-' + String(d).padStart(2, '0'); if (pd(ds).getMonth() + 1 !== Number(ym.slice(5, 7)) || ds > today) break; const dr = mVcDrv(ds); if (dr) days.push({ date: ds, driver: dr }); }
+      const recs = mVc.filter(r => r.date.slice(0, 7) === ym).map(r => mVcOut(r, sigs));
+      const closed = mVcMon.filter(m => m.month === ym && m.closedBy).map(m => Object.assign({}, m, sigs ? {} : { sig: undefined }));
+      const open = mVc.map(r => mVcOut(r)).filter(r => r.faults.some(f => f.status !== 'Repaired' && f.status !== 'Not needed')).map(r => ({ id: r.id, date: r.date, plate: r.plate, driver: r.driver, ammoFault: r.ammoFault, faults: r.faults.filter(f => f.status !== 'Repaired' && f.status !== 'Not needed') }));
+      return { month: ym, today, days, recs, closed, trucks: mAm.trucks.filter(x => x.active).map(x => ({ id: x.id, plate: x.plate, name: x.name })), items: mVcCfg, fuel: [], open, canEdit: canManage() }; },
+    vcClose: (t, ym, tk, sig, pdf) => { if (!canManage()) throw new Error('Only admins and managers can do this.'); if (!sig) throw new Error('Sign in the box first.');
+      window.__vcPdf = pdf; const m = { month: ym, truckId: tk, plate: (mAm.trucks.find(x => x.id === tk) || {}).plate, closedBy: S.me.name, closedRole: S.me.role, closedAt: today + ' 17:42', sig, pdfUrl: 'https://drive.google.com/x', pdfAt: today + ' 17:42' };
+      const k = mVcMon.findIndex(x => x.month === ym && x.truckId === tk); if (k >= 0) mVcMon[k] = m; else mVcMon.push(m); return { url: m.pdfUrl, name: ym.slice(0, 4) + ' ' + MON[Number(ym.slice(5, 7)) - 1] + ' ' + m.plate + '.pdf' }; },
+    vcReopen: (t, ym, tk) => { const m = mVcMon.find(x => x.month === ym && x.truckId === tk); if (m) m.closedBy = ''; return true; },
+    vcSavePdf: (t, ym, tk, pdf) => { window.__vcPdf = pdf; return { url: 'https://drive.google.com/x', name: 'x.pdf' }; },
+    vcItemsSave: (t, L) => { if (!canManage()) throw new Error('Only admins and managers can do this.'); mVcCfg = L.map((x, i) => Object.assign({}, x, { id: x.id || 'ITN' + i })); return mVcCfg; },
     clockIn: () => { const t = new Date(); const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const r = attRec(today, S.me.name); if (!r.clockIn) r.clockIn = hm; return mockMyAtt(S.me.name); },
     adminAttendance: (t, d) => mockAtt(d),
@@ -5484,6 +5605,7 @@ const MOCK = (() => {
       const VN = AM_VNAME;
       f.marks.forEach(m => { const ln = String(f.remarks || '').split('\n').map(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(.*)$').exec(l)).filter(Boolean)[0];
         mAm.repairs.push({ id: 'AR' + Date.now() + m.n, faultId: id, no: m.n, truckId: tk.id, plate: tk.plate, view: VN[m.v], fault: ln ? ln[1].replace(/^\([^)]*\)\s*/, '') : 'Fault ' + m.n, found: f.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '' }); });
+      if (f.vcId) { const vr = mVc.find(x => x.id === f.vcId); if (vr) vr.ammoFault = id; }
       return Object.assign(MOCK.ammoGet(), { savedId: id, notified: staffList.filter(p => MGR_ROLES.includes(p.role)).length }); },
     ammoFaultPhotos: (t, id) => (mAmPh[id] || []).map((p, i) => ({ id: id + 'P' + i, name: 'photo ' + (i + 1) + '.jpg', mime: 'image/jpeg', url: '#', data: p.data })),
     ammoDraftSave: (t, f, id) => { const at = S.today + ' ' + new Date().toTimeString().slice(0, 5); let d = id && mAmDr.find(x => x.id === id);
@@ -5643,8 +5765,8 @@ const MOCK = (() => {
       const name = String(f.name||'').trim().toUpperCase(); if (!name) throw new Error('Enter one name, without / or & or commas.');
       let p = staffList.find(x => x.name === name);
       if (f.isNew) { if (p) throw new Error(name + ' is already in the staff list.'); staffList.push({ name, role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:true, hasPin:false, noPlad: !!f.noPlad, apps: Array.isArray(f.apps) ? f.apps : [], lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt }); }
-      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false, noPlad: !!f.noPlad, apps: Array.isArray(f.apps) ? f.apps : (p.apps || []), lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt });
-      S.staff = staffList.filter(x => x.active).map(x => ({ name: x.name, role: x.role, aliases: x.aliases || [], noPlad: !!x.noPlad, lastDay: x.lastDay || '' }));
+      else Object.assign(p, { role:f.role, aliases:f.aliases ? f.aliases.toUpperCase().split(/\s*,\s*/) : [], email:f.email, active:f.active, att: f.att !== false, pladDriver: f.pladDriver != null ? !!f.pladDriver : !!p.pladDriver, noPlad: !!f.noPlad, apps: Array.isArray(f.apps) ? f.apps : (p.apps || []), lastDay: f.lastDay || '', noMa: f.role === 'APO' && !!f.noMa, noIppt: f.role === 'APO' && !!f.noIppt });
+      S.staff = staffList.filter(x => x.active).map(x => ({ name: x.name, role: x.role, aliases: x.aliases || [], noPlad: !!x.noPlad, pladDriver: !!x.pladDriver, lastDay: x.lastDay || '' }));
       return { list: staffList, staff: S.staff };
     },
     adminResetPin: () => true,
@@ -6148,6 +6270,7 @@ function amFaultTab(){
   const nMarks = v => f.marks.filter(m => m.v === v).length;
   V().innerHTML = `<h2 class="am-h">Ammo Truck Fault List</h2>
     ${can ? `<p class="small muted" style="margin:-4px 0 10px">Tap a view to circle where the fault is, then describe each one in Remarks.</p>
+    ${f.vcId ? `<div class="note blue">From the <b>Vehicle First Parade Checklist</b>, ${esc(nice(f.vcDate || f.date))}. Tap a view and circle where each fault is: circle 1 is line 1 of Remarks, and so on. Add photos, then sign and submit.</div>` : ''}
     ${f.draftId ? `<div class="note blue am-drb"><span>Continuing a draft saved by <b>${esc(titleCase(f.draftBy || ''))}</b>${f.draftAt ? ', ' + esc(amAt(f.draftAt)) : ''}. Tap Update draft to keep your changes.</span><button class="linkbtn" id="af-new">Start new</button></div>` : ''}
     <div class="sec"><div class="row2">
       <label class="f"><span>Date</span><input type="date" id="af-d" value="${esc(f.date)}" max="${S.today}"></label>
@@ -6391,7 +6514,7 @@ async function amSaveFault(btn, s1){
   busy(btn, true);
   try {
     const x = { date: f.date, time: f.time, truckId: f.truckId, plate: (amTruck(f.truckId) || {}).plate, mileage: f.mileage, condition: f.condition || (f.marks.length ? 'Usable, with faults' : 'Usable'),
-      checkedBy: S.me.name, remarks: f.remarks, marks: f.marks, sigChecked: sig1, sigAck: sig2, ackBy: sig2 ? f.ackBy : '', photos: (S.amPh || []).map(p => ({ name: p.name, mime: p.mime, data: p.data, w: p.w, h: p.h })), draftId: f.draftId || '' };
+      checkedBy: S.me.name, remarks: f.remarks, marks: f.marks, sigChecked: sig1, sigAck: sig2, ackBy: sig2 ? f.ackBy : '', photos: (S.amPh || []).map(p => ({ name: p.name, mime: p.mime, data: p.data, w: p.w, h: p.h })), draftId: f.draftId || '', vcId: f.vcId || '' };
     x.pdf = await amFaultPdf(x, true);
     const r = await call('ammoSaveFault', S.token, x);
     S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {}
@@ -6836,6 +6959,515 @@ function liveStart(){
   document.addEventListener('focusout', () => { if (liveWant) setTimeout(() => { if (liveWant) liveTick(); }, 300); });
   document.addEventListener('click', () => { if (liveWant) setTimeout(() => { if (liveWant && !uiBusy()) liveRefresh(); }, 400); }, true);
 }
+/* ============================================================
+   Vehicle First Parade Checklist (PLAD vehicle)
+   The main PLAD-Driver of the day (ticked "PLAD Driver" in Staff) fills it in from My Deploy (To Do box).
+   Every check starts ticked (OK); untick = fault, with what the fault is. The form is kept on the phone
+   as it is filled in (a draft), until it is submitted. A checklist with a fault waits for a Manager /
+   DY Manager to decide Usable or Unserviceable. Faults are reported in Ammo Truck (filled in for the
+   driver); Sent for repair / Repaired come from those repairs. Month end: Acknowledge & close, PDF to Drive.
+   ============================================================ */
+const VC_SEC = [['E', 'Exterior Check'], ['I', 'Interior Check']];
+const VC_DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const vcFaultsOf = items => (items || []).filter(it => it.t !== 'select' && it.ok === false);
+const vcDraftKey = date => 'rdp_vc_' + S.me.name + '_' + date;
+const vcDraftGet = date => { try { return JSON.parse(localStorage.getItem(vcDraftKey(date)) || 'null'); } catch(e) { return null; } };
+const vcDraftDrop = date => { try { localStorage.removeItem(vcDraftKey(date)); } catch(e) {} };
+const vcHm = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0'); };
+const vcAt = v => v ? nice(String(v).slice(0, 10)) + (String(v).length > 11 ? ', ' + String(v).slice(11, 16).replace(':', '') + 'hrs' : '') : '';
+const vcMonName = ym => ['January','February','March','April','May','June','July','August','September','October','November','December'][Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4);
+function vcDecisionPill(r){
+  if (!r) return '';
+  if (r.status === 'Usable') return '<span class="pill Approved">Usable</span>';
+  if (r.status === 'Unserviceable') return '<span class="pill Rejected">Unserviceable</span>';
+  return '<span class="pill Pending">Waiting for decision</span>';
+}
+function vcFaultPill(f){
+  const c = f.status === 'Repaired' || f.status === 'Not needed' ? 'Approved' : f.status === 'At repair' ? 'Pending' : 'Rejected';
+  return `<span class="pill ${c}">${esc(f.status)}</span>`;
+}
+/* the big green / red line the driver sees once a Manager / DY Manager has decided */
+function vcBanner(r){
+  if (!r || !r.status) return '';
+  const us = r.status === 'Usable';
+  return `<div class="vc-ban ${us ? 'ok' : 'bad'}"><b>&#9679; ${esc(r.plate)} ${us ? 'USABLE' : 'UNSERVICEABLE'}</b>
+    <small>${us ? '' : 'Do not drive. '}${r.statusBy ? (r.faults.length ? 'With faults: a' : 'A') + 'pproved by ' + esc(titleCase(r.statusBy)) + (r.statusAt ? ', ' + esc(r.statusAt.slice(11, 16).replace(':', '')) + 'hrs' : '') : 'All checks OK'}${r.statusRemark ? '<br>&ldquo;' + esc(r.statusRemark) + '&rdquo;' : ''}</small></div>`;
+}
+
+/* ---------- My Deploy: To Do box ---------- */
+function vcHomeCard(vc){
+  if (!vc) return '';
+  let out = '';
+  const dv = vc.driver;
+  if (dv) {
+    const r = (dv.recs || [])[0], dr = vcDraftGet(dv.date);
+    if (!r) out += `<div class="sec vc-todo"><div class="vc-th"><b>To Do</b><span class="pill Pending">1 left</span></div>
+        <div class="small muted">You are the PLAD Driver today</div>
+        <div class="vc-it"><span class="vc-ic warn">!</span><div><b>Vehicle First Parade Checklist</b><small>${dr ? 'Started, not submitted yet (kept on this phone)' : 'Not done yet'}</small></div></div>
+        <button class="btn block" data-vc-open="${esc(dv.date)}">${dr ? 'Continue checklist' : 'Start checklist'}</button></div>`;
+    else {
+      const nF = r.faults.length, notRep = nF && !r.ammoFault;
+      out += `<div class="sec vc-todo ${r.status === 'Unserviceable' ? 'bad' : r.status ? 'ok' : ''}"><div class="vc-th"><b>To Do</b>${notRep ? '<span class="pill Rejected">Report the faults</span>' : r.status ? '<span class="pill Approved">Done</span>' : '<span class="pill Pending">Waiting</span>'}</div>
+        <div class="vc-it"><span class="vc-ic ok">&#10003;</span><div><b>Vehicle First Parade Checklist</b><small>${esc(r.time ? r.time + 'hrs' : '')} by ${esc(r.driver)} &middot; ${nF ? `<b style="color:var(--flag)">${nF} fault${nF === 1 ? '' : 's'}</b>` : 'all OK'}${r.fuel ? ' &middot; Fuel ' + esc(r.fuel) : ''}</small></div></div>
+        ${r.status ? vcBanner(r) : `<div class="note" style="margin:8px 0 0">Waiting for a Manager / DY Manager: Usable or Unserviceable.</div>`}
+        ${notRep ? `<div class="note red" style="margin:8px 0 0">${nF} fault${nF === 1 ? ' is' : 's are'} not reported in Ammo Truck yet.</div><button class="btn block vc-amm" data-vc-amm="0">Report in Ammo Truck &rsaquo;</button>` : ''}
+        <button class="btn ghost block" data-vc-open="${esc(dv.date)}" style="margin-top:8px">View / update</button></div>`;
+    }
+  }
+  const dec = vc.decide || [];
+  if (dec.length) out += `<div class="sec vc-todo"><div class="vc-th"><b>To Do</b><span class="pill Pending">${dec.length}</span></div>
+      ${dec.map(x => `<div class="vc-it bad"><span class="vc-ic warn">!</span><div><b>Vehicle ${esc(x.plate)}: Usable or Unserviceable?</b><small>${esc(nice(x.date))} &middot; ${esc(x.driver)}${x.time ? ' &middot; ' + esc(x.time) + 'hrs' : ''} &middot; ${x.faults} fault${x.faults === 1 ? '' : 's'}</small></div>
+        <button class="btn" data-vc-dec="${esc(x.id)}">Decide</button></div>`).join('')}</div>`;
+  return out;
+}
+function wireVcHome(vc){
+  if (!vc) return;
+  document.querySelectorAll('[data-vc-open]').forEach(b => b.onclick = () => vcOpen(b.dataset.vcOpen));
+  document.querySelectorAll('[data-vc-dec]').forEach(b => b.onclick = () => vcDecideOpen(b.dataset.vcDec, () => { if (S.view === 'home') viewHome(); }));
+  document.querySelectorAll('[data-vc-amm]').forEach(b => b.onclick = () => { const r = vc.driver && vc.driver.recs[0]; if (r) vcToAmmo(r); });
+}
+
+/* ---------- signature pad that can show the kept (draft) signature again ---------- */
+function vcPad(cv, onChange){
+  const g = cv.getContext('2d'); let drawn = false, on = false, last = null, saved = '';
+  const put = d => { const im = new Image(); im.onload = () => { g.drawImage(im, 0, 0, cv.width, cv.height); drawn = true; }; im.src = d; };
+  const fit = () => { const r = cv.getBoundingClientRect(); cv.width = Math.max(10, Math.round(r.width * 2)); cv.height = Math.max(10, Math.round(r.height * 2));
+    g.lineWidth = 4.4; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#0F2A44'; drawn = false; if (saved) put(saved); };
+  const pt = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; };
+  cv.style.touchAction = 'none';
+  cv.onpointerdown = e => { on = true; last = pt(e); try { cv.setPointerCapture(e.pointerId); } catch(x) {} };
+  cv.onpointermove = e => { if (!on) return; const p = pt(e); g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(p.x, p.y); g.stroke(); last = p; drawn = true; };
+  cv.onpointerup = cv.onpointercancel = () => { if (on && drawn && onChange) onChange(); on = false; };
+  setTimeout(fit, 0);
+  const small = () => { const k = Math.min(1, 360 / cv.width), c = document.createElement('canvas'); c.width = Math.round(cv.width * k); c.height = Math.round(cv.height * k);
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(cv, 0, 0, c.width, c.height);
+    const png = c.toDataURL('image/png'); return png.length < 45000 ? png : c.toDataURL('image/jpeg', 0.7); };
+  return { clear(){ saved = ''; fit(); }, data: () => drawn ? small() : '', load(d){ saved = d || ''; if (saved && cv.width > 10) put(saved); } };
+}
+
+/* ---------- the checklist (full screen) ---------- */
+function vcSheet(title){
+  document.querySelectorAll('.vc-bg').forEach(x => x.remove());
+  const bg = document.createElement('div'); bg.className = 'sheet-bg vc-bg';
+  bg.innerHTML = `<div class="vc-full" role="dialog" aria-modal="true"><div class="vc-top"><b>${esc(title)}</b><button id="vc-x">&#8249; Back</button></div><div class="vc-body" id="vc-body"><div class="loading">Loading\u2026</div></div></div>`;
+  document.body.appendChild(bg);
+  return bg;
+}
+async function vcOpen(date){
+  const bg = vcSheet('Vehicle First Parade');
+  const close = () => { bg.remove(); if (S.view === 'home') viewHome(); };
+  $('#vc-x', bg).onclick = close;
+  let F;
+  try { F = await call('vcForm', S.token, date); } catch(e){ bg.remove(); return fail(e); }
+  vcFormDraw(bg, F, close);
+}
+function vcFormDraw(bg, F, close){
+  const B = $('#vc-body', bg), trucks = F.trucks || [];
+  if (!trucks.length) { B.innerHTML = '<div class="note red">No vehicle yet. Add it in Ammo Truck &rarr; Contractors &rarr; Trucks.</div>'; return; }
+  const dr = vcDraftGet(F.date);
+  const st = dr && dr.date === F.date ? dr : { date: F.date, truckId: trucks[0].id, items: {}, by: S.me.name, sig: '' };
+  if (!trucks.some(t => t.id === st.truckId)) st.truckId = trucks[0].id;
+  const recOf = id => (F.recs || []).find(r => r.truckId === id) || null;
+  let rec = recOf(st.truckId);
+  // a submitted checklist with no newer draft: start from what was submitted
+  if (rec && !(dr && dr.truckId === rec.truckId && dr.at && dr.at > Date.parse(String(rec.submitted || '').replace(' ', 'T')))) {
+    st.items = {}; rec.items.forEach(it => { st.items[it.id] = it.t === 'select' ? { v: it.v } : { ok: it.ok !== false, f: it.f || '' }; });
+    st.by = rec.driver || st.by; st.sig = rec.sig || '';
+  }
+  const items = F.items.slice();
+  (rec ? rec.items : []).forEach(it => { if (!items.some(x => x.id === it.id)) items.push({ id: it.id, s: it.s, n: it.n, t: it.t, o: it.t === 'select' ? F.fuel : [] }); });
+  const val = it => st.items[it.id] || (it.t === 'select' ? { v: '' } : { ok: true, f: '' });
+  const ro = !!(rec && rec.closed);
+  const savedLbl = () => st.at ? 'Kept on this phone, ' + new Date(st.at).toTimeString().slice(0, 5).replace(':', '') + 'hrs' : 'Kept on this phone as you fill it in';
+  const keep = () => { if (ro) return; st.at = Date.now(); try { localStorage.setItem(vcDraftKey(st.date), JSON.stringify(st)); } catch(e) {} const l = $('#vc-saved', bg); if (l) l.textContent = savedLbl(); };
+  const row = it => {
+    const v = val(it);
+    if (it.t === 'select') return `<div class="vc-row sel" data-vci="${esc(it.id)}"><span class="vc-ck fuel">&#9673;</span><span class="vc-n">${esc(it.n)}</span>
+      <select data-vcs="${esc(it.id)}" ${ro ? 'disabled' : ''}><option value="">Pick</option>${(it.o || []).map(o => `<option ${o === v.v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
+    return `<div class="vc-row ${v.ok ? '' : 'bad'}" data-vci="${esc(it.id)}"><button class="vc-ck ${v.ok ? '' : 'off'}" data-vct="${esc(it.id)}" aria-pressed="${v.ok}" aria-label="${esc(it.n)}: ${v.ok ? 'OK' : 'fault'}" ${ro ? 'disabled' : ''}>${v.ok ? '&#10003;' : '&#10005;'}</button>
+      <span class="vc-n" data-vct="${esc(it.id)}">${esc(it.n)}</span><span class="vc-s">${v.ok ? 'OK' : 'FAULT'}</span>
+      ${v.ok ? '' : `<label class="vc-fault"><small>WHAT IS THE FAULT? (needed)</small><textarea data-vcf="${esc(it.id)}" rows="2" ${ro ? 'disabled' : ''} placeholder="e.g. Rear left tyre worn">${esc(v.f || '')}</textarea></label>`}</div>`;
+  };
+  const sumHtml = () => { const ticks = items.filter(i => i.t !== 'select'), bad = ticks.filter(i => !val(i).ok).length, fuel = items.find(i => i.t === 'select' && /fuel/i.test(i.n));
+    return `<div class="ok"><b>${ticks.length - bad}</b>OK</div><div class="bad"><b>${bad}</b>FAULT${bad === 1 ? '' : 'S'}</div><div class="fu"><b>${esc(fuel ? val(fuel).v || '-' : '-')}</b>FUEL</div>`; };
+  const tk = trucks.find(t => t.id === st.truckId);
+  B.innerHTML = `${ro ? '<div class="note blue">This month is closed, so the checklist can only be looked at.</div>' : ''}
+    ${rec && !ro ? `<div class="note blue">Submitted ${esc(vcAt(rec.submitted))} by ${esc(rec.driver)}. Changes you submit replace it.</div>` : ''}
+    ${F.driverOn && F.driverOn !== S.me.name && !ro ? `<div class="note">${esc(titleCase(F.driverOn))} is the PLAD driver on ${esc(nice(F.date))} in the plan.</div>` : ''}
+    ${rec ? vcBanner(rec) : ''}
+    <div class="sec"><div class="row2">
+      <label class="f"><span>Date</span><input type="date" id="vc-d" value="${esc(st.date)}" max="${S.today}" ${ro ? 'disabled' : ''}></label>
+      <label class="f"><span>Vehicle</span>${trucks.length > 1 ? `<select id="vc-tk" ${ro ? 'disabled' : ''}>${trucks.map(t => `<option value="${esc(t.id)}" ${t.id === st.truckId ? 'selected' : ''}>${esc(t.plate)}</option>`).join('')}</select>` : `<input value="${esc(tk.plate)}" disabled>`}</label></div></div>
+    ${VC_SEC.map(([s, l]) => { const L = items.filter(i => i.s === s); return L.length ? `<h3 class="vc-sh">${l.toUpperCase()} <small>${L.length} item${L.length === 1 ? '' : 's'}</small></h3>${L.map(row).join('')}` : ''; }).join('')}
+    <div class="vc-sum" id="vc-sum">${sumHtml()}</div>
+    <div class="sec"><label class="f"><span>Checked by</span><input id="vc-by" value="${esc(st.by || S.me.name)}" ${ro ? 'disabled' : ''}></label>
+      <div class="f" style="margin-bottom:6px"><span>Signature</span></div>
+      ${ro ? (rec && rec.sig ? `<img class="vc-sigimg" src="${rec.sig}" alt="Signature">` : '') : '<canvas class="am-sig" id="vc-sig"></canvas><button class="linkbtn" id="vc-sx">Clear</button>'}
+      ${ro ? '' : `<p class="small muted" id="vc-saved" style="margin:6px 0 0">${savedLbl()}</p>`}</div>
+    ${ro ? '' : `<button class="btn go block" id="vc-go">${rec ? 'Submit changes' : 'Submit Checklist'}</button>
+      <p class="small muted" style="margin-top:8px">Everything starts ticked (checked and working). Untick a check if there is a fault and write what it is. Managers / DY Managers are emailed when you submit.</p>`}`;
+  if (ro) return;
+  const pad = vcPad($('#vc-sig', bg), () => { st.sig = pad.data(); keep(); });
+  if (st.sig) pad.load(st.sig);
+  $('#vc-sx', bg).onclick = () => { pad.clear(); st.sig = ''; keep(); };
+  const redrawRow = id => { const it = items.find(i => i.id === id), el = B.querySelector(`.vc-row[data-vci="${id}"]`); if (!it || !el) return;
+    el.outerHTML = row(it); wireRows(); $('#vc-sum', bg).innerHTML = sumHtml(); };
+  const wireRows = () => {
+    B.querySelectorAll('[data-vct]').forEach(b => b.onclick = () => { const id = b.dataset.vct, it = items.find(i => i.id === id), v = Object.assign({}, val(it));
+      v.ok = !v.ok; st.items[id] = v; keep(); redrawRow(id); if (!v.ok) { const t = B.querySelector(`[data-vcf="${id}"]`); if (t) t.focus(); } });
+    B.querySelectorAll('[data-vcf]').forEach(t => t.oninput = () => { const id = t.dataset.vcf; st.items[id] = Object.assign({}, val(items.find(i => i.id === id)), { f: t.value }); keep(); });
+    B.querySelectorAll('[data-vcs]').forEach(sel => sel.onchange = () => { st.items[sel.dataset.vcs] = { v: sel.value }; keep(); $('#vc-sum', bg).innerHTML = sumHtml(); });
+  };
+  wireRows();
+  $('#vc-by', bg).oninput = e => { st.by = e.target.value; keep(); };
+  $('#vc-d', bg).onchange = async e => {
+    const d = e.target.value; if (!d || d > S.today) { e.target.value = st.date; return toast('Pick a date up to today.', true); }
+    keep();
+    $('#vc-body', bg).innerHTML = '<div class="loading">Loading\u2026</div>';
+    try { const F2 = await call('vcForm', S.token, d); vcFormDraw(bg, F2, close); } catch(x){ fail(x); vcFormDraw(bg, F, close); }
+  };
+  if ($('#vc-tk', bg)) $('#vc-tk', bg).onchange = e => { st.truckId = e.target.value; st.items = {}; keep(); vcFormDraw(bg, F, close); };
+  $('#vc-go', bg).onclick = async e => {
+    const miss = items.filter(i => i.t === 'select' && !val(i).v);
+    if (miss.length) { toast('Pick the ' + miss[0].n + '.', true); const s2 = B.querySelector(`[data-vcs="${miss[0].id}"]`); if (s2) s2.focus(); return; }
+    const noTxt = items.filter(i => i.t !== 'select' && !val(i).ok && !String(val(i).f || '').trim());
+    if (noTxt.length) { toast('Write what the fault is for ' + noTxt[0].n + '.', true); const t = B.querySelector(`[data-vcf="${noTxt[0].id}"]`); if (t) t.focus(); return; }
+    if (!String(st.by || '').trim()) return toast('Key in your name under Checked by.', true);
+    const sig = pad.data() || st.sig;
+    if (!sig) return toast('Sign in the box first.', true);
+    const bad = items.filter(i => i.t !== 'select' && !val(i).ok);
+    const ok = await askBox('Submit the checklist?', `<b>${esc((trucks.find(t => t.id === st.truckId) || {}).plate || '')}</b>, ${esc(nice(st.date))}: ${bad.length ? `<b style="color:var(--flag)">${bad.length} fault${bad.length === 1 ? '' : 's'}</b> (${bad.map(i => esc(i.n)).join(', ')})` : 'all checks OK'}.<br><span class="muted">Managers / DY Managers are emailed.</span>`, 'Yes, submit');
+    if (!ok) return;
+    busy(e.target, true);
+    try {
+      const r = await call('vcSubmit', S.token, { date: st.date, truckId: st.truckId, time: vcHm(), by: st.by, sig,
+        items: items.map(i => Object.assign({ id: i.id }, val(i))) });
+      vcDraftDrop(st.date);
+      vcDone(bg, r, close);
+    } catch(x){ busy(e.target, false); fail(x); }
+  };
+}
+/* after submitting: all OK, or the faults with "Report in Ammo Truck" */
+function vcDone(bg, r, close){
+  const nF = r.faults.length;
+  $('#vc-body', bg).innerHTML = nF ? `<div class="sec vc-res bad"><div class="vc-big">!</div><b>Checklist submitted, ${nF} fault${nF === 1 ? '' : 's'} found</b>
+      <p class="small">${r.notified ? 'Managers / DY Managers have been emailed. ' : ''}Next, launch a fault list in Ammo Truck so the repair can be arranged.</p></div>
+      ${r.faults.map(f => `<div class="vc-row bad"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small></span></div>`).join('')}
+      <button class="btn block vc-amm" id="vc-amm">Report in Ammo Truck &rsaquo;</button>
+      <button class="btn ghost block" id="vc-later" style="margin-top:8px">Later</button>
+      <p class="small muted" style="margin-top:8px">A Manager / DY Manager decides whether the vehicle is Usable or Unserviceable.</p>`
+    : `<div class="sec vc-res ok"><div class="vc-big">&#10003;</div><b>All OK. ${esc(r.plate)} is Usable.</b>
+      <p class="small">${r.notified ? 'Managers / DY Managers have been emailed.' : ''}</p></div><button class="btn block" id="vc-later">Done</button>`;
+  $('#vc-later', bg).onclick = close;
+  if ($('#vc-amm', bg)) $('#vc-amm', bg).onclick = () => vcToAmmo(r);
+}
+/* open Ammo Truck with the fault list filled in from the checklist */
+async function vcToAmmo(r){
+  let cur = S.amF; if (!cur) { try { cur = JSON.parse(localStorage.getItem('rdp_ammo_draft') || 'null'); } catch(e) {} }
+  if (cur && !cur.vcId && amHasForm(cur) && !(await askBox('Replace the fault list being filled in?', 'Ammo Truck has a fault list that is not submitted yet. It is replaced by the faults from this checklist.', 'Yes, replace'))) return;
+  S.amF = { date: r.date, time: r.time || vcHm(), truckId: r.truckId, mileage: '', condition: r.status === 'Unserviceable' ? 'Not usable' : 'Usable, with faults',
+    remarks: r.faults.map((f, i) => (i + 1) + '. ' + f.item + ': ' + f.text).join('\n'), marks: [], ackBy: '', vcId: r.id, vcDate: r.date };
+  S.amPh = []; amKeep(); S.amTab = 'fault';
+  document.querySelectorAll('.vc-bg, .sheet-bg').forEach(x => x.remove());
+  openAmmo();
+}
+
+/* ---------- one checklist, read only (Admin) ---------- */
+function vcItemsHtml(r){
+  return VC_SEC.map(([s, l]) => { const L = r.items.filter(i => i.s === s); return L.length ? `<h3 class="vc-sh">${l.toUpperCase()}</h3>` + L.map(it => it.t === 'select'
+    ? `<div class="vc-row sel"><span class="vc-ck fuel">&#9673;</span><span class="vc-n">${esc(it.n)}</span><b>${esc(it.v || '-')}</b></div>`
+    : `<div class="vc-row ${it.ok === false ? 'bad' : ''}"><span class="vc-ck ${it.ok === false ? 'off' : ''}">${it.ok === false ? '&#10005;' : '&#10003;'}</span><span class="vc-n">${esc(it.n)}${it.ok === false ? `<small>${esc(it.f)}</small>` : ''}</span><span class="vc-s">${it.ok === false ? 'FAULT' : 'OK'}</span></div>`).join('') : ''; }).join('');
+}
+/* Manager / DY Manager: Usable (green) or Unserviceable (red) */
+async function vcDecideOpen(id, after){
+  const bg = vcSheet('Vehicle check');
+  const close = () => bg.remove();
+  $('#vc-x', bg).onclick = close;
+  let r; try { r = await call('vcRecord', S.token, id); } catch(e){ bg.remove(); return fail(e); }
+  $('.vc-top b', bg).textContent = 'Vehicle ' + r.plate;
+  let pick = r.status || '';
+  const can = canManage() && !r.closed;
+  const draw = () => {
+    $('#vc-body', bg).innerHTML = `<div class="sec"><b>${esc(nice(r.date))} &middot; checked by ${esc(r.driver)}${r.time ? ' ' + esc(r.time) + 'hrs' : ''}</b>
+        <div class="small muted">${r.items.filter(i => i.t !== 'select' && i.ok !== false).length} of ${r.items.filter(i => i.t !== 'select').length} checks OK${r.fuel ? ' &middot; Fuel ' + esc(r.fuel) : ''}</div>
+        ${r.faults.map(f => `<div class="vc-row bad" style="margin-top:8px"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small></span>${r.ammoFault ? vcFaultPill(f) : ''}</div>`).join('')}
+        ${r.faults.length && !r.ammoFault ? '<div class="note red" style="margin:8px 0 0">Not reported in Ammo Truck yet.</div>' : ''}
+        <button class="linkbtn" id="vc-all" style="margin-top:6px">See the whole checklist</button><div id="vc-allbox" hidden>${vcItemsHtml(r)}${r.sig ? `<div class="f" style="margin-top:8px"><span>Signature: ${esc(r.driver)}</span></div><img class="vc-sigimg" src="${r.sig}" alt="Signature">` : ''}</div></div>
+      ${r.status ? vcBanner(r) : ''}
+      ${r.faults.length && can ? `<b style="display:block;margin:12px 2px 6px">Vehicle status</b>
+        <div class="vc-pick"><button data-vcp="Usable" class="ok ${pick === 'Usable' ? 'on' : ''}">&#9679; USABLE<small>can be driven</small></button>
+          <button data-vcp="Unserviceable" class="bad ${pick === 'Unserviceable' ? 'on' : ''}">&#9679; UNSERVICEABLE<small>do not drive</small></button></div>
+        <label class="f" style="margin-top:10px"><span>Remark (optional)</span><input id="vc-rm" style="width:100%" value="${esc(r.statusRemark || '')}" maxlength="200" placeholder="e.g. Tyre to be changed first"></label>
+        <button class="btn block ${pick === 'Unserviceable' ? 'vc-red' : 'go'}" id="vc-ap" ${pick ? '' : 'disabled'}>${pick ? 'Approve: ' + pick : 'Pick Usable or Unserviceable'}</button>
+        <p class="small muted" style="margin-top:8px">The driver and the other managers see it straight away.</p>` : ''}
+      ${r.faults.length && !r.ammoFault && (S.me.apps || []).includes('ammo') && !isPD() ? '<button class="btn ghost block vc-amm2" id="vc-amm" style="margin-top:8px">Report in Ammo Truck &rsaquo;</button>' : ''}`;
+    $('#vc-all', bg).onclick = () => { const b = $('#vc-allbox', bg); b.hidden = !b.hidden; };
+    bg.querySelectorAll('[data-vcp]').forEach(b => b.onclick = () => { pick = b.dataset.vcp; const rm = $('#vc-rm', bg) ? $('#vc-rm', bg).value : ''; draw(); if ($('#vc-rm', bg)) $('#vc-rm', bg).value = rm; });
+    if ($('#vc-amm', bg)) $('#vc-amm', bg).onclick = () => vcToAmmo(r);
+    if ($('#vc-ap', bg)) $('#vc-ap', bg).onclick = async e => {
+      busy(e.target, true);
+      try { await call('vcDecide', S.token, r.id, pick, $('#vc-rm', bg).value); toast(r.plate + ': ' + pick + '.'); close(); if (after) after(); }
+      catch(x){ busy(e.target, false); fail(x); }
+    };
+  };
+  draw();
+}
+
+/* ---------- Admin -> Vehicle Checks ---------- */
+async function admVc(){
+  S.vcM = S.vcM || S.today.slice(0, 7); S.vcSub = S.vcSub || 'list';
+  loadingA();
+  try { const D = await call('vcMonth', S.token, S.vcM); S.vcD = D; drawVc(D); } catch(e){ fail(e); }
+}
+function vcMonths(){ const out = [], d = pd(S.today.slice(0, 7) + '-01'); for (let i = 0; i < 13; i++) { const x = new Date(d.getFullYear(), d.getMonth() - i, 1); out.push(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0')); } return out; }
+function drawVc(D){
+  const trucks = D.trucks || [];
+  if (!S.vcT || !trucks.some(t => t.id === S.vcT)) S.vcT = (trucks[0] || {}).id || '';
+  const tk = trucks.find(t => t.id === S.vcT) || { plate: '' };
+  const recs = D.recs.filter(r => r.truckId === S.vcT), closed = (D.closed || []).find(c => c.truckId === S.vcT);
+  const days = D.days.map(d => ({ date: d.date, driver: d.driver, rec: recs.find(r => r.date === d.date) }));
+  const done = days.filter(d => d.rec).length, nd = days.length - done, nF = recs.reduce((a, r) => a + r.faults.length, 0);
+  const open = (D.open || []).reduce((a, r) => a + r.faults.length, 0);
+  const ms = vcMonths(); if (!ms.includes(D.month)) ms.push(D.month);
+  A().innerHTML = `<div class="vc-mhead"><button class="btn ghost ib" id="vc-mp" aria-label="Previous month">&#8249;</button>
+      <select id="vc-ms">${ms.map(m => `<option value="${m}" ${m === D.month ? 'selected' : ''}>${vcMonName(m)}</option>`).join('')}</select>
+      <button class="btn ghost ib" id="vc-mn" aria-label="Next month" ${D.month >= S.today.slice(0, 7) ? 'disabled' : ''}>&#8250;</button>
+      ${closed ? '<span class="pill Approved">Closed</span>' : '<span class="pill Pending">Open</span>'}</div>
+    ${trucks.length > 1 ? `<div class="sub" style="margin:0 0 10px">${trucks.map(t => `<button class="chip" data-vctk="${esc(t.id)}" aria-pressed="${t.id === S.vcT}">${esc(t.plate)}</button>`).join(' ')}</div>` : ''}
+    <div class="sub" style="margin:0 0 12px"><button class="chip" data-vcsub="list" aria-pressed="${S.vcSub === 'list'}">Checklists</button>
+      <button class="chip" data-vcsub="faults" aria-pressed="${S.vcSub === 'faults'}">Faults${open ? ' &middot; ' + open + ' open' : ''}</button>
+      ${D.canEdit ? `<button class="chip" data-vcsub="items" aria-pressed="${S.vcSub === 'items'}">Checks</button>` : ''}</div>
+    <div id="vc-sub"></div>`;
+  const go = m => { S.vcM = m; admVc(); };
+  $('#vc-ms').onchange = e => go(e.target.value);
+  $('#vc-mp').onclick = () => { const i = ms.indexOf(D.month); go(ms[i + 1] || ms[i]); };
+  $('#vc-mn').onclick = () => { const i = ms.indexOf(D.month); if (i > 0) go(ms[i - 1]); };
+  document.querySelectorAll('[data-vctk]').forEach(b => b.onclick = () => { S.vcT = b.dataset.vctk; drawVc(D); });
+  document.querySelectorAll('[data-vcsub]').forEach(b => b.onclick = () => { S.vcSub = b.dataset.vcsub; drawVc(D); });
+  const box = $('#vc-sub');
+  if (S.vcSub === 'faults') return vcFaultsTab(box, D);
+  if (S.vcSub === 'items' && D.canEdit) return vcItemsTab(box, D);
+  box.innerHTML = `<div class="vc-sum"><div class="ok"><b>${done}</b>DONE</div><div class="nd"><b>${nd}</b>NOT DONE</div><div class="bad"><b>${nF}</b>FAULT${nF === 1 ? '' : 'S'}</div></div>
+    ${days.length ? `<div class="sec" style="padding:0">${days.slice().reverse().map(d => { const r = d.rec;
+      return `<button class="vc-day" ${r ? `data-vcr="${esc(r.id)}"` : 'disabled'}><span><b>${esc(nice(d.date))}</b> &middot; ${esc(r ? r.driver : d.driver)}${r && r.fuel ? ' &middot; ' + esc(r.fuel) : ''}</span>
+        <span class="vc-pills">${!r ? '<span class="pill Pending">Not done</span>' : r.faults.length ? `<span class="pill Rejected">${r.faults.length} fault${r.faults.length === 1 ? '' : 's'}</span>` : '<span class="pill Approved">All OK</span>'}${r && r.faults.length ? vcDecisionPill(r) : ''}</span></button>`; }).join('')}</div>`
+      : `<div class="sec"><p class="muted" style="margin:0">No PLAD days in ${esc(vcMonName(D.month))} yet.</p></div>`}
+    <div id="vc-close"></div>`;
+  box.querySelectorAll('[data-vcr]').forEach(b => b.onclick = () => vcDecideOpen(b.dataset.vcr, admVc));
+  vcCloseCard($('#vc-close'), D, tk, days, recs, closed);
+}
+function vcCloseCard(box, D, tk, days, recs, closed){
+  if (closed) {
+    box.innerHTML = `<div class="sec vc-closed"><b>Closed ${esc(vcAt(closed.closedAt))} by ${esc(titleCase(closed.closedBy))}</b>
+      ${closed.pdfUrl ? `<div class="vc-pdf"><span class="vc-pdfic">PDF</span><div><b>${esc(D.month.slice(0, 4) + ' ' + MON[Number(D.month.slice(5, 7)) - 1] + ' ' + tk.plate)}.pdf</b><small>Drive &rsaquo; Vehicle First Parade &rsaquo; Vehicle Checks ${esc(D.month.slice(0, 4))}${closed.pdfAt ? ' &middot; saved ' + esc(vcAt(closed.pdfAt)) : ''}</small></div></div>
+        <a class="btn ghost block" href="${esc(closed.pdfUrl)}" target="_blank" rel="noopener">Open in Drive</a>` : ''}
+      ${D.canEdit ? `<button class="btn no block" id="vc-reopen" style="margin-top:8px">Reopen month</button>` : ''}
+      <p class="small muted" style="margin:8px 0 0">Closed: drivers can no longer change these checklists. Reopen to correct something, then close again; the PDF is replaced.</p></div>`;
+    if ($('#vc-reopen')) $('#vc-reopen').onclick = async () => {
+      if (!(await askBox('Reopen ' + esc(vcMonName(D.month)) + '?', 'Checklists can be changed again. Close it again afterwards to save a new PDF.', 'Yes, reopen'))) return;
+      try { await call('vcReopen', S.token, D.month, S.vcT); toast(vcMonName(D.month) + ' reopened.'); admVc(); } catch(e){ fail(e); }
+    };
+    if (closed.stale && D.canEdit && !S.vcFixing) vcRefreshPdf(D, tk, closed);   // a repair date was filled in after the PDF was made
+    return;
+  }
+  if (!D.canEdit) { box.innerHTML = '<div class="sec"><p class="muted" style="margin:0">Not closed yet. A Manager / DY Manager acknowledges and closes the month at month end.</p></div>'; return; }
+  if (!recs.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="sec vc-closebox"><b class="vc-ct">Acknowledge &amp; close ${esc(vcMonName(D.month).split(' ')[0])}</b>
+    <p class="small muted" style="margin:4px 0 10px">Manager / DY Manager, at month end. Closing saves the month as a PDF in Google Drive.</p>
+    <label class="f"><span>Acknowledged by</span><input value="${esc(S.me.name + ' \u00B7 ' + S.me.role)}" disabled></label>
+    <div class="f" style="margin-bottom:6px"><span>Signature</span></div><canvas class="am-sig" id="vc-csig"></canvas><button class="linkbtn" id="vc-csx">Clear</button>
+    <button class="btn block" id="vc-cgo" style="margin-top:10px">Acknowledge &amp; close month</button></div>`;
+  const pad = amSigPad($('#vc-csig'));
+  $('#vc-csx').onclick = () => pad.clear();
+  $('#vc-cgo').onclick = async e => {
+    const sig = pad.data();
+    if (!sig) return toast('Sign in the box first.', true);
+    const nd = days.filter(d => !d.rec), wait = recs.filter(r => r.faults.length && !r.status);
+    const warn = [nd.length ? nd.length + ' PLAD day' + (nd.length === 1 ? ' has' : 's have') + ' no checklist (' + nd.map(d => esc(nice(d.date))).join(', ') + ')' : '',
+      wait.length ? wait.length + ' checklist' + (wait.length === 1 ? ' is' : 's are') + ' still waiting for Usable / Unserviceable' : ''].filter(Boolean);
+    if (!(await askBox('Close ' + esc(vcMonName(D.month)) + '?', (warn.length ? '<span style="color:var(--flag)">' + warn.join('.<br>') + '.</span><br><br>' : '') + 'The month is saved as a PDF in Google Drive and the checklists can no longer be changed.', warn.length ? 'Close anyway' : 'Yes, close'))) return;
+    busy(e.target, true);
+    try {
+      const D2 = await call('vcMonth', S.token, D.month, true);
+      const n = new Date(), p2 = v => String(v).padStart(2, '0');
+      const pdf = await vcPdf(D2, S.vcT, { by: S.me.name, role: S.me.role, at: n.getFullYear() + '-' + p2(n.getMonth() + 1) + '-' + p2(n.getDate()) + ' ' + p2(n.getHours()) + ':' + p2(n.getMinutes()), sig });
+      const out = await call('vcClose', S.token, D.month, S.vcT, sig, pdf);
+      toast(vcMonName(D.month) + ' closed. Saved in Drive: ' + out.name);
+      admVc();
+    } catch(x){ busy(e.target, false); fail(x); }
+  };
+}
+async function vcRefreshPdf(D, tk, closed){
+  S.vcFixing = true;
+  try {
+    const D2 = await call('vcMonth', S.token, D.month, true), c2 = (D2.closed || []).find(c => c.truckId === S.vcT);
+    if (!c2) return;
+    const pdf = await vcPdf(D2, S.vcT, { by: c2.closedBy, role: c2.closedRole, at: c2.closedAt, sig: c2.sig });
+    await call('vcSavePdf', S.token, D.month, S.vcT, pdf);
+    toast('The ' + vcMonName(D.month) + ' PDF was updated with the latest repair dates.');
+  } catch(e){ /* tried again next time */ } finally { S.vcFixing = false; }
+}
+function vcFaultsTab(box, D){
+  const open = D.open || [];
+  const recs = D.recs.filter(r => r.faults.some(f => f.status === 'Repaired' || f.status === 'Not needed'));
+  box.innerHTML = `${open.length ? open.map(r => r.faults.map(f => `<div class="sec vc-fc"><div class="vc-fh"><b>${esc(f.item)} &middot; ${esc(nice(r.date))}</b>${vcFaultPill(f)}</div>
+      <div class="small muted">${esc(r.plate)} &middot; ${esc(r.driver)}: &ldquo;${esc(f.text)}&rdquo;</div>
+      <div class="small" style="margin-top:4px">${f.status === 'Not reported' ? `Not in Ammo Truck yet &middot; <button class="linkbtn" data-vcrep="${esc(r.id)}">Report it</button>`
+        : 'Ammo Truck fault #' + f.n + (f.sentOn ? ' &middot; Sent for repair ' + esc(nice(f.sentOn)) : ' &middot; not sent yet')}</div></div>`).join('')).join('')
+    : '<div class="sec"><p class="muted" style="margin:0">No faults waiting for repair.</p></div>'}
+    ${recs.length ? `<h3>Repaired (${esc(vcMonName(D.month))})</h3><div class="sec" style="padding:0">${recs.map(r => r.faults.filter(f => f.status === 'Repaired' || f.status === 'Not needed').map(f =>
+      `<div class="vc-day"><span><b>${esc(f.item)}</b> &middot; ${esc(nice(r.date))}</span><span class="pill Approved">${f.status === 'Repaired' ? 'Repaired ' + esc(f.fixedOn ? nice(f.fixedOn) : '') : 'Not needed'}</span></div>`).join('')).join('')}</div>` : ''}
+    <p class="small muted">Sent for repair and Repaired come from the repair in Ammo Truck (Repairs tab), and go into the month PDF.</p>`;
+  box.querySelectorAll('[data-vcrep]').forEach(b => b.onclick = async () => { try { const r = await call('vcRecord', S.token, b.dataset.vcrep); vcToAmmo(r); } catch(e){ fail(e); } });
+}
+function vcItemsTab(box, D){
+  const L = S.vcItems || (S.vcItems = D.items.map(x => Object.assign({}, x, { o: (x.o || []).slice() })));
+  const draw = () => {
+    box.innerHTML = `<div class="note blue">Changes apply to new checklists. Past checklists keep the checks they had.</div>
+      ${VC_SEC.map(([s, l]) => `<h3 class="vc-sh">${l.toUpperCase()}</h3>${L.map((x, i) => x.s !== s ? '' : `<div class="vc-ed"><span class="vc-n">${esc(x.n)}${x.t === 'select' ? `<small>Drop-down: ${esc(x.o.join(', '))}</small>` : ''}</span>
+          <button class="ib2" data-vcu="${i}" aria-label="Move up">&#9650;</button><button class="ib2" data-vcdn="${i}" aria-label="Move down">&#9660;</button><button class="ib2 x" data-vcx="${i}" aria-label="Remove">&#10005;</button></div>`).join('')}`).join('')}
+      <div class="sec" style="margin-top:12px"><b>Add a check</b>
+        <label class="f" style="margin-top:8px"><span>Name</span><input id="vci-n" maxlength="60" placeholder="e.g. Reverse Sensor"></label>
+        <div class="row2"><label class="f"><span>Section</span><select id="vci-s"><option value="E">Exterior Check</option><option value="I">Interior Check</option></select></label>
+          <label class="f"><span>Type</span><select id="vci-t"><option value="tick">Tick (OK / Fault)</option><option value="select">Drop-down</option></select></label></div>
+        <label class="f" id="vci-ow" hidden><span>Choices (comma separated)</span><input id="vci-o" placeholder="e.g. Low, Half, Full"></label>
+        <button class="btn ghost block" id="vci-add">Add</button></div>
+      <button class="btn block" id="vci-save">Save changes</button>`;
+    box.querySelectorAll('[data-vcu]').forEach(b => b.onclick = () => { const i = +b.dataset.vcu; let j = i - 1; while (j >= 0 && L[j].s !== L[i].s) j--; if (j < 0) return; const t = L[i]; L[i] = L[j]; L[j] = t; draw(); });
+    box.querySelectorAll('[data-vcdn]').forEach(b => b.onclick = () => { const i = +b.dataset.vcdn; let j = i + 1; while (j < L.length && L[j].s !== L[i].s) j++; if (j >= L.length) return; const t = L[i]; L[i] = L[j]; L[j] = t; draw(); });
+    box.querySelectorAll('[data-vcx]').forEach(b => b.onclick = async () => { const x = L[+b.dataset.vcx]; if (await askBox('Remove "' + esc(x.n) + '"?', 'It is taken off new checklists. Tap Save changes to keep it.', 'Remove')) { L.splice(+b.dataset.vcx, 1); draw(); } });
+    $('#vci-t').onchange = e => { $('#vci-ow').hidden = e.target.value !== 'select'; };
+    $('#vci-add').onclick = () => {
+      const n = $('#vci-n').value.trim(), t = $('#vci-t').value, o = t === 'select' ? $('#vci-o').value.split(',').map(v => v.trim()).filter(Boolean) : [];
+      if (!n) return toast('Key in the name of the check.', true);
+      if (L.some(x => x.n.toUpperCase() === n.toUpperCase())) return toast(n + ' is already in the list.', true);
+      if (t === 'select' && o.length < 2) return toast('Give at least 2 choices, separated by commas.', true);
+      const s = $('#vci-s').value; let at = L.length; for (let i = L.length - 1; i >= 0; i--) if (L[i].s === s) { at = i + 1; break; }
+      L.splice(at, 0, { id: '', s, n, t, o }); draw(); toast('Added. Tap Save changes to keep it.');
+    };
+    $('#vci-save').onclick = async e => { busy(e.target, true);
+      try { const r = await call('vcItemsSave', S.token, L); S.vcItems = null; D.items = r; toast('Checks saved.'); vcItemsTab(box, D); } catch(x){ busy(e.target, false); fail(x); } };
+  };
+  draw();
+}
+
+/* ---------- the month as a PDF (A4 landscape, like a paper form) ---------- */
+async function vcPdf(D, truckId, ack){
+  await loadPdfLib();
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  const tk = (D.trucks || []).find(t => t.id === truckId) || { plate: '' };
+  const recs = D.recs.filter(r => r.truckId === truckId);
+  const days = D.days.map(d => ({ date: d.date, rec: recs.find(r => r.date === d.date) || null }));
+  recs.forEach(r => { if (!days.some(d => d.date === r.date)) days.push({ date: r.date, rec: r }); });
+  days.sort((a, b) => a.date < b.date ? -1 : 1);
+  // the rows: the checks of this month's checklists (in today's order first)
+  // rows in the order of the latest checklist; a check only on older ones goes in after the check before it
+  const order = [];
+  recs.slice().sort((a, b) => a.date < b.date ? 1 : -1).forEach(r => r.items.forEach((it, i) => { if (order.some(o => o.n === it.n)) return;
+    const prev = i ? r.items[i - 1].n : null, at = prev ? order.findIndex(o => o.n === prev) + 1 : 0; order.splice(at > 0 ? at : (prev ? order.length : 0), 0, it); }));
+  const rowsE = order.filter(it => it.t !== 'select' && it.s !== 'I').map(it => it.n), rowsI = order.filter(it => it.t !== 'select' && it.s === 'I').map(it => it.n);
+  const selNames = order.filter(it => it.t === 'select').map(it => it.n);
+  const PW = 297, PH = 210, M = 12, W = PW - 2 * M;
+  const ink = () => doc.setTextColor(23, 33, 43), grey = () => doc.setTextColor(91, 104, 116), red = () => doc.setTextColor(179, 38, 30), green = () => doc.setTextColor(46, 122, 76);
+  const tick = (x, y) => { doc.setDrawColor(46, 122, 76); doc.setLineWidth(0.55); doc.line(x - 1.6, y, x - 0.4, y + 1.3); doc.line(x - 0.4, y + 1.3, x + 1.9, y - 1.6); doc.setLineWidth(0.2); };
+  const cross = (x, y) => { doc.setDrawColor(179, 38, 30); doc.setLineWidth(0.55); doc.line(x - 1.5, y - 1.5, x + 1.5, y + 1.5); doc.line(x - 1.5, y + 1.5, x + 1.5, y - 1.5); doc.setLineWidth(0.2); };
+  const faultList = []; days.forEach(d => { if (d.rec) d.rec.faults.forEach(f => faultList.push(Object.assign({ date: d.date, driver: d.rec.driver, sig: d.rec.sig }, f))); });
+  const fno = (date, item) => faultList.findIndex(f => f.date === date && f.item === item) + 1;
+  const imgOk = d => /^data:image\/(png|jpeg)/.test(String(d || ''));
+  const fmtT = t => t ? t : '';
+  const header = () => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); ink(); doc.text('VEHICLE FIRST PARADE CHECKLIST', M, 16);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); grey(); doc.text('Multi Mission Range Complex  \u00B7  Ops Support  \u00B7  PLAD vehicle', M, 21.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); ink(); doc.text(vcMonName(D.month), PW - M, 16, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); grey(); doc.text('Vehicle ' + tk.plate, PW - M, 21.5, { align: 'right' });
+    doc.setDrawColor(23, 33, 43); doc.setLineWidth(0.5); doc.line(M, 24.5, PW - M, 24.5); doc.setLineWidth(0.2); };
+  const stamp = 'Range Deployment app  \u00B7  ' + (ack && ack.at ? 'closed and saved ' + vcAt(ack.at).replace(/hrs$/, '') : 'made ' + nice(S.today));
+  header();
+  const done = days.filter(d => d.rec).length, nFault = faultList.length;
+  const kp = [[String(days.length), 'PLAD days'], [String(done), 'Checklists done'], [String(days.length - done), 'Not done'], [String(nFault), 'Faults reported']], kw = 44;
+  kp.forEach(([v, l], i) => { const x = M + i * (kw + 3), hot = i === 3 && nFault;
+    doc.setDrawColor(214, 220, 214); hot ? doc.setFillColor(249, 227, 225) : doc.setFillColor(247, 249, 247); doc.roundedRect(x, 28, kw, 13, 1.5, 1.5, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); hot ? red() : i === 2 && v !== '0' ? doc.setTextColor(162, 106, 10) : ink(); doc.text(v, x + 3.5, 34.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); grey(); doc.text(l, x + 3.5, 38.8); });
+  doc.setFontSize(8); grey();
+  const lg = M + 4 * (kw + 3) + 4; tick(lg + 2, 33); doc.text('OK, in working condition', lg + 5, 34); cross(lg + 2, 38.2); doc.text('Fault (number = fault list on page 2)', lg + 5, 39.2);
+  const nameW = 50, nCols = Math.max(1, days.length), cw = (W - nameW) / nCols;
+  const nRows = rowsE.length + rowsI.length + selNames.length + 2;
+  const rh = Math.max(4.2, Math.min(5.6, (118 - 2 * 5 - 8 - 10 - 6.2) / (nRows + 3)));
+  let y = 45;
+  const cellsRow = (label, fill, o = {}) => {
+    const h = o.h || rh;
+    if (o.head) { doc.setFillColor(238, 242, 238); doc.rect(M, y, W, h, 'F'); }
+    if (o.band) { doc.setFillColor(227, 236, 244); doc.rect(M, y, W, h, 'F'); }
+    doc.setFont('helvetica', o.head || o.band || o.bold ? 'bold' : 'normal'); doc.setFontSize(8.5);
+    o.band ? doc.setTextColor(44, 83, 120) : o.head ? grey() : ink();
+    doc.text(doc.splitTextToSize(label, nameW - 3)[0], M + 2, y + h / 2 + 1.2);
+    days.forEach((d, i) => { const cx = M + nameW + i * cw;
+      if (!d.rec && !o.head) { doc.setFillColor(246, 235, 213); doc.rect(cx, y, cw, h, 'F'); }
+      fill(d, cx + cw / 2, y + h / 2, cx); });
+    doc.setDrawColor(214, 220, 214); doc.rect(M, y, W, h);
+    for (let i = 0; i <= nCols; i++) doc.line(M + nameW + i * cw, y, M + nameW + i * cw, y + h);
+    y += h; };
+  cellsRow('Date', (d, x, cy) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); ink(); doc.text(String(Number(d.date.slice(8, 10))), x, cy - 0.3, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); grey(); doc.text(VC_DOW[pd(d.date).getDay()], x, cy + 2.6, { align: 'center' }); }, { head: true, h: 8 });
+  const itemRow = n => cellsRow(n, (d, x, cy) => { if (!d.rec) return; const it = d.rec.items.find(i => i.n === n);
+    if (!it) { doc.setFontSize(7); grey(); doc.text('-', x, cy + 1, { align: 'center' }); return; }
+    if (it.ok === false) { cross(x - 1.3, cy); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); red(); doc.text(String(fno(d.date, n)), x + 1.6, cy + 1.2); } else tick(x, cy); });
+  if (rowsE.length) { cellsRow('EXTERIOR CHECK', () => {}, { band: true, h: 5 }); rowsE.forEach(itemRow); }
+  if (rowsI.length || selNames.length) { cellsRow('INTERIOR CHECK', () => {}, { band: true, h: 5 }); rowsI.forEach(itemRow); }
+  selNames.forEach(n => cellsRow(n, (d, x, cy) => { if (!d.rec) return; const it = d.rec.items.find(i => i.n === n), v = it ? it.v || '' : '';
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); /red/i.test(v) ? red() : ink(); doc.text(v || '-', x, cy + 1.1, { align: 'center' }); }, { bold: true }));
+  cellsRow('Time checked', (d, x, cy) => { if (!d.rec) { doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(162, 106, 10); doc.text('NOT', x, cy - 0.3, { align: 'center' }); doc.text('DONE', x, cy + 2.2, { align: 'center' }); return; }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); ink(); doc.text(fmtT(d.rec.time), x, cy + 1.1, { align: 'center' }); });
+  cellsRow('Checked by', (d, x, cy) => { if (!d.rec) return; doc.setFont('helvetica', 'normal'); doc.setFontSize(6.6); ink(); doc.text(doc.splitTextToSize(d.rec.driver, cw - 1.5)[0], x, cy + 1.1, { align: 'center' }); });
+  cellsRow('Signature', (d, x, cy, cx) => { if (!d.rec || !imgOk(d.rec.sig)) return; const iw = cw - 2, ih = Math.min(8.4, iw / 3); try { doc.addImage(d.rec.sig, d.rec.sig.indexOf('image/png') > 0 ? 'PNG' : 'JPEG', cx + 1, cy - ih / 2, iw, ih); } catch(e) {} }, { h: 10 });
+  cellsRow('Vehicle status', (d, x, cy, cx) => { if (!d.rec) return; const st = d.rec.status || 'Waiting', us = st === 'Usable', wt = !d.rec.status;
+    doc.setFillColor(...(us ? [225, 240, 230] : wt ? [246, 235, 213] : [249, 227, 225])); doc.rect(cx + 0.6, cy - 2.6, cw - 1.2, 5.2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(us ? 6.8 : 5.3); us ? green() : wt ? doc.setTextColor(162, 106, 10) : red(); doc.text(st.toUpperCase(), x, cy + 0.9, { align: 'center' }); }, { bold: true, h: 6.2 });
+  cellsRow('Status approved by', (d, x, cy) => { if (!d.rec) return; doc.setFont('helvetica', 'normal'); doc.setFontSize(6.3);
+    const by = d.rec.faults.length ? (d.rec.statusBy || '') : 'All OK'; by === 'All OK' ? grey() : ink(); doc.text(doc.splitTextToSize(by, cw - 1.5)[0] || '', x, cy + 1, { align: 'center' }); });
+  // acknowledgement
+  y += 6; if (y > PH - 34) y = PH - 34;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); ink(); doc.text('Acknowledged by Manager / DY Manager (month closed)', M, y);
+  y += 2.5; doc.setDrawColor(190, 197, 207); doc.rect(M, y, 80, 18);
+  if (ack && imgOk(ack.sig)) { try { const im = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = ack.sig; });
+    if (im) { const k = Math.min(74 / im.width, 15 / im.height); doc.addImage(ack.sig, ack.sig.indexOf('image/png') > 0 ? 'PNG' : 'JPEG', M + 40 - im.width * k / 2, y + 1.5, im.width * k, im.height * k); } } catch(e) {} }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); ink(); doc.text(ack && ack.by ? ack.by : 'Not closed yet', M + 86, y + 6);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); grey(); if (ack && ack.role) doc.text(ack.role, M + 86, y + 11); if (ack && ack.at) doc.text(vcAt(ack.at), M + 86, y + 16);
+  const pages = nFault ? 2 : 1;
+  const footer = n => { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); grey(); doc.text(stamp, M, PH - 6); doc.text('Page ' + n + ' of ' + pages, PW - M, PH - 6, { align: 'right' }); };
+  footer(1);
+  if (nFault) {
+    doc.addPage(); header(); y = 33;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); ink(); doc.text('Faults reported (' + nFault + ')', M, y); y += 3;
+    const fc = [['No.', 0, 10], ['Date', 10, 24], ['Check', 34, 36], ['What is the fault', 70, 79], ['Checked by', 149, 22], ['Signature', 171, 24], ['Sent for repair', 195, 30], ['Repaired', 225, 30], ['Status', 255, 18]];
+    const frow = (cells, head, f) => {
+      const lines = head ? 1 : Math.max(1, doc.splitTextToSize(String(cells[3]), fc[3][2] - 4).length, doc.splitTextToSize(String(cells[2]), fc[2][2] - 4).length);
+      const h = head ? 7 : Math.max(11, 4 + lines * 4);
+      if (y + h > PH - 14) { footer(2); doc.addPage(); header(); y = 33; }
+      if (head) { doc.setFillColor(238, 242, 238); doc.rect(M, y, W, h, 'F'); }
+      cells.forEach((t, i) => { const [, x, w] = fc[i];
+        doc.setFont('helvetica', head || i === 0 ? 'bold' : 'normal'); doc.setFontSize(head ? 8.5 : 9); head ? grey() : i === 0 ? red() : ink();
+        if (!head && i === 5) { if (imgOk(f.sig)) try { doc.addImage(f.sig, f.sig.indexOf('image/png') > 0 ? 'PNG' : 'JPEG', M + x + 1, y + 1.5, 21, 7); } catch(e) {} return; }
+        if (!head && i === 8) { const st = f.status, c = st === 'Repaired' || st === 'Not needed' ? [[225, 240, 230], [46, 122, 76]] : st === 'At repair' ? [[246, 235, 213], [162, 106, 10]] : [[249, 227, 225], [179, 38, 30]];
+          doc.setFillColor(...c[0]); doc.roundedRect(M + x, y + 2.6, w, 5.6, 1.4, 1.4, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(st.length > 9 ? 6.3 : 7.5); doc.setTextColor(...c[1]);
+          doc.text(st, M + x + w / 2, y + 6.4, { align: 'center' }); return; }
+        if (!head && (i === 6 || i === 7) && !t) { doc.setTextColor(152, 162, 179); t = i === 6 ? 'Not sent yet' : 'Not yet'; }
+        doc.text(doc.splitTextToSize(String(t), w - 4), M + x + 2, y + (head ? 4.7 : 6.2)); });
+      doc.setDrawColor(214, 220, 214); doc.line(M, y + h, PW - M, y + h); y += h; };
+    frow(fc.map(c => c[0]), true);
+    faultList.forEach((f, i) => frow([String(i + 1), VC_DOW[pd(f.date).getDay()] + ' ' + Number(f.date.slice(8, 10)) + ' ' + MON[Number(f.date.slice(5, 7)) - 1], f.item, f.text, f.driver, '',
+      f.sentOn ? nice(f.sentOn) : '', f.fixedOn ? nice(f.fixedOn) : '', ''], false, f));
+    y += 9; if (y > PH - 24) { footer(2); doc.addPage(); header(); y = 40; }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); grey();
+    tick(M + 2, y - 1); doc.text('Ticked: checked and in working condition.', M + 5.5, y);
+    cross(M + 2, y + 4.5); doc.text('Unticked: fault found, with what the fault is written by the driver (listed above).', M + 5.5, y + 5.5);
+    doc.text('Status: Open = not sent for repair yet  \u00B7  At repair = sent for repair, not back yet  \u00B7  Repaired = repair done  \u00B7  Not reported = not in Ammo Truck yet.', M + 5.5, y + 11);
+    footer(2);
+  }
+  return doc.output('datauristring');
+}
+
 liveStart();
 
 boot();
