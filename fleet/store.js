@@ -20,7 +20,33 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
     set(k,v){ try{ v ? localStorage.setItem(k,v) : localStorage.removeItem(k); }catch(e){} }
   };
 
+  /* View only (the PD opening Movexx / Trolley from the Range Deployment app, #...&ro=1):
+     everything can be looked at, nothing is sent to Google. Kept for this tab. */
+  const RO = (function(){
+    try{
+      const h = new URLSearchParams(String(location.hash||'').replace(/^#/,''));
+      if(h.get('who')) sessionStorage.setItem('mmrc-ro', h.get('ro')==='1' ? '1' : '');
+      return sessionStorage.getItem('mmrc-ro')==='1';
+    }catch(e){ return false; }
+  })();
+  const WRITES = new Set(['save','putPhotos','dropPhotos','pdf']);
+  let roBar = null;
+  function roFlash(){
+    if(!roBar) return;
+    roBar.classList.remove('flash'); void roBar.offsetWidth; roBar.classList.add('flash');
+  }
+  if(RO) document.addEventListener('DOMContentLoaded', ()=>{
+    const st = document.createElement('style');
+    st.textContent = '.ro-bar{position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#1d2939;color:#fff;font:600 13px/1.3 system-ui,sans-serif;text-align:center;padding:9px 14px calc(9px + env(safe-area-inset-bottom))}'+
+      '.ro-bar.flash{animation:roflash .9s ease}@keyframes roflash{0%,100%{background:#1d2939}30%{background:#b42318}}body{padding-bottom:44px}';
+    document.head.appendChild(st);
+    roBar = document.createElement('div'); roBar.className = 'ro-bar'; roBar.setAttribute('role','status');
+    roBar.textContent = 'View only: you can look at everything, but nothing you change is saved.';
+    document.body.appendChild(roBar);
+  });
+
   const MSG = {
+    readonly: 'View only: nothing is saved.',
     setup:    'Please log in first.',
     network:  'Could not reach Google. Check the internet connection and try again.',
     passcode: 'The username or password is wrong.',
@@ -35,6 +61,7 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
     const user = (cfg && cfg.user!=null) ? cfg.user : Store.user();
     const pass = (cfg && cfg.pass!=null) ? cfg.pass : Store.pass();
     if(!url || !user || !pass) throw fail('setup', MSG.setup);
+    if(RO && WRITES.has(action)){ roFlash(); throw fail('readonly', MSG.readonly); }
     let res, text;
     try{
       res = await fetch(url, { method:'POST',
@@ -130,6 +157,7 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
       } finally { inflight = null; }
     }
     function save(s){
+      if(RO){ roFlash(); return Promise.resolve(); }   // view only: never sent
       queued = JSON.stringify(s);
       if(!inflight) inflight = pump();
       return inflight;
@@ -153,7 +181,7 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx6EkKT5aatjoNcLSQK
   }
 
   const Store = {
-    DEFAULT_URL, MSG, open, call,
+    DEFAULT_URL, MSG, open, call, readOnly: ()=> RO,
     url:  ()=> ls.get(K_URL) || DEFAULT_URL,
     user: ()=> ls.get(K_USER),
     pass: ()=> ls.get(K_PASS),
