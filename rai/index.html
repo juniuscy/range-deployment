@@ -174,6 +174,8 @@
     cursor:pointer;
   }
   .photo-btn:hover{background:#1e3555;}
+  .photo-btn.alt{background:#fff;color:var(--accent);border:1.5px solid var(--accent);padding:8.5px 14.5px;}
+  .photo-btn.alt:hover{background:#eef2f7;}
   #removePhotoBtn{
     padding:8px 14px;
     font-size:12px;
@@ -401,6 +403,9 @@
   .drive-status.pending{color:#888;}
   .drive-status.done, .drive-status.done a{color:#1f7a3f;}
   .drive-status.error{color:#b23b3b;}
+  .draft-status{flex-basis:100%;order:10;font-size:11.5px;color:#667085;}
+  .draft-status b{color:#1f7a3f;font-weight:600;}
+  .draft-status:empty{display:none;}
   #driveBtn{background:#1f7a3f;color:#fff;}
   #driveBtn:hover{background:#17602f;}
   #driveBtn:disabled{opacity:.7;cursor:wait;}
@@ -499,6 +504,7 @@
 
 <div class="toolbar">
   <span id="driveStatus" class="drive-status" role="status"></span>
+  <span id="draftStatus" class="draft-status" role="status"></span>
   <button id="resetBtn" type="button">Reset Form</button>
   <button id="pdfBtn" type="button">Save / Print as PDF</button>
   <button id="driveBtn" type="button" hidden>Save to Google Drive</button>
@@ -656,6 +662,8 @@
       <div class="photo-controls">
         <label class="photo-btn" for="photoCapture">📷 Capture Photo</label>
         <input type="file" id="photoCapture" accept="image/*" capture="environment" style="display:none;">
+        <label class="photo-btn alt" for="photoUpload">🖼️ Upload Photos</label>
+        <input type="file" id="photoUpload" accept="image/*" multiple style="display:none;">
         <span id="photoCountLabel" class="photo-size-label">0 / 10 photos</span>
       </div>
       <div id="photoGrid" class="photo-grid"></div>
@@ -985,6 +993,7 @@ function setupSignaturePad(canvas){
     const data = hadSig ? canvas.toDataURL() : null;
     if(!resize()) return;
     sizedWidth = w;
+    if(canvas._pendingSig){ drawSavedSig(canvas, canvas._pendingSig); return; }
     if(data){
       const img = new Image();
       img.onload = ()=> ctx.drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -993,6 +1002,16 @@ function setupSignaturePad(canvas){
   }
   window.addEventListener("resize", onSizeChange);
   if("ResizeObserver" in window) new ResizeObserver(onSizeChange).observe(canvas);
+}
+
+/* put a saved signature back on its pad (waits until the pad is shown and has a size) */
+function drawSavedSig(canvas, data){
+  canvas.dataset.hasSignature = "true";
+  if(canvas.getBoundingClientRect().width === 0){ canvas._pendingSig = data; return; }
+  canvas._pendingSig = null;
+  const img = new Image();
+  img.onload = ()=> canvas.getContext("2d").drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight);
+  img.src = data;
 }
 
 document.querySelectorAll("canvas.sig").forEach(setupSignaturePad);
@@ -1043,6 +1062,7 @@ document.querySelectorAll(".sig-actions button").forEach(btn=>{
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0,0,canvas.width,canvas.height);
     canvas.dataset.hasSignature = "false";
+    canvas._pendingSig = null;
   });
 });
 
@@ -1062,6 +1082,7 @@ function updatePhotoCountLabel(){
 }
 
 function renderPhotoGrid(){
+  if(typeof scheduleDraft === "function") scheduleDraft();
   photoGrid.innerHTML = "";
   capturedPhotos.forEach(photo=>{
     const item = document.createElement("div");
@@ -1093,50 +1114,70 @@ function renderPhotoGrid(){
   });
 }
 
-photoCapture.addEventListener("change", (e)=>{
-  const file = e.target.files[0];
-  photoCapture.value = ""; // allow re-selecting the same file again later
-  if(!file) return;
+/* shrink one picture (taken with the camera or picked from the phone / computer) and add it */
+function addPhotoFile(file){
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onerror = ()=>resolve(false);
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onerror = ()=>resolve(false);
+      img.onload = ()=>{
+        let w = img.width;
+        let h = img.height;
+        if(w > h && w > PHOTO_MAX_DIMENSION){
+          h = Math.round(h * (PHOTO_MAX_DIMENSION / w));
+          w = PHOTO_MAX_DIMENSION;
+        } else if(h >= w && h > PHOTO_MAX_DIMENSION){
+          w = Math.round(w * (PHOTO_MAX_DIMENSION / h));
+          h = PHOTO_MAX_DIMENSION;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);   // see-through PNGs get a white background, not black
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", PHOTO_JPEG_QUALITY);
+        const approxKB = Math.round((compressedDataUrl.length * 0.75) / 1024);
+        capturedPhotos.push({
+          id: Date.now() + "_" + Math.random().toString(36).slice(2,7),
+          dataUrl: compressedDataUrl,
+          sizeKB: approxKB,
+          w: w, h: h
+        });
+        resolve(true);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
-  if(capturedPhotos.length >= PHOTO_MAX_COUNT){
+async function addPhotoFiles(input){
+  const files = Array.from(input.files || []);
+  input.value = ""; // allow picking the same file again later
+  if(!files.length) return;
+  const room = PHOTO_MAX_COUNT - capturedPhotos.length;
+  if(room <= 0){
     alert("You can only attach up to " + PHOTO_MAX_COUNT + " photos.");
     return;
   }
+  const take = files.slice(0, room);
+  let bad = 0;
+  for(const f of take){
+    if(!(await addPhotoFile(f))) bad++;
+    renderPhotoGrid();
+    updatePhotoCountLabel();
+  }
+  const msg = [];
+  if(files.length > room) msg.push("Only " + room + " more photo" + (room === 1 ? "" : "s") + " could be added (up to " + PHOTO_MAX_COUNT + " in total), so " + (files.length - room) + " were left out.");
+  if(bad) msg.push(bad + " file" + (bad === 1 ? " is" : "s are") + " not a picture this browser can open, so " + (bad === 1 ? "it was" : "they were") + " skipped.");
+  if(msg.length) alert(msg.join("\n\n"));
+}
 
-  const reader = new FileReader();
-  reader.onload = (ev)=>{
-    const img = new Image();
-    img.onload = ()=>{
-      let w = img.width;
-      let h = img.height;
-      if(w > h && w > PHOTO_MAX_DIMENSION){
-        h = Math.round(h * (PHOTO_MAX_DIMENSION / w));
-        w = PHOTO_MAX_DIMENSION;
-      } else if(h >= w && h > PHOTO_MAX_DIMENSION){
-        w = Math.round(w * (PHOTO_MAX_DIMENSION / h));
-        h = PHOTO_MAX_DIMENSION;
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, w, h);
-      const compressedDataUrl = canvas.toDataURL("image/jpeg", PHOTO_JPEG_QUALITY);
-      const approxKB = Math.round((compressedDataUrl.length * 0.75) / 1024);
-
-      capturedPhotos.push({
-        id: Date.now() + "_" + Math.random().toString(36).slice(2,7),
-        dataUrl: compressedDataUrl,
-        sizeKB: approxKB,
-        w: w, h: h
-      });
-      renderPhotoGrid();
-      updatePhotoCountLabel();
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-});
+photoCapture.addEventListener("change", ()=> addPhotoFiles(photoCapture));
+document.getElementById("photoUpload").addEventListener("change", (e)=> addPhotoFiles(e.target));
 
 updatePhotoCountLabel();
 
@@ -1166,6 +1207,8 @@ document.getElementById("resetBtn").addEventListener("click", ()=>{
     tbody.appendChild(createRow(loc, false));
   });
   updateSignoffVisibility();
+  document.querySelectorAll("canvas.sig").forEach(c=>{ c._pendingSig = null; });
+  clearDraft();
 });
 
 /* ---------- Save / Print as PDF ---------- */
@@ -1261,7 +1304,7 @@ function validateForm(){
 
   const bothSignaturesVisible = securitySignoffBlock.style.display !== "none";
   if(bothSignaturesVisible && capturedPhotos.length === 0){
-    alert("Please capture at least 1 photo in Photo Evidence before saving.");
+    alert("Please add at least 1 photo (capture or upload) in Photo Evidence before saving.");
     photoEvidenceSection.scrollIntoView({behavior:"smooth", block:"center"});
     return false;
   }
@@ -1470,6 +1513,7 @@ driveBtn.addEventListener("click", async ()=>{
     if(!out.ok) throw new Error(out.error || "Drive rejected the file");
 
     setDriveStatus("done", "Saved ✓ View in Drive", out.url);
+    clearDraft("Saved to Google Drive, so the draft on this device was cleared. Tap Reset Form to start the next one.");
     driveBtn.textContent = "Saved to Drive ✓";
     setTimeout(()=>{ driveBtn.textContent = label; }, 3000);
   }catch(err){
@@ -1479,6 +1523,113 @@ driveBtn.addEventListener("click", async ()=>{
     driveBtn.disabled = false;
   }
 });
+
+/* ---------- Draft: everything typed is kept on this device until it is saved to Google Drive ----------
+   Saved a moment after each change (and when the page is closed), restored when the page opens again.
+   Reset Form or a successful Save to Google Drive clears it. */
+const DRAFT_KEY = "raiForm_draft_v1";
+const formSheet = document.getElementById("formSheet");
+const draftStatus = document.getElementById("draftStatus");
+let draftTimer = null, restoringDraft = false;
+
+function fmtDraftTime(iso){
+  const d = new Date(iso); if(isNaN(d)) return "";
+  const t = d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  return d.toDateString() === new Date().toDateString() ? t : d.toLocaleDateString([], {day:"numeric", month:"short"}) + " " + t;
+}
+function collectDraft(){
+  const v = id => document.getElementById(id).value;
+  const sig = id => { const c = document.getElementById(id);
+    return c.dataset.hasSignature === "true" ? (c._pendingSig || (c.width ? c.toDataURL("image/png") : "")) : ""; };
+  return {
+    savedAt: new Date().toISOString(),
+    date: v("handoverDate"), security: v("securityOfficer"), ammo: v("ammoOfficer"),
+    rows: [...tbody.querySelectorAll("tr")].map(tr=>({
+      loc: tr.dataset.location,
+      type: tr.querySelector(".round-type-select").value,
+      status: tr.querySelector(".round-status-select").value,
+      qty: tr.querySelector(".round-qty-input").value,
+      time: tr.querySelector(".round-time-input").value })),
+    q1: v("q1"), q2: v("q2"),
+    secPrefix: v("idHandoverSecPrefix"), secLast4: v("idHandoverSecLast4"),
+    ammoPrefix: v("idTakeoverAmmoPrefix"), ammoLast4: v("idTakeoverAmmoLast4"),
+    sigSec: sig("sigHandoverSec"), sigAmmo: sig("sigTakeoverAmmo"),
+    photos: capturedPhotos
+  };
+}
+function draftIsEmpty(d){
+  return !d.date && !d.security && !d.ammo && !d.q1 && !d.q2 && !d.secLast4 && !d.ammoLast4 && !d.sigSec && !d.sigAmmo && !d.photos.length &&
+    d.rows.length === LOCATIONS.length && d.rows.every(r => r.type === "NIL" && r.status === "NA" && !r.qty && (r.time === "NA" || !r.time));
+}
+function saveDraftNow(){
+  clearTimeout(draftTimer); draftTimer = null;
+  if(restoringDraft) return;
+  const d = collectDraft();
+  try{
+    if(draftIsEmpty(d)){ localStorage.removeItem(DRAFT_KEY); draftStatus.textContent = ""; return; }
+    try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); }
+    catch(e){   // phone storage full: keep everything except the photos
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(Object.assign({}, d, { photos: [], photosLeftOut: d.photos.length })));
+      draftStatus.innerHTML = "<b>Draft saved on this device</b> · " + fmtDraftTime(d.savedAt) + " · the photos are too big to keep in the draft, so add them again if the page is closed";
+      return;
+    }
+    draftStatus.innerHTML = "<b>Draft saved on this device</b> · " + fmtDraftTime(d.savedAt) + " · it stays until it is saved to Google Drive";
+  }catch(e){ draftStatus.textContent = "This browser can't keep a draft (private mode?). Finish the form before closing the page."; }
+}
+function scheduleDraft(){
+  if(restoringDraft) return;
+  clearTimeout(draftTimer); draftTimer = setTimeout(saveDraftNow, 500);
+}
+function clearDraft(msg){
+  clearTimeout(draftTimer); draftTimer = null;
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+  draftStatus.textContent = msg || "";
+}
+function restoreDraft(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); }catch(e){}
+  if(!d) return;
+  restoringDraft = true;
+  try{
+    const set = (id, val) => { const el = document.getElementById(id); if(el && val != null) el.value = val; };
+    set("handoverDate", d.date);
+    if(d.security && !SECURITY_OFFICER_NAMES.includes(d.security)) SECURITY_OFFICER_NAMES.push(d.security);
+    if(d.ammo && !AMMO_OFFICER_NAMES.includes(d.ammo)) AMMO_OFFICER_NAMES.push(d.ammo);
+    populateNameSelect(securitySelect, SECURITY_OFFICER_NAMES, d.security);
+    populateNameSelect(ammoSelect, AMMO_OFFICER_NAMES, d.ammo);
+    handoverSecName.value = d.security || "";
+    takeoverAmmoName.value = d.ammo || "";
+    if(Array.isArray(d.rows) && d.rows.length){
+      tbody.innerHTML = "";
+      const seen = {};
+      d.rows.forEach(r=>{
+        const tr = createRow(r.loc, !!seen[r.loc]); seen[r.loc] = true;
+        tr.querySelector(".round-type-select").value = r.type || "NIL";
+        const st = tr.querySelector(".round-status-select"); st.value = r.status || "NA";
+        st.classList.toggle("status-unexpended", st.value === "Unexpended");
+        tr.querySelector(".round-qty-input").value = r.qty || "";
+        tr.querySelector(".round-time-input").value = r.time || "NA";
+        tbody.appendChild(tr);
+      });
+    }
+    ["q1","q2"].forEach(q=>{ set(q, d[q]); const el = document.getElementById(q); el.classList.toggle("status-unexpended", el.value === "No"); });
+    set("idHandoverSecPrefix", d.secPrefix); set("idHandoverSecLast4", d.secLast4);
+    set("idTakeoverAmmoPrefix", d.ammoPrefix); set("idTakeoverAmmoLast4", d.ammoLast4);
+    updateSignoffVisibility();
+    if(d.sigSec) drawSavedSig(document.getElementById("sigHandoverSec"), d.sigSec);
+    if(d.sigAmmo) drawSavedSig(document.getElementById("sigTakeoverAmmo"), d.sigAmmo);
+    capturedPhotos = Array.isArray(d.photos) ? d.photos : [];
+    renderPhotoGrid(); updatePhotoCountLabel();
+    draftStatus.innerHTML = "<b>Draft restored</b> · last saved " + fmtDraftTime(d.savedAt) +
+      (d.photosLeftOut ? " · " + d.photosLeftOut + " photo" + (d.photosLeftOut === 1 ? " was" : "s were") + " too big to keep, please add again" : "") +
+      " · tap Reset Form to start a new one";
+  } finally { restoringDraft = false; }
+}
+
+["input","change","click","mouseup","touchend","focusout"].forEach(ev => formSheet.addEventListener(ev, scheduleDraft, true));
+window.addEventListener("pagehide", ()=>{ if(draftTimer) saveDraftNow(); });
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden" && draftTimer) saveDraftNow(); });
+restoreDraft();
 </script>
 
 </body>
