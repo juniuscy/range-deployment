@@ -5277,8 +5277,8 @@ const MOCK = (() => {
   const mVcFaults = r => r.items.filter(x => x.t !== 'select' && x.ok === false).map((x, i) => { const rp = r.ammoFault ? mAm.repairs.find(a => a.faultId === r.ammoFault && Number(a.no) === i + 1) : null;
     const st2 = !r.ammoFault ? 'Not reported' : !rp ? 'Open' : rp.status === 'Fixed' ? 'Repaired' : rp.status === 'At contractor' ? 'At repair' : rp.status === 'Not needed' ? 'Not needed' : 'Open';
     return { n: i + 1, item: x.n, text: x.f, status: st2, sentOn: rp ? rp.sentOn : '', fixedOn: rp ? rp.fixedOn : '', repUpdated: '' }; });
-  const mVcOut = (r, sig) => Object.assign({}, r, { faults: mVcFaults(r), fuel: (r.items.find(x => x.t === 'select') || {}).v || '', closed: mVcMon.some(m => m.month === r.date.slice(0, 7) && m.truckId === r.truckId && m.closedBy) },
-    sig ? { sig: r.sig || mVcSig() } : { sig: undefined });
+  const mVcOut = (r, sig) => Object.assign({}, r, { paper: r.sig === 'PAPER', faults: mVcFaults(r), fuel: (r.items.find(x => x.t === 'select') || {}).v || '', closed: mVcMon.some(m => m.month === r.date.slice(0, 7) && m.truckId === r.truckId && m.closedBy) },
+    sig ? { sig: r.sig === 'PAPER' ? '' : r.sig || mVcSig() } : { sig: undefined });
   const mVcHome = () => { const o = {}; const me = staffList.find(p => p.name === S.me.name) || {};
     if (me.pladDriver && mVcDrv(today) === S.me.name) o.driver = { date: today, recs: mVc.filter(r => r.date === today).map(r => mVcOut(r)), trucks: mAm.trucks.filter(t => t.active).map(t => ({ id: t.id, plate: t.plate, name: t.name })) };
     if (canView()) o.decide = mVc.filter(r => mVcFaults(r).length && !r.status && !mVcMon.some(m => m.month === r.date.slice(0, 7) && m.truckId === r.truckId && m.closedBy))
@@ -5512,6 +5512,10 @@ const MOCK = (() => {
     vcClose: (t, ym, tk, sig, pdf) => { if (!canManage()) throw new Error('Only admins and managers can do this.'); if (!sig) throw new Error('Sign in the box first.');
       window.__vcPdf = pdf; const m = { month: ym, truckId: tk, plate: (mAm.trucks.find(x => x.id === tk) || {}).plate, closedBy: S.me.name, closedRole: S.me.role, closedAt: today + ' 17:42', sig, pdfUrl: 'https://drive.google.com/x', pdfAt: today + ' 17:42' };
       const k = mVcMon.findIndex(x => x.month === ym && x.truckId === tk); if (k >= 0) mVcMon[k] = m; else mVcMon.push(m); return { url: m.pdfUrl, name: ym.slice(0, 4) + ' ' + MON[Number(ym.slice(5, 7)) - 1] + ' ' + m.plate + '.pdf' }; },
+    vcPaper: (t, tk, dates) => { if (!canManage()) throw new Error('Only admins and managers can do this.'); let n = 0; const tr = mAm.trucks.find(x => x.id === tk);
+      dates.forEach(d => { if (mVc.some(r => r.date === d && r.truckId === tk)) return; n++;
+        mVc.push({ id: 'VCP' + d, date: d, truckId: tk, plate: tr.plate, driver: mVcDrv(d), time: '', items: mVcCfg.map(c => c.t === 'select' ? { id: c.id, s: c.s, n: c.n, t: 'select', v: '' } : { id: c.id, s: c.s, n: c.n, t: 'tick', ok: true, f: '' }),
+          sig: 'PAPER', paper: true, submitted: today + ' 16:50', status: 'Usable', statusBy: '', statusAt: '', statusRemark: 'Done on paper, recorded by ' + S.me.name, ammoFault: '' }); }); return n; },
     vcReopen: (t, ym, tk) => { const m = mVcMon.find(x => x.month === ym && x.truckId === tk); if (m) m.closedBy = ''; return true; },
     vcSavePdf: (t, ym, tk, pdf) => { window.__vcPdf = pdf; return { url: 'https://drive.google.com/x', name: 'x.pdf' }; },
     vcItemsSave: (t, L) => { if (!canManage()) throw new Error('Only admins and managers can do this.'); mVcCfg = L.map((x, i) => Object.assign({}, x, { id: x.id || 'ITN' + i })); return mVcCfg; },
@@ -6991,7 +6995,7 @@ function vcBanner(r){
   if (!r || !r.status) return '';
   const us = r.status === 'Usable';
   return `<div class="vc-ban ${us ? 'ok' : 'bad'}"><b>&#9679; ${esc(r.plate)} ${us ? 'USABLE' : 'UNSERVICEABLE'}</b>
-    <small>${us ? '' : 'Do not drive. '}${r.statusBy ? (r.faults.length ? 'With faults: a' : 'A') + 'pproved by ' + esc(titleCase(r.statusBy)) + (r.statusAt ? ', ' + esc(r.statusAt.slice(11, 16).replace(':', '')) + 'hrs' : '') : 'All checks OK'}${r.statusRemark ? '<br>&ldquo;' + esc(r.statusRemark) + '&rdquo;' : ''}</small></div>`;
+    <small>${us ? '' : 'Do not drive. '}${r.paper ? 'Done on paper' : r.statusBy ? (r.faults.length ? 'With faults: a' : 'A') + 'pproved by ' + esc(titleCase(r.statusBy)) + (r.statusAt ? ', ' + esc(r.statusAt.slice(11, 16).replace(':', '')) + 'hrs' : '') : 'All checks OK'}${r.statusRemark ? '<br>&ldquo;' + esc(r.statusRemark) + '&rdquo;' : ''}</small></div>`;
 }
 
 /* ---------- My Deploy: To Do box ---------- */
@@ -7053,9 +7057,9 @@ function vcSheet(title){
   document.body.appendChild(bg);
   return bg;
 }
-async function vcOpen(date){
+async function vcOpen(date, after){
   const bg = vcSheet('Vehicle First Parade');
-  const close = () => { bg.remove(); if (S.view === 'home') viewHome(); };
+  const close = () => { bg.remove(); if (after) after(); else if (S.view === 'home') viewHome(); };
   $('#vc-x', bg).onclick = close;
   let F;
   try { F = await call('vcForm', S.token, date); } catch(e){ bg.remove(); return fail(e); }
@@ -7065,14 +7069,14 @@ function vcFormDraw(bg, F, close){
   const B = $('#vc-body', bg), trucks = F.trucks || [];
   if (!trucks.length) { B.innerHTML = '<div class="note red">No vehicle yet. Add it in Ammo Truck &rarr; Contractors &rarr; Trucks.</div>'; return; }
   const dr = vcDraftGet(F.date);
-  const st = dr && dr.date === F.date ? dr : { date: F.date, truckId: trucks[0].id, items: {}, by: S.me.name, sig: '' };
+  const st = dr && dr.date === F.date ? dr : { date: F.date, truckId: trucks[0].id, items: {}, by: F.driverOn && F.driverOn !== S.me.name && canManage() ? F.driverOn : S.me.name, sig: '' };
   if (!trucks.some(t => t.id === st.truckId)) st.truckId = trucks[0].id;
   const recOf = id => (F.recs || []).find(r => r.truckId === id) || null;
   let rec = recOf(st.truckId);
   // a submitted checklist with no newer draft: start from what was submitted
   if (rec && !(dr && dr.truckId === rec.truckId && dr.at && dr.at > Date.parse(String(rec.submitted || '').replace(' ', 'T')))) {
     st.items = {}; rec.items.forEach(it => { st.items[it.id] = it.t === 'select' ? { v: it.v } : { ok: it.ok !== false, f: it.f || '' }; });
-    st.by = rec.driver || st.by; st.sig = rec.sig || '';
+    st.by = rec.driver || st.by; st.sig = rec.paper ? '' : rec.sig || '';
   }
   const items = F.items.slice();
   (rec ? rec.items : []).forEach(it => { if (!items.some(x => x.id === it.id)) items.push({ id: it.id, s: it.s, n: it.n, t: it.t, o: it.t === 'select' ? F.fuel : [] }); });
@@ -7092,8 +7096,8 @@ function vcFormDraw(bg, F, close){
     return `<div class="ok"><b>${ticks.length - bad}</b>OK</div><div class="bad"><b>${bad}</b>FAULT${bad === 1 ? '' : 'S'}</div><div class="fu"><b>${esc(fuel ? val(fuel).v || '-' : '-')}</b>FUEL</div>`; };
   const tk = trucks.find(t => t.id === st.truckId);
   B.innerHTML = `${ro ? '<div class="note blue">This month is closed, so the checklist can only be looked at.</div>' : ''}
-    ${rec && !ro ? `<div class="note blue">Submitted ${esc(vcAt(rec.submitted))} by ${esc(rec.driver)}. Changes you submit replace it.</div>` : ''}
-    ${F.driverOn && F.driverOn !== S.me.name && !ro ? `<div class="note">${esc(titleCase(F.driverOn))} is the PLAD driver on ${esc(nice(F.date))} in the plan.</div>` : ''}
+    ${rec && !ro ? `<div class="note blue">${rec.paper ? 'Recorded as done on paper.' : 'Submitted ' + esc(vcAt(rec.submitted)) + ' by ' + esc(rec.driver) + '.'} Changes you submit replace it.</div>` : ''}
+    ${F.driverOn && F.driverOn !== S.me.name && !ro ? `<div class="note">${esc(titleCase(F.driverOn))} is the PLAD driver on ${esc(nice(F.date))} in the plan.${canManage() ? ' You are filling it in for them; sign as the person filling it in.' : ''}</div>` : ''}
     ${rec ? vcBanner(rec) : ''}
     <div class="sec"><div class="row2">
       <label class="f"><span>Date</span><input type="date" id="vc-d" value="${esc(st.date)}" max="${S.today}" ${ro ? 'disabled' : ''}></label>
@@ -7188,7 +7192,7 @@ async function vcDecideOpen(id, after){
   let pick = r.status || '';
   const can = canManage() && !r.closed;
   const draw = () => {
-    $('#vc-body', bg).innerHTML = `<div class="sec"><b>${esc(nice(r.date))} &middot; checked by ${esc(r.driver)}${r.time ? ' ' + esc(r.time) + 'hrs' : ''}</b>
+    $('#vc-body', bg).innerHTML = `${r.paper ? `<div class="note blue">Done on the paper form. ${esc(r.statusRemark || '')}.${canManage() && !r.closed ? ' <button class="linkbtn" id="vc-fillp">Fill in the checklist instead</button>' : ''}</div>` : ''}<div class="sec"><b>${esc(nice(r.date))} &middot; checked by ${esc(r.driver)}${r.time ? ' ' + esc(r.time) + 'hrs' : ''}</b>
         <div class="small muted">${r.items.filter(i => i.t !== 'select' && i.ok !== false).length} of ${r.items.filter(i => i.t !== 'select').length} checks OK${r.fuel ? ' &middot; Fuel ' + esc(r.fuel) : ''}</div>
         ${r.faults.map(f => `<div class="vc-row bad" style="margin-top:8px"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small></span>${r.ammoFault ? vcFaultPill(f) : ''}</div>`).join('')}
         ${r.faults.length && !r.ammoFault ? '<div class="note red" style="margin:8px 0 0">Not reported in Ammo Truck yet.</div>' : ''}
@@ -7202,6 +7206,7 @@ async function vcDecideOpen(id, after){
         <p class="small muted" style="margin-top:8px">The driver and the other managers see it straight away.</p>` : ''}
       ${r.faults.length && !r.ammoFault && (S.me.apps || []).includes('ammo') && !isPD() ? '<button class="btn ghost block vc-amm2" id="vc-amm" style="margin-top:8px">Report in Ammo Truck &rsaquo;</button>' : ''}`;
     $('#vc-all', bg).onclick = () => { const b = $('#vc-allbox', bg); b.hidden = !b.hidden; };
+    if ($('#vc-fillp', bg)) $('#vc-fillp', bg).onclick = () => { close(); vcOpen(r.date, after); };
     bg.querySelectorAll('[data-vcp]').forEach(b => b.onclick = () => { pick = b.dataset.vcp; const rm = $('#vc-rm', bg) ? $('#vc-rm', bg).value : ''; draw(); if ($('#vc-rm', bg)) $('#vc-rm', bg).value = rm; });
     if ($('#vc-amm', bg)) $('#vc-amm', bg).onclick = () => vcToAmmo(r);
     if ($('#vc-ap', bg)) $('#vc-ap', bg).onclick = async e => {
@@ -7249,12 +7254,35 @@ function drawVc(D){
   if (S.vcSub === 'items' && D.canEdit) return vcItemsTab(box, D);
   box.innerHTML = `<div class="vc-sum"><div class="ok"><b>${done}</b>DONE</div><div class="nd"><b>${nd}</b>NOT DONE</div><div class="bad"><b>${nF}</b>FAULT${nF === 1 ? '' : 'S'}</div></div>
     ${days.length ? `<div class="sec" style="padding:0">${days.slice().reverse().map(d => { const r = d.rec;
-      return `<button class="vc-day" ${r ? `data-vcr="${esc(r.id)}"` : 'disabled'}><span><b>${esc(nice(d.date))}</b> &middot; ${esc(r ? r.driver : d.driver)}${r && r.fuel ? ' &middot; ' + esc(r.fuel) : ''}</span>
-        <span class="vc-pills">${!r ? '<span class="pill Pending">Not done</span>' : r.faults.length ? `<span class="pill Rejected">${r.faults.length} fault${r.faults.length === 1 ? '' : 's'}</span>` : '<span class="pill Approved">All OK</span>'}${r && r.faults.length ? vcDecisionPill(r) : ''}</span></button>`; }).join('')}</div>`
+      return `<button class="vc-day" ${r ? `data-vcr="${esc(r.id)}"` : D.canEdit && !closed ? `data-vcnd="${esc(d.date)}"` : 'disabled'}><span><b>${esc(nice(d.date))}</b> &middot; ${esc(r ? r.driver : d.driver)}${r && r.fuel ? ' &middot; ' + esc(r.fuel) : ''}</span>
+        <span class="vc-pills">${!r ? '<span class="pill Pending">Not done</span>' : r.paper ? '<span class="pill Approved">Done on paper</span>' : r.faults.length ? `<span class="pill Rejected">${r.faults.length} fault${r.faults.length === 1 ? '' : 's'}</span>` : '<span class="pill Approved">All OK</span>'}${r && r.faults.length ? vcDecisionPill(r) : ''}</span></button>`; }).join('')}</div>
+      ${nd && D.canEdit && !closed ? `<button class="btn ghost block" id="vc-paperall" style="margin:-4px 0 14px">Mark the ${nd} not-done day${nd === 1 ? '' : 's'} as done on paper</button>` : ''}`
       : `<div class="sec"><p class="muted" style="margin:0">No PLAD days in ${esc(vcMonName(D.month))} yet.</p></div>`}
     <div id="vc-close"></div>`;
   box.querySelectorAll('[data-vcr]').forEach(b => b.onclick = () => vcDecideOpen(b.dataset.vcr, admVc));
+  box.querySelectorAll('[data-vcnd]').forEach(b => b.onclick = () => vcNotDone(b.dataset.vcnd, (days.find(d => d.date === b.dataset.vcnd) || {}).driver || ''));
+  if ($('#vc-paperall')) $('#vc-paperall').onclick = async e => {
+    const L = days.filter(d => !d.rec).map(d => d.date);
+    if (!(await askBox('Done on paper?', 'These ' + L.length + ' PLAD day' + (L.length === 1 ? ' is' : 's are') + ' recorded as done on the paper form (all OK, no signature): ' + L.map(d => esc(nice(d))).join(', ') + '.<br><span class="muted">Only for days really checked on paper. You can still open any of them and fill in the checklist instead.</span>', 'Yes, mark as done'))) return;
+    busy(e.target, true);
+    try { const n = await call('vcPaper', S.token, S.vcT, L); toast(n + ' day' + (n === 1 ? '' : 's') + ' recorded as done on paper.'); admVc(); } catch(x){ busy(e.target, false); fail(x); }
+  };
   vcCloseCard($('#vc-close'), D, tk, days, recs, closed);
+}
+/* a PLAD day with no checklist: fill it in now, or record that it was done on paper */
+function vcNotDone(date, driver){
+  const bg = document.createElement('div'); bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>${esc(nice(date))}</h3><div class="src">${driver ? esc(titleCase(driver)) + ' was the PLAD driver. ' : ''}No checklist yet.</div>
+    <button class="btn block" id="nd-fill">Fill in the checklist</button>
+    <button class="btn ghost block" id="nd-paper" style="margin-top:8px">Done on paper (all OK)</button>
+    <p class="small muted" style="margin:8px 0 0">Done on paper: for a day checked on the paper form, e.g. before the app. It is recorded as done, all OK, with no signature.</p>
+    <div class="acts"><button class="btn ghost" id="nd-x">Cancel</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  $('#nd-x', bg).onclick = close; bg.onclick = e => { if (e.target === bg) close(); };
+  $('#nd-fill', bg).onclick = () => { close(); vcOpen(date, admVc); };
+  $('#nd-paper', bg).onclick = async e => { busy(e.target, true);
+    try { await call('vcPaper', S.token, S.vcT, [date]); close(); toast(nice(date) + ' recorded as done on paper.'); admVc(); } catch(x){ busy(e.target, false); fail(x); } };
 }
 function vcCloseCard(box, D, tk, days, recs, closed){
   if (closed) {
@@ -7383,8 +7411,8 @@ async function vcPdf(D, truckId, ack){
     doc.setDrawColor(23, 33, 43); doc.setLineWidth(0.5); doc.line(M, 24.5, PW - M, 24.5); doc.setLineWidth(0.2); };
   const stamp = 'Range Deployment app  \u00B7  ' + (ack && ack.at ? 'closed and saved ' + vcAt(ack.at).replace(/hrs$/, '') : 'made ' + nice(S.today));
   header();
-  const done = days.filter(d => d.rec).length, nFault = faultList.length;
-  const kp = [[String(days.length), 'PLAD days'], [String(done), 'Checklists done'], [String(days.length - done), 'Not done'], [String(nFault), 'Faults reported']], kw = 44;
+  const done = days.filter(d => d.rec).length, nFault = faultList.length, nPaper = days.filter(d => d.rec && d.rec.paper).length;
+  const kp = [[String(days.length), 'PLAD days'], [String(done), 'Checklists done' + (nPaper ? ' (' + nPaper + ' on paper)' : '')], [String(days.length - done), 'Not done'], [String(nFault), 'Faults reported']], kw = 44;
   kp.forEach(([v, l], i) => { const x = M + i * (kw + 3), hot = i === 3 && nFault;
     doc.setDrawColor(214, 220, 214); hot ? doc.setFillColor(249, 227, 225) : doc.setFillColor(247, 249, 247); doc.roundedRect(x, 28, kw, 13, 1.5, 1.5, 'FD');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(12); hot ? red() : i === 2 && v !== '0' ? doc.setTextColor(162, 106, 10) : ink(); doc.text(v, x + 3.5, 34.5);
@@ -7417,15 +7445,17 @@ async function vcPdf(D, truckId, ack){
   if (rowsI.length || selNames.length) { cellsRow('INTERIOR CHECK', () => {}, { band: true, h: 5 }); rowsI.forEach(itemRow); }
   selNames.forEach(n => cellsRow(n, (d, x, cy) => { if (!d.rec) return; const it = d.rec.items.find(i => i.n === n), v = it ? it.v || '' : '';
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); /red/i.test(v) ? red() : ink(); doc.text(v || '-', x, cy + 1.1, { align: 'center' }); }, { bold: true }));
-  cellsRow('Time checked', (d, x, cy) => { if (!d.rec) { doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(162, 106, 10); doc.text('NOT', x, cy - 0.3, { align: 'center' }); doc.text('DONE', x, cy + 2.2, { align: 'center' }); return; }
+  cellsRow('Time checked', (d, x, cy) => { if (d.rec && d.rec.paper) { doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); grey(); doc.text('Paper', x, cy + 1, { align: 'center' }); return; }
+    if (!d.rec) { doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(162, 106, 10); doc.text('NOT', x, cy - 0.3, { align: 'center' }); doc.text('DONE', x, cy + 2.2, { align: 'center' }); return; }
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); ink(); doc.text(fmtT(d.rec.time), x, cy + 1.1, { align: 'center' }); });
   cellsRow('Checked by', (d, x, cy) => { if (!d.rec) return; doc.setFont('helvetica', 'normal'); doc.setFontSize(6.6); ink(); doc.text(doc.splitTextToSize(d.rec.driver, cw - 1.5)[0], x, cy + 1.1, { align: 'center' }); });
-  cellsRow('Signature', (d, x, cy, cx) => { if (!d.rec || !imgOk(d.rec.sig)) return; const iw = cw - 2, ih = Math.min(8.4, iw / 3); try { doc.addImage(d.rec.sig, d.rec.sig.indexOf('image/png') > 0 ? 'PNG' : 'JPEG', cx + 1, cy - ih / 2, iw, ih); } catch(e) {} }, { h: 10 });
+  cellsRow('Signature', (d, x, cy, cx) => { if (d.rec && d.rec.paper) { doc.setFont('helvetica', 'italic'); doc.setFontSize(6.3); grey(); doc.text(['On paper', 'form'], x, cy - 0.6, { align: 'center' }); return; }
+    if (!d.rec || !imgOk(d.rec.sig)) return; const iw = cw - 2, ih = Math.min(8.4, iw / 3); try { doc.addImage(d.rec.sig, d.rec.sig.indexOf('image/png') > 0 ? 'PNG' : 'JPEG', cx + 1, cy - ih / 2, iw, ih); } catch(e) {} }, { h: 10 });
   cellsRow('Vehicle status', (d, x, cy, cx) => { if (!d.rec) return; const st = d.rec.status || 'Waiting', us = st === 'Usable', wt = !d.rec.status;
     doc.setFillColor(...(us ? [225, 240, 230] : wt ? [246, 235, 213] : [249, 227, 225])); doc.rect(cx + 0.6, cy - 2.6, cw - 1.2, 5.2, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(us ? 6.8 : 5.3); us ? green() : wt ? doc.setTextColor(162, 106, 10) : red(); doc.text(st.toUpperCase(), x, cy + 0.9, { align: 'center' }); }, { bold: true, h: 6.2 });
   cellsRow('Status approved by', (d, x, cy) => { if (!d.rec) return; doc.setFont('helvetica', 'normal'); doc.setFontSize(6.3);
-    const by = d.rec.faults.length ? (d.rec.statusBy || '') : 'All OK'; by === 'All OK' ? grey() : ink(); doc.text(doc.splitTextToSize(by, cw - 1.5)[0] || '', x, cy + 1, { align: 'center' }); });
+    const by = d.rec.paper ? 'Paper' : d.rec.faults.length ? (d.rec.statusBy || '') : 'All OK'; by === 'All OK' ? grey() : ink(); doc.text(doc.splitTextToSize(by, cw - 1.5)[0] || '', x, cy + 1, { align: 'center' }); });
   // acknowledgement
   y += 6; if (y > PH - 34) y = PH - 34;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); ink(); doc.text('Acknowledged by Manager / DY Manager (month closed)', M, y);
