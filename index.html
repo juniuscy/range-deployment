@@ -342,6 +342,9 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .vc-fv{font:700 20px/1 var(--cond);letter-spacing:.02em;color:var(--ink)}.vc-fv.none{font:600 13px var(--body);color:var(--flag)}.vc-fv.red{color:#C8102E}
 .vc-gauge{display:block;width:100%;max-width:360px;margin:2px auto 0;color:var(--ink);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;border-radius:10px}
 .vc-gauge:focus-visible{outline:2px solid var(--ink);outline-offset:2px}.vc-gauge[aria-disabled="true"]{cursor:default}
+.vc-gmini{max-width:300px;margin:10px auto 2px;padding:8px 10px 2px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.vc-gmh{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted);font-weight:600}.vc-gmh b{font:700 18px/1 var(--cond);color:var(--ink)}.vc-gmh b.red{color:#C8102E}
+.vc-gmini .vc-gauge{cursor:default}
 .vc-gstep{display:flex;align-items:center;gap:8px;margin:2px 0 6px}.vc-gstep span{flex:1;text-align:center;font-size:12px;color:var(--muted)}
 .vc-gstep button{flex:none;width:48px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);font:700 26px/1 var(--body);color:var(--ink);cursor:pointer;padding:0 0 3px}
 .vc-gstep button:active{background:var(--line)}
@@ -7134,6 +7137,10 @@ async function vcOpen(date, after){
 /* Fuel gauge: drag the needle (or tap) to where it is on the vehicle's gauge. It snaps to the nearest mark (every 1/16, plus 1/3 and 2/3);
    the < > buttons move one mark at a time for a fine reading. */
 const VC_G = { cx: 160, cy: 150, a0: 155, sweep: 130 };
+const VC_FUEL_L = ['Red Light','1/16','1/8','3/16','1/4','5/16','1/3','3/8','7/16','1/2','9/16','5/8','2/3','11/16','3/4','13/16','7/8','15/16','FULL'];
+/* read only: the needle where the driver set it */
+const vcGaugeMini = v => { if (!v) return ''; const L = VC_FUEL_L.includes(v) ? VC_FUEL_L : VC_FUEL_L.concat([v]);
+  return `<div class="vc-gmini"><div class="vc-gmh"><span>Fuel gauge</span><b class="${vcGRed(v) ? 'red' : ''}">${esc(vcGTxt(v))}</b></div>${vcGaugeSvg(L, v, true)}</div>`; };
 const vcGFrac = o => /red|^e$|empty/i.test(o) ? 0 : /full|^f$/i.test(o) ? 1 : (m => m ? Number(m[1]) / Number(m[2]) : NaN)(/^(\d+)\s*\/\s*(\d+)$/.exec(String(o).trim()));
 const vcGFracs = opts => opts.map((o, i) => { const x = vcGFrac(o); return isNaN(x) ? i / Math.max(1, opts.length - 1) : x; });
 const vcGPt = (fr, r) => { const a = (VC_G.a0 - VC_G.sweep * fr) * Math.PI / 180; return [VC_G.cx + r * Math.cos(a), VC_G.cy - r * Math.sin(a)]; };
@@ -7324,7 +7331,8 @@ async function vcDecideOpen(id, after){
   const can = canManage() && !r.closed;
   const draw = () => {
     $('#vc-body', bg).innerHTML = `${r.paper ? `<div class="note blue">Done on the paper form. ${esc(r.statusRemark || '')}.${canManage() && !r.closed ? ' <button class="linkbtn" id="vc-fillp">Fill in the checklist instead</button>' : ''}</div>` : ''}<div class="sec"><b>${esc(nice(r.date))} &middot; checked by ${esc(r.driver)}${r.time ? ' ' + esc(r.time) + 'hrs' : ''}</b>
-        <div class="small muted">${r.items.filter(i => i.t !== 'select' && i.ok !== false).length} of ${r.items.filter(i => i.t !== 'select').length} checks OK${r.fuel ? ' &middot; Fuel ' + esc(r.fuel) : ''}</div>
+        <div class="small muted">${r.items.filter(i => i.t !== 'select' && i.ok !== false).length} of ${r.items.filter(i => i.t !== 'select').length} checks OK${r.fuel && r.paper ? ' &middot; Fuel ' + esc(r.fuel) : ''}</div>
+        ${r.paper ? '' : vcGaugeMini(r.fuel)}
         ${r.faults.map(f => `<div class="vc-row bad" style="margin-top:8px"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small>${f.carried ? `<small style="color:var(--muted)">${esc(vcSince(f))}</small>` : ''}</span>${r.ammoFault || f.carried ? vcFaultPill(f) : ''}</div>`).join('')}
         ${vcNew(r).length && !r.ammoFault ? `<div class="note red" style="margin:8px 0 0">${r.faults.length > vcNew(r).length ? 'The new fault' + (vcNew(r).length === 1 ? ' is' : 's are') : 'Not'}${r.faults.length > vcNew(r).length ? ' not' : ''} reported in Ammo Truck yet.</div>` : ''}
         <button class="linkbtn" id="vc-all" style="margin-top:6px">See the whole checklist</button><div id="vc-allbox" hidden>${vcItemsHtml(r)}${r.sig ? `<div class="f" style="margin-top:8px"><span>Signature: ${esc(r.driver)}</span></div><img class="vc-sigimg" src="${r.sig}" alt="Signature">` : ''}</div></div>
