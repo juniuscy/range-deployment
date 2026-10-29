@@ -341,6 +341,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .vc-row.sel .vc-n{cursor:default}.vc-row select{width:auto;min-width:110px;min-height:40px}
 .vc-s{font-size:12px;font-weight:700;color:var(--go)}.vc-row.bad .vc-s{color:var(--flag)}
 .vc-fault{width:100%;display:block;margin:2px 0 0}.vc-fault small{display:block;color:var(--flag);font-weight:700;font-size:11.5px;margin-bottom:3px}
+.vc-carry{display:block;width:100%;font-size:12.5px;color:var(--muted);margin:2px 0 4px}.vc-carry b{color:var(--ink)}
 .vc-fault textarea{width:100%;border:1.5px solid var(--flag);border-radius:8px;padding:8px;font:15px var(--body);min-height:46px;resize:vertical}
 .vc-sum{display:flex;gap:8px;margin:12px 0}.vc-sum>div{flex:1;text-align:center;border-radius:10px;padding:8px 4px;font-size:11.5px;font-weight:700}
 .vc-sum b{display:block;font:700 22px var(--cond)}.vc-sum .ok{background:var(--go-soft);color:var(--go)}.vc-sum .bad{background:var(--flag-soft);color:var(--flag)}
@@ -5307,17 +5308,25 @@ const MOCK = (() => {
     g.fillStyle = '#fff'; g.fillRect(0, 0, 360, 120); g.strokeStyle = '#0F2A44'; g.lineWidth = 4; g.beginPath(); g.moveTo(30, 80);
     for (let i = 0; i < 7; i++) g.bezierCurveTo(40 + i * 40, 20, 60 + i * 40, 110, 80 + i * 40, 60); g.stroke(); return (c = cv.toDataURL('image/png')); }; })();
   const mVc = [], mVcMon = [];
-  (() => { const ym = today.slice(0, 7); for (let d = 1; ; d++) { const ds = ym + '-' + String(d).padStart(2, '0'); if (ds >= today || pd(ds).getMonth() !== pd(today).getMonth()) break;
+  (() => { const ym = today.slice(0, 7); let sig1 = null; for (let d = 1; ; d++) { const ds = ym + '-' + String(d).padStart(2, '0'); if (ds >= today || pd(ds).getMonth() !== pd(today).getMonth()) break;
     const drv = mVcDrv(ds); if (!drv || pd(ds).getDate() === 23) continue;
     const items = mVcItems.map(x => x.t === 'select' ? { id: x.id, s: x.s, n: x.n, t: 'select', v: ['FULL','3/4','1/2','2/3'][d % 4] } : { id: x.id, s: x.s, n: x.n, t: 'tick', ok: true, f: '' });
     if (d === 7) { const w = items.find(x => x.n === 'Wipers Condition'); w.ok = false; w.f = 'Driver side wiper blade torn'; }
-    if (d === 14) { const w = items.find(x => x.n === 'Signal Light'); w.ok = false; w.f = 'Left rear signal not blinking'; }
+    if (d >= 14) { const w = items.find(x => x.n === 'Signal Light'); w.ok = false; w.f = 'Left rear signal not blinking';   // still not repaired: carried day to day
+      if (sig1) w.from = sig1; else sig1 = { id: 'VC' + d, n: 1, d: ds }; }
     const nF = items.filter(x => x.ok === false).length;
     mVc.push({ id: 'VC' + d, date: ds, truckId: 'TK0', plate: 'GBJ8874R', driver: drv, time: '07' + String(d % 50).padStart(2, '0'), items, sig: '', submitted: ds + ' 07:10',
       status: nF ? (d === 7 ? 'Usable' : '') : 'Usable', statusBy: nF && d === 7 ? 'CHAN YANG' : '', statusAt: nF && d === 7 ? ds + ' 07:40' : '', statusRemark: '', ammoFault: '' }); } })();
-  const mVcFaults = r => r.items.filter(x => x.t !== 'select' && x.ok === false).map((x, i) => { const rp = r.ammoFault ? mAm.repairs.find(a => a.faultId === r.ammoFault && Number(a.no) === i + 1) : null;
-    const st2 = !r.ammoFault ? 'Not reported' : !rp ? 'Open' : rp.status === 'Fixed' ? 'Repaired' : rp.status === 'At contractor' ? 'At repair' : rp.status === 'Not needed' ? 'Not needed' : 'Open';
-    return { n: i + 1, item: x.n, text: x.f, status: st2, sentOn: rp ? rp.sentOn : '', fixedOn: rp ? rp.fixedOn : '', repUpdated: '' }; });
+  const mVcSt = (r, n) => { const rp = r && r.ammoFault ? mAm.repairs.find(a => a.faultId === r.ammoFault && Number(a.no) === n) : null;
+    const st2 = !r || !r.ammoFault ? 'Not reported' : !rp ? 'Open' : rp.status === 'Fixed' ? 'Repaired' : rp.status === 'At contractor' ? 'At repair' : rp.status === 'Not needed' ? 'Not needed' : 'Open';
+    return { status: st2, sentOn: rp ? rp.sentOn : '', fixedOn: rp ? rp.fixedOn : '', repUpdated: '' }; };
+  const mVcFaults = r => { let own = 0; return r.items.filter(x => x.t !== 'select' && x.ok === false).map(x => x.from && x.from.id
+    ? Object.assign({ n: 0, item: x.n, text: x.f, carried: true, since: x.from.d, fromId: x.from.id, fromN: x.from.n }, mVcSt(mVc.find(y => y.id === x.from.id), x.from.n))
+    : (n => Object.assign({ n, item: x.n, text: x.f, carried: false, since: r.date }, mVcSt(r, n)))(++own)); };
+  const mVcCarry = (d, tk) => { const prev = mVc.filter(r => r.truckId === tk && r.date < d && r.sig !== 'PAPER').sort((a, b) => a.date < b.date ? 1 : -1)[0]; if (!prev) return [];
+    const its = prev.items.filter(x => x.t !== 'select' && x.ok === false);
+    return mVcFaults(prev).map((f, i) => ({ f, it: its[i] })).filter(x => x.f.status !== 'Repaired' && x.f.status !== 'Not needed')
+      .map(({ f, it }) => ({ id: it.id, s: it.s, n: it.n, f: it.f, status: f.status, sentOn: f.sentOn, lastOn: prev.date, from: f.carried ? { id: f.fromId, n: f.fromN, d: f.since } : { id: prev.id, n: f.n, d: prev.date } })); };
   const mVcOut = (r, sig) => Object.assign({}, r, { paper: r.sig === 'PAPER', faults: mVcFaults(r), fuel: (r.items.find(x => x.t === 'select') || {}).v || '', closed: mVcMon.some(m => m.month === r.date.slice(0, 7) && m.truckId === r.truckId && m.closedBy) },
     sig ? { sig: r.sig === 'PAPER' ? '' : r.sig || mVcSig() } : { sig: undefined });
   const mVcHome = () => { const o = {}; const me = staffList.find(p => p.name === S.me.name) || {};
@@ -5524,6 +5533,7 @@ const MOCK = (() => {
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null, vc: mVcHome() }),
     vcForm: (t, d) => ({ date: d, items: mVcCfg, fuel: ['Red Light','1/4','1/3','1/2','2/3','3/4','FULL'], trucks: mAm.trucks.filter(x => x.active).map(x => ({ id: x.id, plate: x.plate, name: x.name })), driverOn: mVcDrv(d),
+      carry: Object.fromEntries(mAm.trucks.filter(x => x.active).map(x => [x.id, mVcCarry(d, x.id)])),
       recs: mVc.filter(r => r.date === d).map(r => mVcOut(r, true)) }),
     vcRecord: (t, id) => { const r = mVc.find(x => x.id === id); if (!r) throw new Error('That checklist was not found.'); return mVcOut(r, true); },
     vcSubmit: (t, f) => { const me = staffList.find(p => p.name === S.me.name) || {};
@@ -5534,7 +5544,8 @@ const MOCK = (() => {
       const tk = mAm.trucks.find(x => x.id === f.truckId); const items = mVcCfg.map(c => { const g = f.items.find(x => x.id === c.id) || {};
         if (c.t === 'select') { if (!g.v) throw new Error('Pick the ' + c.n + '.'); return { id: c.id, s: c.s, n: c.n, t: 'select', v: g.v }; }
         if (g.ok === false && !String(g.f || '').trim()) throw new Error('Write what the fault is for ' + c.n + '.');
-        return { id: c.id, s: c.s, n: c.n, t: 'tick', ok: g.ok !== false, f: g.ok === false ? g.f : '' }; });
+        const cr = g.ok === false && g.from && mVcCarry(f.date, f.truckId).find(x => x.id === c.id && x.from.id === g.from.id);
+        return Object.assign({ id: c.id, s: c.s, n: c.n, t: 'tick', ok: g.ok !== false, f: g.ok === false ? g.f : '' }, cr ? { from: cr.from } : {}); });
       let r = mVc.find(x => x.date === f.date && x.truckId === f.truckId);
       const nF = items.filter(x => x.ok === false).length, same = r && JSON.stringify(mVcFaults(r).map(x => x.item + x.text)) === JSON.stringify(items.filter(x => x.ok === false).map(x => x.n + x.f));
       if (!r) { r = { id: 'VC' + Date.now(), date: f.date, truckId: f.truckId, plate: tk.plate, ammoFault: '' }; mVc.push(r); }
@@ -5548,7 +5559,9 @@ const MOCK = (() => {
       for (let d = 1; d <= 31; d++) { const ds = ym + '-' + String(d).padStart(2, '0'); if (pd(ds).getMonth() + 1 !== Number(ym.slice(5, 7)) || ds > today) break; const dr = mVcDrv(ds); if (dr) days.push({ date: ds, driver: dr }); }
       const recs = mVc.filter(r => r.date.slice(0, 7) === ym).map(r => mVcOut(r, sigs));
       const closed = mVcMon.filter(m => m.month === ym && m.closedBy).map(m => Object.assign({}, m, sigs ? {} : { sig: undefined }));
-      const open = mVc.map(r => mVcOut(r)).filter(r => r.faults.some(f => f.status !== 'Repaired' && f.status !== 'Not needed')).map(r => ({ id: r.id, date: r.date, plate: r.plate, driver: r.driver, ammoFault: r.ammoFault, faults: r.faults.filter(f => f.status !== 'Repaired' && f.status !== 'Not needed') }));
+      const isOpen = f => !f.carried && f.status !== 'Repaired' && f.status !== 'Not needed', outs = mVc.map(r => mVcOut(r));
+      const open = outs.filter(r => r.faults.some(isOpen)).map(r => ({ id: r.id, date: r.date, plate: r.plate, driver: r.driver, ammoFault: r.ammoFault,
+        faults: r.faults.filter(isOpen).map(f => Object.assign({ lastOn: outs.filter(x => x.truckId === r.truckId && x.date > r.date && x.faults.some(g => g.carried && g.fromId === r.id && g.fromN === f.n)).map(x => x.date).sort().pop() || '' }, f)) }));
       return { month: ym, today, days, recs, closed, trucks: mAm.trucks.filter(x => x.active).map(x => ({ id: x.id, plate: x.plate, name: x.name })), items: mVcCfg, fuel: [], open, canEdit: canManage() }; },
     vcClose: (t, ym, tk, sig, pdf) => { if (!canManage()) throw new Error('Only admins and managers can do this.'); if (!sig) throw new Error('Sign in the box first.');
       window.__vcPdf = pdf; const m = { month: ym, truckId: tk, plate: (mAm.trucks.find(x => x.id === tk) || {}).plate, closedBy: S.me.name, closedRole: S.me.role, closedAt: today + ' 17:42', sig, pdfUrl: 'https://drive.google.com/x', pdfAt: today + ' 17:42' };
@@ -7030,6 +7043,8 @@ function vcDecisionPill(r){
   if (r.status === 'Unserviceable') return '<span class="pill Rejected">Unserviceable</span>';
   return '<span class="pill Pending">Waiting for decision</span>';
 }
+const vcNew = r => (r && r.faults || []).filter(f => !f.carried);   // faults found on this checklist (the ones to report in Ammo Truck)
+const vcSince = f => f.carried ? 'Still there from ' + nice(f.since) : '';
 function vcFaultPill(f){
   const c = f.status === 'Repaired' || f.status === 'Not needed' ? 'Approved' : f.status === 'At repair' ? 'Pending' : 'Rejected';
   return `<span class="pill ${c}">${esc(f.status)}</span>`;
@@ -7054,11 +7069,11 @@ function vcHomeCard(vc){
         <div class="vc-it"><span class="vc-ic warn">!</span><div><b>Vehicle First Parade Checklist</b><small>${dr ? 'Started, not submitted yet (kept on this phone)' : 'Not done yet'}</small></div></div>
         <button class="btn block" data-vc-open="${esc(dv.date)}">${dr ? 'Continue checklist' : 'Start checklist'}</button></div>`;
     else {
-      const nF = r.faults.length, notRep = nF && !r.ammoFault;
+      const nF = r.faults.length, nN = vcNew(r).length, notRep = nN && !r.ammoFault;
       out += `<div class="sec vc-todo ${r.status === 'Unserviceable' ? 'bad' : r.status ? 'ok' : ''}"><div class="vc-th"><b>To Do</b>${notRep ? '<span class="pill Rejected">Report the faults</span>' : r.status ? '<span class="pill Approved">Done</span>' : '<span class="pill Pending">Waiting</span>'}</div>
         <div class="vc-it"><span class="vc-ic ok">&#10003;</span><div><b>Vehicle First Parade Checklist</b><small>${esc(r.time ? r.time + 'hrs' : '')} by ${esc(r.driver)} &middot; ${nF ? `<b style="color:var(--flag)">${nF} fault${nF === 1 ? '' : 's'}</b>` : 'all OK'}${r.fuel ? ' &middot; Fuel ' + esc(r.fuel) : ''}</small></div></div>
         ${r.status ? vcBanner(r) : `<div class="note" style="margin:8px 0 0">Waiting for a Manager / DY Manager: Usable or Unserviceable.</div>`}
-        ${notRep ? `<div class="note red" style="margin:8px 0 0">${nF} fault${nF === 1 ? ' is' : 's are'} not reported in Ammo Truck yet.</div><button class="btn block vc-amm" data-vc-amm="0">Report in Ammo Truck &rsaquo;</button>` : ''}
+        ${notRep ? `<div class="note red" style="margin:8px 0 0">${nN} new fault${nN === 1 ? ' is' : 's are'} not reported in Ammo Truck yet.</div><button class="btn block vc-amm" data-vc-amm="0">Report in Ammo Truck &rsaquo;</button>` : ''}
         <button class="btn ghost block" data-vc-open="${esc(dv.date)}" style="margin-top:8px">View / update</button></div>`;
     }
   }
@@ -7113,17 +7128,27 @@ function vcFormDraw(bg, F, close){
   const B = $('#vc-body', bg), trucks = F.trucks || [];
   if (!trucks.length) { B.innerHTML = '<div class="note red">No vehicle yet. Add it in Ammo Truck &rarr; Contractors &rarr; Trucks.</div>'; return; }
   const dr = vcDraftGet(F.date);
-  const st = dr && dr.date === F.date ? dr : { date: F.date, truckId: trucks[0].id, items: {}, by: F.driverOn && F.driverOn !== S.me.name && canManage() ? F.driverOn : S.me.name, sig: '' };
-  if (!trucks.some(t => t.id === st.truckId)) st.truckId = trucks[0].id;
+  const carryOf = tid => ((F.carry || {})[tid] || []);
+  // faults not repaired yet from the last checklist start unticked, with what was written
+  const seed = o => { o.items = {}; carryOf(o.truckId).forEach(c => { o.items[c.id] = { ok: false, f: c.f, from: c.from }; }); return o; };
+  const st = dr && dr.date === F.date ? dr : seed({ date: F.date, truckId: trucks[0].id, items: {}, by: F.driverOn && F.driverOn !== S.me.name && canManage() ? F.driverOn : S.me.name, sig: '' });
+  if (!trucks.some(t => t.id === st.truckId)) seed(Object.assign(st, { truckId: trucks[0].id }));
   const recOf = id => (F.recs || []).find(r => r.truckId === id) || null;
   let rec = recOf(st.truckId);
   // a submitted checklist with no newer draft: start from what was submitted
   if (rec && !(dr && dr.truckId === rec.truckId && dr.at && dr.at > Date.parse(String(rec.submitted || '').replace(' ', 'T')))) {
-    st.items = {}; rec.items.forEach(it => { st.items[it.id] = it.t === 'select' ? { v: it.v } : { ok: it.ok !== false, f: it.f || '' }; });
+    st.items = {}; rec.items.forEach(it => { st.items[it.id] = it.t === 'select' ? { v: it.v } : { ok: it.ok !== false, f: it.f || '', from: it.from || null }; });
+    carryOf(st.truckId).forEach(c => { const v = st.items[c.id]; if (v && v.ok && !v.from) v.from = c.from; });   // ticked OK on this checklist: untick brings the link back
     st.by = rec.driver || st.by; st.sig = rec.paper ? '' : rec.sig || '';
   }
   const items = F.items.slice();
-  (rec ? rec.items : []).forEach(it => { if (!items.some(x => x.id === it.id)) items.push({ id: it.id, s: it.s, n: it.n, t: it.t, o: it.t === 'select' ? F.fuel : [] }); });
+  (rec ? rec.items : []).concat(carryOf(st.truckId).map(c => ({ id: c.id, s: c.s, n: c.n, t: 'tick' })))
+    .forEach(it => { if (!items.some(x => x.id === it.id)) items.push({ id: it.id, s: it.s, n: it.n, t: it.t, o: it.t === 'select' ? F.fuel : [] }); });
+  const cInfo = id => carryOf(st.truckId).find(c => c.id === id);
+  const carryLine = (it, v) => { const c = cInfo(it.id); if (!c) return '';
+    const where = c.status === 'At repair' ? 'at repair' + (c.sentOn ? ', sent ' + nice(c.sentOn) : '') : c.status === 'Not reported' ? 'not reported in Ammo Truck yet' : 'reported, not sent for repair yet';
+    return v.ok ? `<span class="vc-carry">Was a fault since <b>${esc(nice(c.from.d))}</b>. Ticked OK means it has been fixed; it stops coming back.</span>`
+      : `<span class="vc-carry">Not repaired yet: first found <b>${esc(nice(c.from.d))}</b>, ${esc(where)}. Tick only if it has been fixed.</span>`; };
   const val = it => st.items[it.id] || (it.t === 'select' ? { v: '' } : { ok: true, f: '' });
   const ro = !!(rec && rec.closed);
   const savedLbl = () => st.at ? 'Kept on this phone, ' + new Date(st.at).toTimeString().slice(0, 5).replace(':', '') + 'hrs' : 'Kept on this phone as you fill it in';
@@ -7134,7 +7159,7 @@ function vcFormDraw(bg, F, close){
       <select data-vcs="${esc(it.id)}" ${ro ? 'disabled' : ''}><option value="">Pick</option>${(it.o || []).map(o => `<option ${o === v.v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
     return `<div class="vc-row ${v.ok ? '' : 'bad'}" data-vci="${esc(it.id)}"><button class="vc-ck ${v.ok ? '' : 'off'}" data-vct="${esc(it.id)}" aria-pressed="${v.ok}" aria-label="${esc(it.n)}: ${v.ok ? 'OK' : 'fault'}" ${ro ? 'disabled' : ''}>${v.ok ? '&#10003;' : '&#10005;'}</button>
       <span class="vc-n" data-vct="${esc(it.id)}">${esc(it.n)}</span><span class="vc-s">${v.ok ? 'OK' : 'FAULT'}</span>
-      ${v.ok ? '' : `<label class="vc-fault"><small>WHAT IS THE FAULT? (needed)</small><textarea data-vcf="${esc(it.id)}" rows="2" ${ro ? 'disabled' : ''} placeholder="e.g. Rear left tyre worn">${esc(v.f || '')}</textarea></label>`}</div>`;
+      ${carryLine(it, v)}${v.ok ? '' : `<label class="vc-fault"><small>WHAT IS THE FAULT? (needed)</small><textarea data-vcf="${esc(it.id)}" rows="2" ${ro ? 'disabled' : ''} placeholder="e.g. Rear left tyre worn">${esc(v.f || '')}</textarea></label>`}</div>`;
   };
   const sumHtml = () => { const ticks = items.filter(i => i.t !== 'select'), bad = ticks.filter(i => !val(i).ok).length, fuel = items.find(i => i.t === 'select' && /fuel/i.test(i.n));
     return `<div class="ok"><b>${ticks.length - bad}</b>OK</div><div class="bad"><b>${bad}</b>FAULT${bad === 1 ? '' : 'S'}</div><div class="fu"><b>${esc(fuel ? val(fuel).v || '-' : '-')}</b>FUEL</div>`; };
@@ -7143,6 +7168,7 @@ function vcFormDraw(bg, F, close){
     ${rec && !ro ? `<div class="note blue">${rec.paper ? 'Recorded as done on paper.' : 'Submitted ' + esc(vcAt(rec.submitted)) + ' by ' + esc(rec.driver) + '.'} Changes you submit replace it.</div>` : ''}
     ${F.driverOn && F.driverOn !== S.me.name && !ro ? `<div class="note">${esc(titleCase(F.driverOn))} is the PLAD driver on ${esc(nice(F.date))} in the plan.${canManage() ? ' You are filling it in for them; sign as the person filling it in.' : ''}</div>` : ''}
     ${rec ? vcBanner(rec) : ''}
+    ${!ro && carryOf(st.truckId).length ? (() => { const L = carryOf(st.truckId); return `<div class="note">${L.length} fault${L.length === 1 ? '' : 's'} from the last checklist (${esc(nice(L[0].lastOn))}) ${L.length === 1 ? 'is' : 'are'} not repaired yet, so ${L.length === 1 ? 'it starts' : 'they start'} unticked with what was written. Check ${L.length === 1 ? 'it' : 'them'} again; tick only what has been fixed. ${L.length === 1 ? 'It stays' : 'They stay'} linked to the day first found and ${L.length === 1 ? 'its' : 'their'} repair in Ammo Truck, so there is no need to report ${L.length === 1 ? 'it' : 'them'} again.</div>`; })() : ''}
     <div class="sec"><div class="row2">
       <label class="f"><span>Date</span><input type="date" id="vc-d" value="${esc(st.date)}" max="${S.today}" ${ro ? 'disabled' : ''}></label>
       <label class="f"><span>Vehicle</span>${trucks.length > 1 ? `<select id="vc-tk" ${ro ? 'disabled' : ''}>${trucks.map(t => `<option value="${esc(t.id)}" ${t.id === st.truckId ? 'selected' : ''}>${esc(t.plate)}</option>`).join('')}</select>` : `<input value="${esc(tk.plate)}" disabled>`}</label></div></div>
@@ -7174,7 +7200,7 @@ function vcFormDraw(bg, F, close){
     $('#vc-body', bg).innerHTML = '<div class="loading">Loading\u2026</div>';
     try { const F2 = await call('vcForm', S.token, d); vcFormDraw(bg, F2, close); } catch(x){ fail(x); vcFormDraw(bg, F, close); }
   };
-  if ($('#vc-tk', bg)) $('#vc-tk', bg).onchange = e => { st.truckId = e.target.value; st.items = {}; keep(); vcFormDraw(bg, F, close); };
+  if ($('#vc-tk', bg)) $('#vc-tk', bg).onchange = e => { st.truckId = e.target.value; seed(st); keep(); vcFormDraw(bg, F, close); };
   $('#vc-go', bg).onclick = async e => {
     const miss = items.filter(i => i.t === 'select' && !val(i).v);
     if (miss.length) { toast('Pick the ' + miss[0].n + '.', true); const s2 = B.querySelector(`[data-vcs="${miss[0].id}"]`); if (s2) s2.focus(); return; }
@@ -7184,7 +7210,7 @@ function vcFormDraw(bg, F, close){
     const sig = pad.data() || st.sig;
     if (!sig) return toast('Sign in the box first.', true);
     const bad = items.filter(i => i.t !== 'select' && !val(i).ok);
-    const ok = await askBox('Submit the checklist?', `<b>${esc((trucks.find(t => t.id === st.truckId) || {}).plate || '')}</b>, ${esc(nice(st.date))}: ${bad.length ? `<b style="color:var(--flag)">${bad.length} fault${bad.length === 1 ? '' : 's'}</b> (${bad.map(i => esc(i.n)).join(', ')})` : 'all checks OK'}.<br><span class="muted">Managers / DY Managers are emailed.</span>`, 'Yes, submit');
+    const ok = await askBox('Submit the checklist?', `<b>${esc((trucks.find(t => t.id === st.truckId) || {}).plate || '')}</b>, ${esc(nice(st.date))}: ${bad.length ? `<b style="color:var(--flag)">${bad.length} fault${bad.length === 1 ? '' : 's'}</b> (${bad.map(i => esc(i.n) + (val(i).from ? ' <span class="muted">(still open)</span>' : '')).join(', ')})` : 'all checks OK'}.<br><span class="muted">Managers / DY Managers are emailed.</span>`, 'Yes, submit');
     if (!ok) return;
     busy(e.target, true);
     try {
@@ -7197,12 +7223,12 @@ function vcFormDraw(bg, F, close){
 }
 /* after submitting: all OK, or the faults with "Report in Ammo Truck" */
 function vcDone(bg, r, close){
-  const nF = r.faults.length;
-  $('#vc-body', bg).innerHTML = nF ? `<div class="sec vc-res bad"><div class="vc-big">!</div><b>Checklist submitted, ${nF} fault${nF === 1 ? '' : 's'} found</b>
-      <p class="small">${r.notified ? 'Managers / DY Managers have been emailed. ' : ''}Next, launch a fault list in Ammo Truck so the repair can be arranged.</p></div>
-      ${r.faults.map(f => `<div class="vc-row bad"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small></span></div>`).join('')}
-      <button class="btn block vc-amm" id="vc-amm">Report in Ammo Truck &rsaquo;</button>
-      <button class="btn ghost block" id="vc-later" style="margin-top:8px">Later</button>
+  const nF = r.faults.length, nN = vcNew(r).length;
+  $('#vc-body', bg).innerHTML = nF ? `<div class="sec vc-res bad"><div class="vc-big">!</div><b>Checklist submitted, ${nF} fault${nF === 1 ? '' : 's'}${nF > nN ? ' (' + (nN ? nN + ' new, ' : '') + (nF - nN) + ' still open from before)' : ' found'}</b>
+      <p class="small">${r.notified ? 'Managers / DY Managers have been emailed. ' : ''}${nN ? 'Next, launch a fault list in Ammo Truck for the new fault' + (nN === 1 ? '' : 's') + ' so the repair can be arranged.' : 'Nothing new to report: the faults still open are already in the repair follow-up.'}</p></div>
+      ${r.faults.map(f => `<div class="vc-row bad"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small>${f.carried ? `<small style="color:var(--muted)">${esc(vcSince(f))}</small>` : ''}</span>${f.carried ? vcFaultPill(f) : '<span class="pill Rejected">New</span>'}</div>`).join('')}
+      ${nN ? '<button class="btn block vc-amm" id="vc-amm">Report in Ammo Truck &rsaquo;</button>' : ''}
+      <button class="btn ${nN ? 'ghost ' : ''}block" id="vc-later" style="margin-top:8px">${nN ? 'Later' : 'Done'}</button>
       <p class="small muted" style="margin-top:8px">A Manager / DY Manager decides whether the vehicle is Usable or Unserviceable.</p>`
     : `<div class="sec vc-res ok"><div class="vc-big">&#10003;</div><b>All OK. ${esc(r.plate)} is Usable.</b>
       <p class="small">${r.notified ? 'Managers / DY Managers have been emailed.' : ''}</p></div><button class="btn block" id="vc-later">Done</button>`;
@@ -7214,7 +7240,7 @@ async function vcToAmmo(r){
   let cur = S.amF; if (!cur) { try { cur = JSON.parse(localStorage.getItem('rdp_ammo_draft') || 'null'); } catch(e) {} }
   if (cur && !cur.vcId && amHasForm(cur) && !(await askBox('Replace the fault list being filled in?', 'Ammo Truck has a fault list that is not submitted yet. It is replaced by the faults from this checklist.', 'Yes, replace'))) return;
   S.amF = { date: r.date, time: r.time || vcHm(), truckId: r.truckId, mileage: '', condition: r.status === 'Unserviceable' ? 'Not usable' : 'Usable, with faults',
-    remarks: r.faults.map((f, i) => (i + 1) + '. ' + f.item + ': ' + f.text).join('\n'), marks: [], ackBy: '', vcId: r.id, vcDate: r.date };
+    remarks: vcNew(r).map(f => f.n + '. ' + f.item + ': ' + f.text).join('\n'), marks: [], ackBy: '', vcId: r.id, vcDate: r.date };
   S.amPh = []; amKeep(); S.amTab = 'fault';
   document.querySelectorAll('.vc-bg, .sheet-bg').forEach(x => x.remove());
   openAmmo();
@@ -7224,7 +7250,7 @@ async function vcToAmmo(r){
 function vcItemsHtml(r){
   return VC_SEC.map(([s, l]) => { const L = r.items.filter(i => i.s === s); return L.length ? `<h3 class="vc-sh">${l.toUpperCase()}</h3>` + L.map(it => it.t === 'select'
     ? `<div class="vc-row sel"><span class="vc-ck fuel">&#9673;</span><span class="vc-n">${esc(it.n)}</span><b>${esc(it.v || '-')}</b></div>`
-    : `<div class="vc-row ${it.ok === false ? 'bad' : ''}"><span class="vc-ck ${it.ok === false ? 'off' : ''}">${it.ok === false ? '&#10005;' : '&#10003;'}</span><span class="vc-n">${esc(it.n)}${it.ok === false ? `<small>${esc(it.f)}</small>` : ''}</span><span class="vc-s">${it.ok === false ? 'FAULT' : 'OK'}</span></div>`).join('') : ''; }).join('');
+    : `<div class="vc-row ${it.ok === false ? 'bad' : ''}"><span class="vc-ck ${it.ok === false ? 'off' : ''}">${it.ok === false ? '&#10005;' : '&#10003;'}</span><span class="vc-n">${esc(it.n)}${it.ok === false ? `<small>${esc(it.f)}</small>` : ''}${it.ok === false && it.from ? `<small style="color:var(--muted)">Still there from ${esc(nice(it.from.d))}</small>` : ''}</span><span class="vc-s">${it.ok === false ? 'FAULT' : 'OK'}</span></div>`).join('') : ''; }).join('');
 }
 /* Manager / DY Manager: Usable (green) or Unserviceable (red) */
 async function vcDecideOpen(id, after){
@@ -7238,8 +7264,8 @@ async function vcDecideOpen(id, after){
   const draw = () => {
     $('#vc-body', bg).innerHTML = `${r.paper ? `<div class="note blue">Done on the paper form. ${esc(r.statusRemark || '')}.${canManage() && !r.closed ? ' <button class="linkbtn" id="vc-fillp">Fill in the checklist instead</button>' : ''}</div>` : ''}<div class="sec"><b>${esc(nice(r.date))} &middot; checked by ${esc(r.driver)}${r.time ? ' ' + esc(r.time) + 'hrs' : ''}</b>
         <div class="small muted">${r.items.filter(i => i.t !== 'select' && i.ok !== false).length} of ${r.items.filter(i => i.t !== 'select').length} checks OK${r.fuel ? ' &middot; Fuel ' + esc(r.fuel) : ''}</div>
-        ${r.faults.map(f => `<div class="vc-row bad" style="margin-top:8px"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small></span>${r.ammoFault ? vcFaultPill(f) : ''}</div>`).join('')}
-        ${r.faults.length && !r.ammoFault ? '<div class="note red" style="margin:8px 0 0">Not reported in Ammo Truck yet.</div>' : ''}
+        ${r.faults.map(f => `<div class="vc-row bad" style="margin-top:8px"><span class="vc-ck off">&#10005;</span><span class="vc-n">${esc(f.item)}<small>${esc(f.text)}</small>${f.carried ? `<small style="color:var(--muted)">${esc(vcSince(f))}</small>` : ''}</span>${r.ammoFault || f.carried ? vcFaultPill(f) : ''}</div>`).join('')}
+        ${vcNew(r).length && !r.ammoFault ? `<div class="note red" style="margin:8px 0 0">${r.faults.length > vcNew(r).length ? 'The new fault' + (vcNew(r).length === 1 ? ' is' : 's are') : 'Not'}${r.faults.length > vcNew(r).length ? ' not' : ''} reported in Ammo Truck yet.</div>` : ''}
         <button class="linkbtn" id="vc-all" style="margin-top:6px">See the whole checklist</button><div id="vc-allbox" hidden>${vcItemsHtml(r)}${r.sig ? `<div class="f" style="margin-top:8px"><span>Signature: ${esc(r.driver)}</span></div><img class="vc-sigimg" src="${r.sig}" alt="Signature">` : ''}</div></div>
       ${r.status ? vcBanner(r) : ''}
       ${r.faults.length && can ? `<b style="display:block;margin:12px 2px 6px">Vehicle status</b>
@@ -7248,7 +7274,7 @@ async function vcDecideOpen(id, after){
         <label class="f" style="margin-top:10px"><span>Remark (optional)</span><input id="vc-rm" style="width:100%" value="${esc(r.statusRemark || '')}" maxlength="200" placeholder="e.g. Tyre to be changed first"></label>
         <button class="btn block ${pick === 'Unserviceable' ? 'vc-red' : 'go'}" id="vc-ap" ${pick ? '' : 'disabled'}>${pick ? 'Approve: ' + pick : 'Pick Usable or Unserviceable'}</button>
         <p class="small muted" style="margin-top:8px">The driver and the other managers see it straight away.</p>` : ''}
-      ${r.faults.length && !r.ammoFault && (S.me.apps || []).includes('ammo') && !isPD() ? '<button class="btn ghost block vc-amm2" id="vc-amm" style="margin-top:8px">Report in Ammo Truck &rsaquo;</button>' : ''}`;
+      ${vcNew(r).length && !r.ammoFault && (S.me.apps || []).includes('ammo') && !isPD() ? '<button class="btn ghost block vc-amm2" id="vc-amm" style="margin-top:8px">Report in Ammo Truck &rsaquo;</button>' : ''}`;
     $('#vc-all', bg).onclick = () => { const b = $('#vc-allbox', bg); b.hidden = !b.hidden; };
     if ($('#vc-fillp', bg)) $('#vc-fillp', bg).onclick = () => { close(); vcOpen(r.date, after); };
     bg.querySelectorAll('[data-vcp]').forEach(b => b.onclick = () => { pick = b.dataset.vcp; const rm = $('#vc-rm', bg) ? $('#vc-rm', bg).value : ''; draw(); if ($('#vc-rm', bg)) $('#vc-rm', bg).value = rm; });
@@ -7381,13 +7407,15 @@ async function vcRefreshPdf(D, tk, closed){
 }
 function vcFaultsTab(box, D){
   const open = D.open || [];
-  const recs = D.recs.filter(r => r.faults.some(f => f.status === 'Repaired' || f.status === 'Not needed'));
+  const done = f => !f.carried && (f.status === 'Repaired' || f.status === 'Not needed');
+  const recs = D.recs.filter(r => r.faults.some(done));
   box.innerHTML = `${open.length ? open.map(r => r.faults.map(f => `<div class="sec vc-fc"><div class="vc-fh"><b>${esc(f.item)} &middot; ${esc(nice(r.date))}</b>${vcFaultPill(f)}</div>
       <div class="small muted">${esc(r.plate)} &middot; ${esc(r.driver)}: &ldquo;${esc(f.text)}&rdquo;</div>
       <div class="small" style="margin-top:4px">${f.status === 'Not reported' ? `Not in Ammo Truck yet &middot; <button class="linkbtn" data-vcrep="${esc(r.id)}">Report it</button>`
-        : 'Ammo Truck fault #' + f.n + (f.sentOn ? ' &middot; Sent for repair ' + esc(nice(f.sentOn)) : ' &middot; not sent yet')}</div></div>`).join('')).join('')
+        : 'Ammo Truck fault #' + f.n + (f.sentOn ? ' &middot; Sent for repair ' + esc(nice(f.sentOn)) : ' &middot; not sent yet')}</div>
+      ${f.lastOn ? `<div class="small muted">Still unticked on the checklist of ${esc(nice(f.lastOn))}</div>` : ''}</div>`).join('')).join('')
     : '<div class="sec"><p class="muted" style="margin:0">No faults waiting for repair.</p></div>'}
-    ${recs.length ? `<h3>Repaired (${esc(vcMonName(D.month))})</h3><div class="sec" style="padding:0">${recs.map(r => r.faults.filter(f => f.status === 'Repaired' || f.status === 'Not needed').map(f =>
+    ${recs.length ? `<h3>Repaired (${esc(vcMonName(D.month))})</h3><div class="sec" style="padding:0">${recs.map(r => r.faults.filter(done).map(f =>
       `<div class="vc-day"><span><b>${esc(f.item)}</b> &middot; ${esc(nice(r.date))}</span><span class="pill Approved">${f.status === 'Repaired' ? 'Repaired ' + esc(f.fixedOn ? nice(f.fixedOn) : '') : 'Not needed'}</span></div>`).join('')).join('')}</div>` : ''}
     <p class="small muted">Sent for repair and Repaired come from the repair in Ammo Truck (Repairs tab), and go into the month PDF.</p>`;
   box.querySelectorAll('[data-vcrep]').forEach(b => b.onclick = async () => { try { const r = await call('vcRecord', S.token, b.dataset.vcrep); vcToAmmo(r); } catch(e){ fail(e); } });
@@ -7443,8 +7471,10 @@ async function vcPdf(D, truckId, ack){
   const ink = () => doc.setTextColor(23, 33, 43), grey = () => doc.setTextColor(91, 104, 116), red = () => doc.setTextColor(179, 38, 30), green = () => doc.setTextColor(46, 122, 76);
   const tick = (x, y) => { doc.setDrawColor(46, 122, 76); doc.setLineWidth(0.55); doc.line(x - 1.6, y, x - 0.4, y + 1.3); doc.line(x - 0.4, y + 1.3, x + 1.9, y - 1.6); doc.setLineWidth(0.2); };
   const cross = (x, y) => { doc.setDrawColor(179, 38, 30); doc.setLineWidth(0.55); doc.line(x - 1.5, y - 1.5, x + 1.5, y + 1.5); doc.line(x - 1.5, y + 1.5, x + 1.5, y - 1.5); doc.setLineWidth(0.2); };
-  const faultList = []; days.forEach(d => { if (d.rec) d.rec.faults.forEach(f => faultList.push(Object.assign({ date: d.date, driver: d.rec.driver, sig: d.rec.sig }, f))); });
-  const fno = (date, item) => faultList.findIndex(f => f.date === date && f.item === item) + 1;
+  const fkey = (rec, f) => f.carried ? f.fromId + '#' + f.fromN : rec.id + '#' + f.n;
+  const faultList = []; days.forEach(d => { if (d.rec) d.rec.faults.forEach(f => { const k = fkey(d.rec, f); if (faultList.some(x => x.key === k)) return;
+    faultList.push(Object.assign({ date: d.date, driver: d.rec.driver, sig: d.rec.sig, key: k }, f, f.carried ? { text: f.text + ' (reported ' + nice(f.since) + ')' } : {})); }); });
+  const fno = (d, item) => { const f = d.rec.faults.find(x => x.item === item); return f ? faultList.findIndex(x => x.key === fkey(d.rec, f)) + 1 : 0; };
   const imgOk = d => /^data:image\/(png|jpeg)/.test(String(d || ''));
   const fmtT = t => t ? t : '';
   const header = () => {
@@ -7484,7 +7514,7 @@ async function vcPdf(D, truckId, ack){
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); grey(); doc.text(VC_DOW[pd(d.date).getDay()], x, cy + 2.6, { align: 'center' }); }, { head: true, h: 8 });
   const itemRow = n => cellsRow(n, (d, x, cy) => { if (!d.rec) return; const it = d.rec.items.find(i => i.n === n);
     if (!it) { doc.setFontSize(7); grey(); doc.text('-', x, cy + 1, { align: 'center' }); return; }
-    if (it.ok === false) { cross(x - 1.3, cy); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); red(); doc.text(String(fno(d.date, n)), x + 1.6, cy + 1.2); } else tick(x, cy); });
+    if (it.ok === false) { cross(x - 1.3, cy); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); red(); doc.text(String(fno(d, n) || ''), x + 1.6, cy + 1.2); } else tick(x, cy); });
   if (rowsE.length) { cellsRow('EXTERIOR CHECK', () => {}, { band: true, h: 5 }); rowsE.forEach(itemRow); }
   if (rowsI.length || selNames.length) { cellsRow('INTERIOR CHECK', () => {}, { band: true, h: 5 }); rowsI.forEach(itemRow); }
   selNames.forEach(n => cellsRow(n, (d, x, cy) => { if (!d.rec) return; const it = d.rec.items.find(i => i.n === n), v = it ? it.v || '' : '';
