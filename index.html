@@ -342,8 +342,9 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .vc-fv{font:700 20px/1 var(--cond);letter-spacing:.02em;color:var(--ink)}.vc-fv.none{font:600 13px var(--body);color:var(--flag)}.vc-fv.red{color:#C8102E}
 .vc-gauge{display:block;width:100%;max-width:360px;margin:2px auto 0;color:var(--ink);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;border-radius:10px}
 .vc-gauge:focus-visible{outline:2px solid var(--ink);outline-offset:2px}.vc-gauge[aria-disabled="true"]{cursor:default}
-.vc-gauge .opt text{font:700 13px var(--body);fill:var(--muted)}.vc-gauge .opt.on text{fill:var(--ink)}
-.vc-gauge .needle{transition:transform .25s ease}
+.vc-gstep{display:flex;align-items:center;gap:8px;margin:2px 0 6px}.vc-gstep span{flex:1;text-align:center;font-size:12px;color:var(--muted)}
+.vc-gstep button{flex:none;width:48px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);font:700 26px/1 var(--body);color:var(--ink);cursor:pointer;padding:0 0 3px}
+.vc-gstep button:active{background:var(--line)}
 .vc-row.sel .vc-n{cursor:default}.vc-row select{width:auto;min-width:110px;min-height:40px}
 .vc-s{font-size:12px;font-weight:700;color:var(--go)}.vc-row.bad .vc-s{color:var(--flag)}
 .vc-fault{width:100%;display:block;margin:2px 0 0}.vc-fault small{display:block;color:var(--flag);font-weight:700;font-size:11.5px;margin-bottom:3px}
@@ -5307,7 +5308,7 @@ const MOCK = (() => {
   /* Vehicle First Parade Checklist (demo): WONG is the PLAD driver on Mon / Wed / Fri */
   const mVcItems = [['E','Body Work (External)'],['E','Tyre Pressure'],['E','Tyre Condition'],['E','Brake Light'],['E','Signal Light'],['E','Side Mirrors'],['E','Wipers Condition'],
     ['E','Fuel Tank (No Leakages)'],['E','Tailgate (Operational)'],['E','CENCON Lock'],['I','Body Work (Internal)'],['I','Fire Extinguisher'],['I','In Vehicle Camera'],['I','Horn'],['I','Aircon'],['I','Fuel Gauge',1]]
-    .map(([s2, n, sel], i) => ({ id: 'IT' + (i + 1), s: s2, n, t: sel ? 'select' : 'tick', o: sel ? ['Red Light','1/4','1/3','1/2','2/3','3/4','FULL'] : [] }));
+    .map(([s2, n, sel], i) => ({ id: 'IT' + (i + 1), s: s2, n, t: sel ? 'select' : 'tick', o: sel ? ['Red Light','1/16','1/8','3/16','1/4','5/16','1/3','3/8','7/16','1/2','9/16','5/8','2/3','11/16','3/4','13/16','7/8','15/16','FULL'] : [] }));
   let mVcCfg = mVcItems.map(x => Object.assign({}, x));
   const mVcDrv = d => [1, 3, 5].includes(pd(d).getDay()) ? (pd(d).getDate() % 7 === 2 ? 'ONG' : 'WONG') : '';
   const mVcSig = (() => { let c = null; return () => { if (c) return c; const cv = document.createElement('canvas'); cv.width = 360; cv.height = 120; const g = cv.getContext('2d');
@@ -5538,7 +5539,7 @@ const MOCK = (() => {
       news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: isPD() ? { date: today, lateAfter, clockIn: '', status: '', viewOnly: true } : NOSTAFF(S.me.role) ? null : mockMyAtt(S.me.name), inspections: canView() ? mockInsp() : null, grab: canView() ? mockGrab() : null, reports: canView() || isMeDm(mDm[today]) ? mRep : null, allergo: NOSTAFF(S.me.role) ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null, vc: mVcHome() }),
-    vcForm: (t, d) => ({ date: d, items: mVcCfg, fuel: ['Red Light','1/4','1/3','1/2','2/3','3/4','FULL'], trucks: mAm.trucks.filter(x => x.active).map(x => ({ id: x.id, plate: x.plate, name: x.name })), driverOn: mVcDrv(d),
+    vcForm: (t, d) => ({ date: d, items: mVcCfg, fuel: ['Red Light','1/16','1/8','3/16','1/4','5/16','1/3','3/8','7/16','1/2','9/16','5/8','2/3','11/16','3/4','13/16','7/8','15/16','FULL'], trucks: mAm.trucks.filter(x => x.active).map(x => ({ id: x.id, plate: x.plate, name: x.name })), driverOn: mVcDrv(d),
       carry: Object.fromEntries(mAm.trucks.filter(x => x.active).map(x => [x.id, mVcCarry(d, x.id)])),
       recs: mVc.filter(r => r.date === d).map(r => mVcOut(r, true)) }),
     vcRecord: (t, id) => { const r = mVc.find(x => x.id === id); if (!r) throw new Error('That checklist was not found.'); return mVcOut(r, true); },
@@ -7130,41 +7131,52 @@ async function vcOpen(date, after){
   try { F = await call('vcForm', S.token, date); } catch(e){ bg.remove(); return fail(e); }
   vcFormDraw(bg, F, close);
 }
-/* Fuel gauge: tap where the needle is. Options sit on the arc from E (red) to F; the tap snaps to the nearest one. */
+/* Fuel gauge: drag the needle (or tap) to where it is on the vehicle's gauge. It snaps to the nearest mark (every 1/16, plus 1/3 and 2/3);
+   the < > buttons move one mark at a time for a fine reading. */
 const VC_G = { cx: 160, cy: 150, a0: 155, sweep: 130 };
-const vcGFrac = o => /red|^e$|empty/i.test(o) ? 0.03 : /full|^f$/i.test(o) ? 1 : (m => m ? Number(m[1]) / Number(m[2]) : NaN)(/^(\d+)\s*\/\s*(\d+)$/.exec(String(o).trim()));
-const vcGFracs = opts => { const f = opts.map(vcGFrac); return f.map((x, i) => isNaN(x) ? i / Math.max(1, opts.length - 1) : x); };
+const vcGFrac = o => /red|^e$|empty/i.test(o) ? 0 : /full|^f$/i.test(o) ? 1 : (m => m ? Number(m[1]) / Number(m[2]) : NaN)(/^(\d+)\s*\/\s*(\d+)$/.exec(String(o).trim()));
+const vcGFracs = opts => opts.map((o, i) => { const x = vcGFrac(o); return isNaN(x) ? i / Math.max(1, opts.length - 1) : x; });
 const vcGPt = (fr, r) => { const a = (VC_G.a0 - VC_G.sweep * fr) * Math.PI / 180; return [VC_G.cx + r * Math.cos(a), VC_G.cy - r * Math.sin(a)]; };
-const vcGLab = o => /red/i.test(o) ? 'E' : /full/i.test(o) ? 'F' : o;
-function vcGaugeSvg(opts, v, ro){
+const vcGRed = v => vcGFrac(v) < 0.13;
+const vcGTxt = v => !v ? '' : /red|full/i.test(v) ? v : v + ' \u00B7 ' + Math.round(vcGFrac(v) * 100) + '%';
+function vcGaugeInner(opts, v){
   const fr = vcGFracs(opts), at = opts.indexOf(v), f = n => n.toFixed(1);
   let ticks = '';
   for (let i = 0; i <= 16; i++) { const x = i / 16, major = i % 4 === 0, red = x < 0.13;
     const [x1, y1] = vcGPt(x, major ? 104 : 112), [x2, y2] = vcGPt(x, 130);
-    ticks += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${red ? '#C8102E' : 'currentColor'}" stroke-width="${major ? 9 : 4}" stroke-linecap="butt"/>`; }
-  const optsSvg = opts.map((o, i) => { const lab = vcGLab(o), out = /\/3$|^1\/2$/.test(o);   // thirds and 1/2 outside the arc, quarters inside, so they never overlap
-    const [lx, ly] = vcGPt(fr[i], lab.length === 1 ? 146 : out ? 147 : 88), [hx, hy] = vcGPt(fr[i], 118);
-    const big = lab === 'E' || lab === 'F';
-    return `<g class="opt${i === at ? ' on' : ''}" data-gi="${i}"><circle cx="${f(hx)}" cy="${f(hy)}" r="16" fill="transparent"/>
-      ${i === at ? `<circle cx="${f(hx)}" cy="${f(hy)}" r="15" fill="none" stroke="${fr[i] < 0.13 ? '#C8102E' : 'var(--go)'}" stroke-width="3"/>` : ''}
-      <text x="${f(lx)}" y="${f(ly + 5)}" text-anchor="middle" ${big ? `style="font:800 22px var(--cond);fill:${lab === 'E' ? '#C8102E' : 'currentColor'}"` : ''}>${esc(lab)}</text></g>`; }).join('');
-  const ang = at >= 0 ? VC_G.sweep * fr[at] - (VC_G.a0 - 90) : 0;                       // rotate from straight up
-  const needle = at >= 0 ? `<g class="needle" style="transform-origin:${VC_G.cx}px ${VC_G.cy}px;transform:rotate(${f(ang)}deg)">
-      <polygon points="${VC_G.cx - 5},${VC_G.cy} ${VC_G.cx},${VC_G.cy - 98} ${VC_G.cx + 5},${VC_G.cy}" fill="${fr[at] < 0.13 ? '#C8102E' : '#E4572E'}"/></g>
-      <circle cx="${VC_G.cx}" cy="${VC_G.cy}" r="9" fill="currentColor"/>` : `<text x="${VC_G.cx}" y="${VC_G.cy - 6}" text-anchor="middle" style="font:600 13px var(--body);fill:var(--flag)">Tap where the needle is</text>`;
-  const pump = `<g transform="translate(${VC_G.cx - 13},${VC_G.cy - 74})" fill="currentColor" opacity="${at >= 0 ? .35 : 1}"><rect x="0" y="0" width="20" height="30" rx="2.5"/><rect x="3.5" y="3.5" width="13" height="9" rx="1" fill="var(--card,#fff)"/><rect x="-3" y="29" width="26" height="4" rx="1"/><path d="M20 8h3.5l3 4v13a2.5 2.5 0 0 1-5 0v-6h-1.5" fill="none" stroke="currentColor" stroke-width="2"/></g>`;
-  return `<svg class="vc-gauge" viewBox="0 -8 320 176" role="slider" tabindex="${ro ? -1 : 0}" aria-label="Fuel gauge" aria-valuemin="0" aria-valuemax="${opts.length - 1}" aria-valuenow="${Math.max(0, at)}" aria-valuetext="${esc(at >= 0 ? v : 'not picked')}" ${ro ? 'aria-disabled="true"' : ''}>
-    ${ticks}${pump}${optsSvg}${needle}</svg>`;
+    ticks += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${red ? '#C8102E' : 'currentColor'}" stroke-width="${major ? 9 : 4}"/>`; }
+  // labels: E, F, the quarters inside the arc; 1/3, 2/3 outside (they sit between marks)
+  const lab = [[0, 'E', 146, 1], [0.25, '1/4', 88], [0.5, '1/2', 88], [0.75, '3/4', 88], [1, 'F', 146, 1], [1 / 3, '1/3', 147], [2 / 3, '2/3', 147]].map(([x, t, r, big]) => {
+    const [lx, ly] = vcGPt(x, r), on = at >= 0 && Math.abs(fr[at] - x) < 1e-6;
+    return `<text x="${f(lx)}" y="${f(ly + 5)}" text-anchor="middle" style="${big ? `font:800 22px var(--cond);fill:${t === 'E' ? '#C8102E' : 'currentColor'}` : `font:700 13px var(--body);fill:${on ? 'currentColor' : 'var(--muted)'}`}">${t}</text>`; }).join('');
+  const pump = `<g transform="translate(${VC_G.cx - 13},${VC_G.cy - 74})" fill="currentColor" opacity="${at >= 0 ? .3 : 1}"><rect x="0" y="0" width="20" height="30" rx="2.5"/><rect x="3.5" y="3.5" width="13" height="9" rx="1" fill="var(--card,#fff)"/><rect x="-3" y="29" width="26" height="4" rx="1"/><path d="M20 8h3.5l3 4v13a2.5 2.5 0 0 1-5 0v-6h-1.5" fill="none" stroke="currentColor" stroke-width="2"/></g>`;
+  if (at < 0) return ticks + pump + lab + `<text x="${VC_G.cx}" y="${VC_G.cy - 6}" text-anchor="middle" style="font:600 13px var(--body);fill:var(--flag)">Drag or tap where the needle is</text>`;
+  const red = fr[at] < 0.13, [hx, hy] = vcGPt(fr[at], 117);
+  const ang = VC_G.sweep * fr[at] - (VC_G.a0 - 90);
+  return ticks + pump + lab + `<circle cx="${f(hx)}" cy="${f(hy)}" r="14" fill="none" stroke="${red ? '#C8102E' : 'var(--go)'}" stroke-width="3"/>
+    <g style="transform-origin:${VC_G.cx}px ${VC_G.cy}px;transform:rotate(${f(ang)}deg)"><polygon points="${VC_G.cx - 5},${VC_G.cy} ${VC_G.cx},${VC_G.cy - 100} ${VC_G.cx + 5},${VC_G.cy}" fill="${red ? '#C8102E' : '#E4572E'}"/></g>
+    <circle cx="${VC_G.cx}" cy="${VC_G.cy}" r="9" fill="currentColor"/>`;
 }
-/* wire a gauge: tap / drag snaps to the nearest option; arrow keys step */
-function vcGaugeWire(svg, opts, cur, pick){
-  const fr = vcGFracs(opts);
+function vcGaugeSvg(opts, v, ro){
+  const at = opts.indexOf(v);
+  return `<svg class="vc-gauge" viewBox="0 -8 320 176" role="slider" tabindex="${ro ? -1 : 0}" aria-label="Fuel gauge" aria-valuemin="0" aria-valuemax="${opts.length - 1}" aria-valuenow="${Math.max(0, at)}" aria-valuetext="${esc(at >= 0 ? v : 'not read yet')}" ${ro ? 'aria-disabled="true"' : ''}>${vcGaugeInner(opts, v)}</svg>`;
+}
+/* wire a gauge row: drag / tap snaps to the nearest mark, < > and the arrow keys step one mark. show(v) updates the reading while dragging; pick(v) saves */
+function vcGaugeWire(row, opts, cur, show, pick){
+  const svg = row.querySelector('svg'), fr = vcGFracs(opts);
   const fromEvt = e => { const m = svg.getScreenCTM(); if (!m) return -1; const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
     let a = Math.atan2(VC_G.cy - p.y, p.x - VC_G.cx) * 180 / Math.PI; if (a < -90) a += 360;
     const x = (VC_G.a0 - a) / VC_G.sweep; let best = 0; fr.forEach((q, i) => { if (Math.abs(q - x) < Math.abs(fr[best] - x)) best = i; }); return best; };
-  svg.onclick = e => { const i = fromEvt(e); if (i >= 0) pick(opts[i], false); };
-  svg.onkeydown = e => { const at = Math.max(0, opts.indexOf(cur)), d = /Right|Up/.test(e.key) ? 1 : /Left|Down/.test(e.key) ? -1 : 0;
-    if (!d) return; e.preventDefault(); pick(opts[Math.min(opts.length - 1, Math.max(0, (opts.indexOf(cur) < 0 ? -1 : at) + d))], true); };
+  let drag = false, v = cur;
+  const move = e => { const i = fromEvt(e); if (i < 0 || opts[i] === v) return; v = opts[i]; svg.innerHTML = vcGaugeInner(opts, v); svg.setAttribute('aria-valuetext', v); show(v); };
+  svg.onpointerdown = e => { drag = true; try { svg.setPointerCapture(e.pointerId); } catch(x) {} move(e); e.preventDefault(); };
+  svg.onpointermove = e => { if (drag) move(e); };
+  svg.onpointerup = svg.onpointercancel = () => { if (!drag) return; drag = false; if (v !== cur) pick(v, false); };
+  svg.style.touchAction = 'none';                          // dragging the needle must not scroll the page
+  const step = (d, kb) => { const at = opts.indexOf(cur); pick(opts[at < 0 ? (d > 0 ? 0 : opts.length - 1) : Math.min(opts.length - 1, Math.max(0, at + d))], kb); };
+  svg.onkeydown = e => { const d = /Right|Up/.test(e.key) ? 1 : /Left|Down/.test(e.key) ? -1 : 0; if (d) { e.preventDefault(); step(d, true); } };
+  row.querySelectorAll('[data-gstep]').forEach(b => b.onclick = () => { step(Number(b.dataset.gstep), false);
+    const nb = document.querySelector(`.vc-row[data-vci="${row.dataset.vci}"] [data-gstep="${b.dataset.gstep}"]`); if (nb) nb.focus({ preventScroll: true }); });
 }
 function vcFormDraw(bg, F, close){
   const B = $('#vc-body', bg), trucks = F.trucks || [];
@@ -7198,7 +7210,8 @@ function vcFormDraw(bg, F, close){
   const row = it => {
     const v = val(it);
     if (it.t === 'select' && /fuel/i.test(it.n)) return `<div class="vc-row gauge" data-vci="${esc(it.id)}"><div class="vc-gh"><span class="vc-ck fuel">&#9673;</span><span class="vc-n">${esc(it.n)}</span>
-      <span class="vc-fv ${v.v ? (vcGFrac(v.v) < 0.13 ? 'red' : '') : 'none'}">${v.v ? esc(v.v) : 'Tap the gauge'}</span></div>${vcGaugeSvg(it.o || [], v.v, ro)}</div>`;
+      <span class="vc-fv ${v.v ? (vcGRed(v.v) ? 'red' : '') : 'none'}">${v.v ? esc(vcGTxt(v.v)) : 'Not read yet'}</span></div>${vcGaugeSvg(F.fuel && F.fuel.length ? F.fuel : it.o || [], v.v, ro)}
+      ${ro ? '' : `<div class="vc-gstep"><button type="button" data-gstep="-1" aria-label="Lower by one mark">&lsaquo;</button><span>Drag the needle, or tap a mark. &lsaquo; &rsaquo; move one mark (1/16).</span><button type="button" data-gstep="1" aria-label="Higher by one mark">&rsaquo;</button></div>`}</div>`;
     if (it.t === 'select') return `<div class="vc-row sel" data-vci="${esc(it.id)}"><span class="vc-ck fuel">&#9673;</span><span class="vc-n">${esc(it.n)}</span>
       <select data-vcs="${esc(it.id)}" ${ro ? 'disabled' : ''}><option value="">Pick</option>${(it.o || []).map(o => `<option ${o === v.v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
     return `<div class="vc-row ${v.ok ? '' : 'bad'}" data-vci="${esc(it.id)}"><button class="vc-ck ${v.ok ? '' : 'off'}" data-vct="${esc(it.id)}" aria-pressed="${v.ok}" aria-label="${esc(it.n)}: ${v.ok ? 'OK' : 'fault'}" ${ro ? 'disabled' : ''}>${v.ok ? '&#10003;' : '&#10005;'}</button>
@@ -7235,8 +7248,10 @@ function vcFormDraw(bg, F, close){
       v.ok = !v.ok; st.items[id] = v; keep(); redrawRow(id); if (!v.ok) { const t = B.querySelector(`[data-vcf="${id}"]`); if (t) t.focus(); } });
     B.querySelectorAll('[data-vcf]').forEach(t => t.oninput = () => { const id = t.dataset.vcf; st.items[id] = Object.assign({}, val(items.find(i => i.id === id)), { f: t.value }); keep(); });
     B.querySelectorAll('[data-vcs]').forEach(sel => sel.onchange = () => { st.items[sel.dataset.vcs] = { v: sel.value }; keep(); $('#vc-sum', bg).innerHTML = sumHtml(); });
-    B.querySelectorAll('.vc-row.gauge').forEach(row => { const id = row.dataset.vci, it = items.find(i => i.id === id), svg = row.querySelector('svg');
-      vcGaugeWire(svg, it.o || [], val(it).v, (v, kb) => { if (v === val(it).v) return; st.items[id] = { v }; keep(); redrawRow(id); const s2 = B.querySelector(`.vc-row[data-vci="${id}"] svg`); if (s2 && kb) s2.focus({ preventScroll: true }); }); });
+    B.querySelectorAll('.vc-row.gauge').forEach(row => { const id = row.dataset.vci, it = items.find(i => i.id === id), opts = F.fuel && F.fuel.length ? F.fuel : it.o || [];
+      const lab = row.querySelector('.vc-fv');
+      vcGaugeWire(row, opts, val(it).v, v => { lab.textContent = vcGTxt(v); lab.className = 'vc-fv' + (vcGRed(v) ? ' red' : ''); },
+        (v, kb) => { if (v === val(it).v) return; st.items[id] = { v }; keep(); redrawRow(id); const s2 = B.querySelector(`.vc-row[data-vci="${id}"] svg`); if (s2 && kb) s2.focus({ preventScroll: true }); }); });
   };
   wireRows();
   $('#vc-by', bg).oninput = e => { st.by = e.target.value; keep(); };
@@ -7470,7 +7485,7 @@ function vcItemsTab(box, D){
   const L = S.vcItems || (S.vcItems = D.items.map(x => Object.assign({}, x, { o: (x.o || []).slice() })));
   const draw = () => {
     box.innerHTML = `<div class="note blue">Changes apply to new checklists. Past checklists keep the checks they had.</div>
-      ${VC_SEC.map(([s, l]) => `<h3 class="vc-sh">${l.toUpperCase()}</h3>${L.map((x, i) => x.s !== s ? '' : `<div class="vc-ed"><span class="vc-n">${esc(x.n)}${x.t === 'select' ? `<small>Drop-down: ${esc(x.o.join(', '))}</small>` : ''}</span>
+      ${VC_SEC.map(([s, l]) => `<h3 class="vc-sh">${l.toUpperCase()}</h3>${L.map((x, i) => x.s !== s ? '' : `<div class="vc-ed"><span class="vc-n">${esc(x.n)}${x.t === 'select' ? `<small>${/fuel/i.test(x.n) ? 'Fuel gauge: Red Light, every 1/16 (plus 1/3, 2/3) to FULL' : 'Drop-down: ' + esc(x.o.join(', '))}</small>` : ''}</span>
           <button class="ib2" data-vcu="${i}" aria-label="Move up">&#9650;</button><button class="ib2" data-vcdn="${i}" aria-label="Move down">&#9660;</button><button class="ib2 x" data-vcx="${i}" aria-label="Remove">&#10005;</button></div>`).join('')}`).join('')}
       <div class="sec" style="margin-top:12px"><b>Add a check</b>
         <label class="f" style="margin-top:8px"><span>Name</span><input id="vci-n" maxlength="60" placeholder="e.g. Reverse Sensor"></label>
