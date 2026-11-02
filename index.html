@@ -7951,7 +7951,7 @@ async function vcPdf(D, truckId, ack){
     }
   }
   footAll();
-  return doc.output('datauristring');
+  return doc.output('datauristring').replace(/^data:application\/pdf;[^,]*,/, 'data:application/pdf;base64,');   // jsPDF adds ";filename=..."; the server wants it plain
 }
 
 liveStart();
