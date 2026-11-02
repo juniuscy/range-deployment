@@ -7832,7 +7832,7 @@ async function vcPdf(D, truckId, ack){
     faultList.push(Object.assign({ date: d.date, driver: d.rec.driver, sig: d.rec.sig, key: k }, f, { ph: (f.ph || []).slice() }, f.carried && f.since.slice(0, 7) !== D.month ? { text: f.text + ' (first found ' + nice(f.since) + ')' } : {})); }); });
   const fno = (d, item) => { const f = d.rec.faults.find(x => x.item === item); return f ? faultList.findIndex(x => x.key === fkey(d.rec, f)) + 1 : 0; };
   const imgOk = d => /^data:image\/(png|jpeg)/.test(String(d || ''));
-  const fmtT = t => t ? t : '';
+  const fmtT = t => { const d = String(t || '').replace(/\D/g, ''); return d ? d.padStart(4, '0').slice(-4) : ''; };   // 24hrs: 921 -> 0921
   const header = () => {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(15); ink(); doc.text('VEHICLE FIRST PARADE CHECKLIST', M, 16);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); grey(); doc.text('Multi Mission Range Complex  \u00B7  Ops Support  \u00B7  PLAD vehicle', M, 21.5);
