@@ -2024,7 +2024,7 @@ function drawMyYear(){
   V().innerHTML = `<h2>My Year</h2>
     <div class="sub" role="group" aria-label="Year">${d.years.map(x => `<button class="chip" data-my="${x}" aria-pressed="${x === y}">${x}</button>`).join('')}</div>
     <h3 style="margin-top:6px">My goals for ${esc(y)}</h3>
-    ${ed ? `<p class="small muted" style="margin:-4px 0 10px">What do you want to achieve this year? Up to ${d.max} goals. Only the Managers, DY Managers and the PD can see them. ${info.submittedAt ? '' : 'Saved as you type; tap Submit when you are done.'}</p>` : `<p class="small muted" style="margin:-4px 0 10px">${esc(y)} is over: these can no longer be changed.</p>`}
+    ${ed ? `<p class="small muted" style="margin:-4px 0 10px">Tell me what's your resolution for this year? Up to ${d.max} goals.${info.submittedAt ? '' : '<br>Saved as you type; tap Submit when you are done.'}</p>` : `<p class="small muted" style="margin:-4px 0 10px">${esc(y)} is over: these can no longer be changed.</p>`}
     ${info.submittedAt ? `<div class="note blue" style="margin-bottom:10px">Submitted ${esc(myAt(info.submittedAt))}.${ed ? ' You can still change them, and update how each is going during the year.' : ''}</div>` : ''}
     <div id="goals">${L.length ? L.map(goalCard).join('') : `<div class="sec"><p class="muted" style="margin:0">${ed ? 'No goals yet. Tap Add a goal to start.' : 'No goals were set for ' + esc(y) + '.'}</p></div>`}</div>
     ${ed ? `${L.length < d.max ? `<button class="btn ghost block" id="g-add">+ Add a goal (${L.length} of ${d.max})</button>` : ''}
