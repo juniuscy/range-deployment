@@ -293,6 +293,7 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .t tr.mine td:first-child,.t tr.mine th:first-child{box-shadow:inset 5px 0 var(--dep)}
 .t td.num{font-variant-numeric:tabular-nums;text-align:right}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.dct td small.pl{display:block;font-size:11px;font-weight:700;color:var(--steel);line-height:1.1}
 .dct{border-collapse:separate;border-spacing:0;font-size:13px;background:var(--card)}
 .dct th,.dct td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
 .dct th{font-weight:600;color:var(--muted);background:#F6F8F5;white-space:normal;min-width:54px;vertical-align:bottom;line-height:1.2}
@@ -829,7 +830,7 @@ const RO_MSG = 'View only: this account cannot change anything.';
 /* who is signed in, for the header: the PD sees "PETER TAN - View only (as CHAN YANG)" */
 const meLabel = () => S.me.viewOnly ? `${esc(S.me.realName)} <span class="rotag">View only &middot; as ${esc(S.me.name)}</span>` : esc(S.me.name);
 /* what the PD may call (reading only); anything else is stopped here, and on the server */
-const PD_READ = ['vcPhotos','vcForm','vcRecord','vcMonth','ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
+const PD_READ = ['getDutyPlanned','vcPhotos','vcForm','vcRecord','vcMonth','ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
   'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
   'adminActions','adminAttendance','adminAwayList','adminChanges','adminLib','adminOil','adminPending','adminScanOil','adminStaff','adminTeam',
   'getMyOil','getMyOilHistory','getMyRequests','getMySchedule','ammoGet','ammoFault','ammoReceipts','fleetLogin'];
@@ -5127,11 +5128,21 @@ function awayRemove(r, btn){
 /* Duty count for this year (also in the sheet: App Duty Count + App Duty Log, rebuilt every night) */
 async function admDuty(refresh, btn){
   if (!btn) loadingA(); else busy(btn, true);
-  try { drawDuty(await call('getDutyCount', S.token, !!refresh)); if (btn) toast('Duty count updated'); }
+  try {
+    const d = await call('getDutyCount', S.token, !!refresh);
+    if (refresh) S.dutyPl = null;
+    if (S.dutyPlanOn && !S.dutyPl) S.dutyPl = await call('getDutyPlanned', S.token);
+    drawDuty(d); if (btn) toast('Duty count updated');
+  }
   catch(e){ fail(e); if (btn) busy(btn, false); }
 }
 function drawDuty(d){
-  const head = d.head || [], rows = d.rows || [];
+  S.dutyD = d;
+  const pl = S.dutyPlanOn && S.dutyPl && S.dutyPl.planTo ? S.dutyPl : null;
+  // with planned days: the columns of the done + planned count; each cell shows the done number and "+n" planned
+  const head = pl ? pl.head : d.head || [];
+  const doneOf = (name, h) => { const i = (d.head || []).indexOf(h), r = (d.rows || []).find(x => x[0] === name); return i > 0 && r ? Number(r[i]) || 0 : 0; };
+  const rows = pl ? pl.rows : d.rows || [];
   const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const isMon = h => /^[A-Z][a-z]{2}( \d{4})?$/.test(h) && MONS.includes(h.slice(0, 3));
   const cls = h => /^Wkend/.test(h) ? 'wk' : isMon(h) ? 'mo' : '';
@@ -5139,11 +5150,19 @@ function drawDuty(d){
   const ext = head.map((h, i) => { if (!i || isMon(h)) return null; const v = rows.map(r => r[i]).filter(x => x > 0);
     return v.length > 1 ? { hi: Math.max.apply(null, v), lo: Math.min.apply(null, v) } : null; });
   A().innerHTML = `<p class="small muted">Counted from ${esc(nice(d.from || '2026-10-01'))} ${esc(String(d.from || '2026').slice(0, 4))} to ${esc(nice(d.to))}: APO Supervisor, APO, Non-APO and medics only. Days and roles per person, from the weekly tabs. Red = most in that column, green = fewest. Updated ${esc(d.updated || '')}.</p>
+    <label class="dcpl" style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-weight:600"><input type="checkbox" id="dc-pl" ${S.dutyPlanOn ? 'checked' : ''} style="width:22px;height:22px">
+      <span>Include planned days<small id="dc-plw" class="muted" style="display:block;font-weight:400">${pl ? 'Planned in the weekly tabs ' + esc(nice(pl.planFrom)) + ' to ' + esc(nice(pl.planTo)) + ' shown as <b style="color:var(--steel)">+n</b> under the number done. Red / green count both.' : S.dutyPlanOn && S.dutyPl ? 'No duties planned after today yet.' : 'Days already planned after today, e.g. next weekend\'s DAO, added as +n.'}</small></span></label>
     <div class="note blue small" style="margin:0 0 10px">Also in the sheet: <b>App Duty Count</b> (this table) and <b>App Duty Log</b> (every posting, one row per person per day, easy to filter). Both are rebuilt every night.</div>
     <div class="scroll" style="max-height:70vh;border:1px solid var(--line);border-radius:var(--r-md)"><table class="dct"><thead><tr>${head.map(h => `<th class="${cls(h)}">${esc(h)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${r.map((v, i) => !i ? `<td><b>${esc(titleCase(v))}</b></td>` : `<td class="${!v ? 'z' : ext[i] && v === ext[i].hi && ext[i].hi !== ext[i].lo ? 'hi' : ext[i] && v === ext[i].lo && ext[i].hi !== ext[i].lo ? 'lo' : ''}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <tbody>${rows.map(r => `<tr>${r.map((v, i) => { if (!i) return `<td><b>${esc(titleCase(v))}</b></td>`;
+        const dn = pl ? doneOf(r[0], head[i]) : v, plus = pl ? v - dn : 0;
+        return `<td class="${!v ? 'z' : ext[i] && v === ext[i].hi && ext[i].hi !== ext[i].lo ? 'hi' : ext[i] && v === ext[i].lo && ext[i].hi !== ext[i].lo ? 'lo' : ''}">${dn}${plus > 0 ? `<small class="pl">+${plus}</small>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>
     <button class="btn ghost" id="dc-r" style="margin-top:12px">Update now</button>`;
   $('#dc-r').onclick = e => admDuty(true, e.target);
+  $('#dc-pl').onchange = async e => { S.dutyPlanOn = e.target.checked;
+    if (S.dutyPlanOn && !S.dutyPl) { e.target.disabled = true; $('#dc-plw').textContent = 'Reading the weekly tabs\u2026';
+      try { S.dutyPl = await call('getDutyPlanned', S.token); } catch(x){ fail(x); S.dutyPlanOn = false; } }
+    drawDuty(S.dutyD); };
 }
 
 async function admSup(){
@@ -5829,22 +5848,25 @@ const MOCK = (() => {
           if (!run) run = { name: nm, cat: c === 'COURSE' ? 'Course' : c, label: LBL[c] || c, start: x, end: x, days: 0, half: '', detail: '', dates: [] }; run.end = x; run.days++; run.dates.push(x); });
         if (run) rows.push(run); });
       return { from, to, today, rows: rows.filter(r => r.end >= from && r.start <= to).sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : a.name < b.name ? -1 : 1) }; },
-    getDutyCount: () => { const yr = today.slice(0, 4), per = {}, MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], roles = ['Range'];
+    getDutyCount: (t, rf, upTo) => { upTo = upTo || today; const yr = today.slice(0, 4), per = {}, MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], roles = ['Range'];
       const P = n => per[n] || (per[n] = { days:{}, wk:{}, r:{} }), hit = (n, k, d) => { (P(n).r[k] = P(n).r[k] || {})[d] = 1; if (!roles.includes(k) && !/^Wkend/.test(k)) roles.push(k); };
-      Object.keys(SNAP.weeks).sort().forEach(m => (getWk(m).days || []).forEach(d => { if (d.date > today || d.date < '2026-10-01') return; const we = dowIdx(d.date) >= 5;
+      Object.keys(SNAP.weeks).sort().forEach(m => (getWk(m).days || []).forEach(d => { if (d.date > upTo || d.date < '2026-10-01') return; const we = dowIdx(d.date) >= 5;
         const on = n => { P(n).days[d.date] = 1; if (we) P(n).wk[d.date] = 1; P(n).r['m' + d.date.slice(5, 7)] = Object.assign(P(n).r['m' + d.date.slice(5, 7)] || {}, { [d.date]: 1 }); };
         d.ranges.forEach(r => r.active && r.people.forEach(n => { on(n); hit(n, 'Range', d.date); if (we) hit(n, 'Wkend Range', d.date); }));
         d.duties.forEach(x => { x.mainPeople.forEach(n => { on(n); hit(n, x.duty + ' Main', d.date); if (we && lettersKey(x.duty) === 'DAO') hit(n, 'Wkend DAO Main', d.date); if (we && lettersKey(x.duty) === 'AMMOADMIN') hit(n, 'Wkend Manager', d.date); });
           x.sparePeople.forEach(n => { on(n); hit(n, x.duty + ' Spare', d.date); if (we && lettersKey(x.duty) === 'DAO') hit(n, 'Wkend Reserved', d.date); }); });
         d.medics.forEach(md => md.people.forEach(n => { on(n); hit(n, md.role, d.date); })); }));
       const mons = Object.keys(per).reduce((a, n) => a.concat(Object.keys(per[n].r).filter(k => /^m\d\d$/.test(k)).map(k => +k.slice(1))), []);
-      const ms = MONS.slice(9, +today.slice(5, 7)).map(m => m + ' 2026');
+      const ms = []; for (let y = 2026, m = 9; y * 12 + m <= +upTo.slice(0, 4) * 12 + +upTo.slice(5, 7) - 1; m++) { if (m > 11) { m = 0; y++; } ms.push(MONS[m] + ' ' + y); }
       const wkCols = ['Wkend Range', 'Wkend DAO Main', 'Wkend Reserved', 'Wkend Manager'], c = (n, k) => Object.keys((per[n] && per[n].r[k]) || {}).length;
       const names = staffList.filter(p => ['APO Supervisor','APO','Non-APO','Medic','Medic Certis'].includes(p.role)).map(p => p.name);
       const wkU = wkCols.filter(k => k !== 'Wkend Manager' || names.some(n => c(n, k))), rolesU = roles.filter(k => names.some(n => c(n, k)));
       const head = ['Name', 'Days deployed', 'Weekend days', 'EXT / late report days'].concat(rolesU, wkU, ms);
       return { year: yr, from: '2026-10-01', to: today, updated: today + ' 21:40', head,
-        rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(rolesU.map(k => c(n, k)), wkU.map(k => c(n, k)), ms.map(m => c(n, 'm' + String(MONS.indexOf(m.slice(0, 3)) + 1).padStart(2, '0'))))) }; },
+        rows: names.map(n => [n, Object.keys((per[n] || {}).days || {}).length, Object.keys((per[n] || {}).wk || {}).length, 0].concat(rolesU.map(k => c(n, k)), wkU.map(k => c(n, k)), ms.map(m => Object.keys((per[n] && per[n].r['m' + String(MONS.indexOf(m.slice(0, 3)) + 1).padStart(2, '0')]) || {}).filter(x => x.slice(0, 4) === m.slice(4)).length))) }; },
+    getDutyPlanned: () => { const last = Object.keys(SNAP.weeks).sort().map(m => (getWk(m).days || []).filter(d => d.ranges.some(r => r.active) || d.duties.some(x => x.mainPeople.length || x.sparePeople.length)).map(d => d.date).pop()).filter(Boolean).sort().pop() || today;
+      if (last <= today) return { planTo: '' };
+      return Object.assign(MOCK.getDutyCount(null, false, last), { planFrom: addD(today, 1), planTo: last }); },
     draftGet: (t, k) => mDrafts[k] ? JSON.parse(JSON.stringify(mDrafts[k])) : null,
     draftSave: (t, k, text, vals) => { if (!String(text || '').trim()) { delete mDrafts[k]; return null; }
       mDrafts[k] = { text, vals: vals || undefined, by: S.me.name, at: today + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'), d: today }; return JSON.parse(JSON.stringify(mDrafts[k])); },
