@@ -293,6 +293,11 @@ table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px so
 .t tr.mine td:first-child,.t tr.mine th:first-child{box-shadow:inset 5px 0 var(--dep)}
 .t td.num{font-variant-numeric:tabular-nums;text-align:right}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.gcard .ghd,.fbi .ghd,.ygp .ghd,.ygg .ghd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pill.TryAgain{background:#FFEDD5;color:#9A3412}
+.gcard .ghd{margin-bottom:8px}.gcm{border-top:1px solid var(--line);margin-top:10px;padding-top:6px;font-size:14px}.gcm>div{margin-top:6px}
+.fbr{background:var(--steel-soft);border-radius:8px;padding:8px 10px;margin-top:10px}.ygg{border-top:1px solid var(--line);margin-top:10px;padding-top:8px}
+.ygc{display:flex;gap:6px;margin-top:8px}.ygc input{flex:1;min-width:0;min-height:40px}.ygc .btn{min-height:40px;padding:4px 12px}.fba{display:flex;gap:6px;flex-wrap:wrap}.fba .btn{min-height:40px;padding:5px 12px}
 .dct td small.pl{display:block;font-size:11px;font-weight:700;color:var(--steel);line-height:1.1}
 .dct{border-collapse:separate;border-spacing:0;font-size:13px;background:var(--card)}
 .dct th,.dct td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
@@ -830,7 +835,7 @@ const RO_MSG = 'View only: this account cannot change anything.';
 /* who is signed in, for the header: the PD sees "PETER TAN - View only (as CHAN YANG)" */
 const meLabel = () => S.me.viewOnly ? `${esc(S.me.realName)} <span class="rotag">View only &middot; as ${esc(S.me.name)}</span>` : esc(S.me.name);
 /* what the PD may call (reading only); anything else is stopped here, and on the server */
-const PD_READ = ['getDutyPlanned','vcPhotos','vcForm','vcRecord','vcMonth','ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
+const PD_READ = ['myOverview','getDutyPlanned','vcPhotos','vcForm','vcRecord','vcMonth','ammoFaultPhotos','ammoDraftGet','login','resume','getLoginInfo','ping','changeMyPin','getHome','getWeek','getNews','monthSummary','getReports','getBirthdays','getTraining','getAllergo',
   'getDm','getStrength','getGrabCodes','getDutyCount','getIncidents','getInspections','getSupTags','getClearance','getLeaveYear','getNotes','noteSeen','draftGet','dmFormGet',
   'adminActions','adminAttendance','adminAwayList','adminChanges','adminLib','adminOil','adminPending','adminScanOil','adminStaff','adminTeam',
   'getMyOil','getMyOilHistory','getMyRequests','getMySchedule','ammoGet','ammoFault','ammoReceipts','fleetLogin'];
@@ -1078,6 +1083,7 @@ function renderShell(){
   // The Admin account only plans and manages: no personal tabs
   const tabs = S.me.role === 'Admin' ? [['board','Deployment Plan']]   // the PD sees the same tabs as the Managers
     : [['home','My Deploy'],['board','Deployment Plan'],['oil','My OIL'],['apply','Apply'],['requests','Requests']];
+  if (isMy()) tabs.push(['myyear','My Year']);                       // goals for the year and feedback
   if (S.me.role === 'APO Supervisor') tabs.push(['trn','Training']);   // view only
   if (canView()) tabs.push(['admin','Admin']);
   $('#app').innerHTML = (LIVE ? '' : '<div class="demo">Preview: snapshot of your workbook, changes not saved</div>') + `
@@ -1175,10 +1181,11 @@ async function openHubApp(k){
 }
 
 function go(v){
+  if (S.view === 'myyear' && v !== 'myyear') myAutoSave(0);          // a goal still being typed is saved before leaving
   S.view = v;
   document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.v === v ? 'page' : 'false'));
   window.scrollTo(0, 0);
-  return ({ home:viewHome, board:viewBoard, oil:viewMyOil, apply:viewApply, requests:viewRequests, admin:viewAdmin, inc:viewInc, dmhome:viewDmHome, dmlist: () => viewDmList(),
+  return ({ home:viewHome, board:viewBoard, oil:viewMyOil, apply:viewApply, requests:viewRequests, admin:viewAdmin, inc:viewInc, dmhome:viewDmHome, dmlist: () => viewDmList(), myyear:viewMyYear,
     trn: () => { V().innerHTML = '<h2>Training</h2><div id="adm"></div>'; admTraining(); } })[v]();
 }
 const V = () => $('#view');
@@ -1223,6 +1230,7 @@ function drawHome(h, stale){
       <div class="hirow2">${dmBox(dmToday)}${h.attendance ? clockCard(h.attendance) : ''}</div>
       ${h.attendance ? clockNotes(h.attendance) + sickBox(h.attendance) : ''}
       ${vcHomeCard(h.vc)}
+      ${myHomeNote(h.myYear)}
       ${dmMine ? `<div class="dmcard"><span class="k dm">DM</span><div><b>You are the Duty Manager today</b><small>${esc(nice(S.today))}. Your DM duties will be listed here.</small></div></div>` : ''}
       ${bdayBanner(h.birthdays)}
       ${canView() || dmMine ? strCard() : ''}
@@ -1249,6 +1257,7 @@ function drawHome(h, stale){
     wireNews(h.news, !stale);
     S.vcDue = h.vc && h.vc.decide ? h.vc.decide.length : 0;
     wireVcHome(h.vc);
+    wireMyHome();
     if (canView() || dmMine) loadStrCard();
     if (h.inspections || dmMine) wireInsp(h.inspections);
     if (h.grab) { S.gc = h.grab; wireGc(h.grab); }
@@ -1965,6 +1974,183 @@ function dmSwapSheet(ds, kind, after){
   };
   bg.onclick = e => { if (e.target === bg) close(); };
   draw();
+}
+
+/* ============================================================
+   My Year: goals (vision) for a calendar year, and feedback to the managers.
+   Written by APO, APO Supervisor, Non-APO, Medic, Medic Certis; read by Managers, DY Managers and the PD (Admin -> Goals & Heart To Heart).
+   ============================================================ */
+const MY_ROLES = ['APO','APO Supervisor','Non-APO','Medic','Medic Certis'];
+const isMy = () => !!(S.me && MY_ROLES.includes(S.me.role) && !isPD());
+const isYgReader = () => !!(S.me && MGR_ROLES.includes(S.me.role));          // the PD signs in as a DY Manager (view only)
+const GOAL_ST = { 'Ongoing': 'Pending', 'Achieved': 'Approved', 'Try Again': 'TryAgain' };       // progress of a goal
+const goalPill = st => `<span class="pill ${GOAL_ST[st] || 'Pending'}">${esc(GOAL_ST[st] ? st : 'Ongoing')}</span>`;
+const fbPill = (st, mine) => `<span class="pill ${st === 'Done' ? 'Approved' : st === 'Seen' ? 'Pending' : mine ? 'Cancelled' : 'Rejected'}">${esc(mine && st === 'New' ? 'Sent' : st || 'New')}</span>`;
+const myAt = v => v ? nice(String(v).slice(0, 10)) + (String(v).length > 11 ? ', ' + String(v).slice(11, 16).replace(':', '') + 'hrs' : '') : '';
+const goalKey = y => 'rdp_goals_' + S.me.name + '_' + y;
+const newGid = () => 'G' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+async function viewMyYear(){
+  loading();
+  let d; try { d = await call('myYear', S.token); } catch(e){ return fail(e); }
+  S.my = d; S.myG = {};
+  d.years.forEach(y => {
+    let L = (d.goals[y] || { list: [] }).list.map(g => Object.assign({}, g));
+    try { const loc = JSON.parse(localStorage.getItem(goalKey(y)) || 'null'); if (loc && loc.unsaved && d.editable.includes(y)) { L = loc.list; S.myDirty = y; } } catch(e) {}
+    S.myG[y] = L;
+  });
+  const y0 = d.today.slice(0, 4), next = String(+y0 + 1);
+  if (!S.myY || !d.years.includes(S.myY)) S.myY = d.editable.includes(next) && !(d.goals[next] || {}).submittedAt ? next : d.years.includes(y0) ? y0 : d.years[0];
+  if (S.view !== 'myyear') return;
+  drawMyYear();
+  if (S.myDirty) myAutoSave(0);                                  // finish a save that did not go through last time
+}
+function drawMyYear(){
+  const d = S.my, y = S.myY, ed = d.editable.includes(y), info = d.goals[y] || {}, L = S.myG[y] || [];
+  const goalCard = (g, i) => ed ? `<div class="sec gcard" data-gi="${i}">
+      <div class="ghd"><b>Goal ${i + 1}</b><button class="linkbtn" data-gdel="${i}">Remove</button></div>
+      <label class="f"><span>Title</span><input type="text" data-gf="title" value="${esc(g.title || '')}" maxlength="100" placeholder="Type a short title for this goal"></label>
+      <label class="f"><span>What I want to achieve</span><textarea data-gf="goal" rows="2" maxlength="500" placeholder="Say it in your own words">${esc(g.goal || '')}</textarea></label>
+      <div class="row2"><label class="f"><span>By when (optional)</span><input type="date" data-gf="byWhen" value="${esc(g.byWhen || '')}" min="${y}-01-01" max="${y}-12-31"></label>
+        <label class="f"><span>Progress</span><select data-gf="status">${d.statuses.map(st => `<option ${st === (g.status || 'Ongoing') ? 'selected' : ''}>${esc(st)}</option>`).join('')}</select></label></div>
+      <label class="f"><span>How I'll know I got there (optional)</span><input type="text" data-gf="measure" value="${esc(g.measure || '')}" maxlength="200"></label>
+      <label class="f" style="margin-bottom:0"><span>Notes on progress (optional)</span><textarea data-gf="note" rows="2" maxlength="300">${esc(g.note || '')}</textarea></label>
+      ${goalComments(g)}</div>`
+    : `<div class="sec gcard"><div class="ghd"><b>${esc(g.title || 'Goal ' + (i + 1))}</b>${goalPill(g.status)}</div>
+      ${g.goal ? `<p style="margin:4px 0">${esc(g.goal)}</p>` : ''}
+      ${g.byWhen || g.measure ? `<p class="small muted" style="margin:4px 0">${g.byWhen ? 'By ' + esc(nice(g.byWhen)) : ''}${g.byWhen && g.measure ? ' &middot; ' : ''}${g.measure ? 'Done when: ' + esc(g.measure) : ''}</p>` : ''}
+      ${g.note ? `<p class="small" style="margin:4px 0"><b>Progress:</b> ${esc(g.note)}</p>` : ''}${goalComments(g)}</div>`;
+  const fb = d.feedback;
+  V().innerHTML = `<h2>My Year</h2>
+    <div class="sub" role="group" aria-label="Year">${d.years.map(x => `<button class="chip" data-my="${x}" aria-pressed="${x === y}">${x}</button>`).join('')}</div>
+    <h3 style="margin-top:6px">My goals for ${esc(y)}</h3>
+    ${ed ? `<p class="small muted" style="margin:-4px 0 10px">What do you want to achieve this year? Up to ${d.max} goals. Only the Managers, DY Managers and the PD can see them. ${info.submittedAt ? '' : 'Saved as you type; tap Submit when you are done.'}</p>` : `<p class="small muted" style="margin:-4px 0 10px">${esc(y)} is over: these can no longer be changed.</p>`}
+    ${info.submittedAt ? `<div class="note blue" style="margin-bottom:10px">Submitted ${esc(myAt(info.submittedAt))}.${ed ? ' You can still change them, and update how each is going during the year.' : ''}</div>` : ''}
+    <div id="goals">${L.length ? L.map(goalCard).join('') : `<div class="sec"><p class="muted" style="margin:0">${ed ? 'No goals yet. Tap Add a goal to start.' : 'No goals were set for ' + esc(y) + '.'}</p></div>`}</div>
+    ${ed ? `${L.length < d.max ? `<button class="btn ghost block" id="g-add">+ Add a goal (${L.length} of ${d.max})</button>` : ''}
+      <p class="small muted" id="g-saved" style="margin:8px 0">${S.myDirty === y ? 'Saving\u2026' : info.updatedAt ? 'Saved ' + esc(myAt(info.updatedAt)) : ''}</p>
+      ${info.submittedAt ? '' : `<button class="btn go block" id="g-sub" ${L.length ? '' : 'disabled'}>Submit my ${esc(y)} goals</button>`}` : ''}
+    <h3 style="margin-top:22px">Heart To Heart Talk</h3>
+    <p class="small muted" style="margin:-4px 0 10px">Anything you want to share with the managers: a concern, an idea, something that went well. Your name goes with it; only the Managers, DY Managers and the PD can read it, and they can reply here.</p>
+    <div class="sec"><label class="f"><span>Title</span><input type="text" id="fb-t" maxlength="100" placeholder="Type a short title" value="${esc(S.fbDraft ? S.fbDraft.t : '')}"></label>
+      <label class="f"><span>What's on your mind</span><textarea id="fb-m" rows="4" maxlength="2000">${esc(S.fbDraft ? S.fbDraft.m : '')}</textarea></label>
+      <button class="btn block" id="fb-go">Send</button></div>
+    ${fb.length ? `<h3>Sent</h3>${fb.map(x => `<div class="sec fbi"><div class="ghd"><b>${esc(x.title)}</b>${fbPill(x.status, true)}</div>
+      <div class="small muted">${esc(myAt(x.at))}</div><p style="margin:6px 0 0;white-space:pre-wrap">${esc(x.message)}</p>
+      ${x.reply ? `<div class="fbr"><b>Reply from ${esc(titleCase(x.replyBy))}</b> <span class="small muted">${esc(myAt(x.replyAt))}</span><p style="margin:4px 0 0;white-space:pre-wrap">${esc(x.reply)}</p></div>` : ''}</div>`).join('')}` : ''}`;
+  V().querySelectorAll('[data-my]').forEach(b => b.onclick = () => { myAutoSave(0); S.myY = b.dataset.my; drawMyYear(); });
+  if (ed) {
+    V().querySelectorAll('[data-gf]').forEach(inp => {
+      const i = +inp.closest('[data-gi]').dataset.gi, f = inp.dataset.gf;
+      inp.oninput = inp.onchange = () => { L[i][f] = inp.value; myAutoSave(1500); };
+      inp.onblur = () => myAutoSave(0);
+    });
+    V().querySelectorAll('[data-gdel]').forEach(b => b.onclick = async () => {
+      const i = +b.dataset.gdel, g = L[i];
+      if ((g.title || g.goal) && !(await askBox('Remove goal ' + (i + 1) + '?', esc(g.title || g.goal), 'Yes, remove'))) return;
+      L.splice(i, 1); myAutoSave(0); drawMyYear(); });
+    if ($('#g-add')) $('#g-add').onclick = () => { L.push({ id: newGid(), title: '', goal: '', byWhen: '', measure: '', status: 'Ongoing', note: '', comments: [] }); drawMyYear();
+      const c = V().querySelector(`[data-gi="${L.length - 1}"] [data-gf="title"]`); if (c) { c.focus(); c.scrollIntoView({ block: 'center' }); } };
+    if ($('#g-sub')) $('#g-sub').onclick = async e => {
+      const ok = L.filter(g => g.title || g.goal);
+      if (!ok.length) return toast('Write at least one goal first.', true);
+      const noT = ok.findIndex(g => !String(g.title || '').trim()); if (noT >= 0) { toast('Give goal ' + (L.indexOf(ok[noT]) + 1) + ' a title.', true); return; }
+      if (!(await askBox('Submit your ' + esc(y) + ' goals?', ok.map((g, i) => (i + 1) + '. <b>' + esc(g.title) + '</b>').join('<br>') + '<br><span class="muted">You can still change them and update how each is going during the year.</span>', 'Yes, submit'))) return;
+      busy(e.target, true);
+      try { clearTimeout(S.myT); const r = await call('goalsSave', S.token, y, L, true); myAfterSave(y, r); toast('Your ' + y + ' goals are submitted'); drawMyYear(); }
+      catch(x){ busy(e.target, false); fail(x); }
+    };
+  }
+  const keepFb = () => { S.fbDraft = { t: $('#fb-t').value, m: $('#fb-m').value }; };
+  $('#fb-t').oninput = keepFb; $('#fb-m').oninput = keepFb;
+  $('#fb-go').onclick = async e => {
+    const t = $('#fb-t').value.trim(), m = $('#fb-m').value.trim();
+    if (!t) { toast('Give your Heart To Heart Talk a title.', true); return $('#fb-t').focus(); }
+    if (!m) { toast('Write what is on your mind first.', true); return $('#fb-m').focus(); }
+    busy(e.target, true);
+    try { const r = await call('feedbackSend', S.token, t, m); S.my.feedback = r.feedback; S.fbDraft = null; toast('Sent to the managers'); drawMyYear(); }
+    catch(x){ busy(e.target, false); fail(x); }
+  };
+}
+function goalComments(g){
+  return (g.comments || []).length ? `<div class="gcm">${g.comments.map(c => `<div><b>${esc(titleCase(c.by))}</b> <span class="small muted">${esc(myAt(c.at))}</span><p style="margin:2px 0 0;white-space:pre-wrap">${esc(c.text)}</p></div>`).join('')}</div>` : '';
+}
+/* saved on this phone at once, and to the sheet a moment after typing stops (or when leaving a box) */
+function myAutoSave(wait){
+  const y = S.myY; if (!S.my || !S.my.editable.includes(y)) return;
+  const L = S.myG[y] || [];
+  if (wait) { S.myDirty = y; try { localStorage.setItem(goalKey(y), JSON.stringify({ unsaved: true, list: L })); } catch(e) {} const l = $('#g-saved'); if (l) l.textContent = 'Saving\u2026'; }
+  if (S.myDirty !== y) return;
+  clearTimeout(S.myT);
+  S.myT = setTimeout(async () => {
+    if (S.mySaving) return myAutoSave(800);
+    S.mySaving = true;
+    try { const r = await call('goalsSave', S.token, y, L, false); if (S.myDirty === y) S.myDirty = null; myAfterSave(y, r);
+      const l = $('#g-saved'); if (l && S.myY === y) l.textContent = 'Saved ' + myAt((r.goals[y] || {}).updatedAt);
+      const sb = $('#g-sub'); if (sb) sb.disabled = !L.some(g => g.title || g.goal); }
+    catch(e){ const l = $('#g-saved'); if (l) l.textContent = 'Not saved yet (kept on this phone): ' + ((e && e.message) || e); }
+    finally { S.mySaving = false; }
+  }, wait || 0);
+}
+function myAfterSave(y, r){
+  S.my.goals = r.goals; S.my.years = r.years;
+  try { localStorage.removeItem(goalKey(y)); } catch(e) {}
+  // keep what is on screen (still being typed); take the managers' comments from the server
+  (S.myG[y] || []).forEach(g => { const s2 = ((r.goals[y] || {}).list || []).find(x => x.id === g.id); if (s2) g.comments = s2.comments; });
+}
+/* My Deploy: a reminder to set / update the goals; for managers, new feedback */
+function myHomeNote(m){
+  if (!m) return '';
+  if (m.kind === 'set') return `<div class="note blue" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span><b>Set your ${esc(m.year)} goals.</b> What do you want to achieve this year?</span><button class="btn" data-goyear="1" style="min-height:38px">Open My Year</button></div>`;
+  if (m.kind === 'update') return `<div class="note blue" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span><b>How are your ${esc(m.year)} goals going?</b> Update each one in My Year.</span><button class="btn" data-goyear="1" style="min-height:38px">Open My Year</button></div>`;
+  if (m.kind === 'feedback') return `<div class="note" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span><b>${m.n} new Heart To Heart Talk${m.n === 1 ? '' : 's'}</b> from the team.</span><button class="btn" data-gofb="1" style="min-height:38px">Read</button></div>`;
+  return '';
+}
+function wireMyHome(){
+  document.querySelectorAll('[data-goyear]').forEach(b => b.onclick = () => go('myyear'));
+  document.querySelectorAll('[data-gofb]').forEach(b => b.onclick = () => { S.adminTab = 'yg'; S.ygSub = 'fb'; go('admin'); });
+}
+
+/* ---------- Admin -> Goals & Feedback (Managers, DY Managers; the PD reads) ---------- */
+async function admYg(){
+  loadingA();
+  try { S.yg = await call('myOverview', S.token, S.ygY || ''); S.ygY = S.yg.year; drawYg(); } catch(e){ fail(e); }
+}
+function drawYg(){
+  const d = S.yg, sub = S.ygSub || 'goals', ed = d.canEdit && !isPD();
+  const nSub = d.people.filter(p => p.submittedAt).length, nNew = d.feedback.filter(x => x.status === 'New').length;
+  const f = S.ygF || 'open';
+  const fbs = d.feedback.filter(x => f === 'all' || (f === 'open' ? x.status !== 'Done' : x.status === 'Done'));
+  A().innerHTML = `<div class="sub" role="group" aria-label="Show"><button class="chip" data-ygs="goals" aria-pressed="${sub === 'goals'}">Goals (${nSub}/${d.people.length})</button><button class="chip" data-ygs="fb" aria-pressed="${sub === 'fb'}">Heart To Heart${nNew ? ' &middot; ' + nNew + ' new' : ''}</button></div>
+    ${sub === 'goals' ? `<div class="sub" role="group" aria-label="Year" style="margin-top:-4px">${d.years.map(y => `<button class="chip" data-ygy="${y}" aria-pressed="${y === d.year}">${y}</button>`).join('')}</div>
+      <p class="small muted">${nSub} of ${d.people.length} submitted their ${esc(d.year)} goals. Only Managers, DY Managers and the PD can see these.${ed ? ' A comment shows under the goal for that person (and they are emailed).' : ''}</p>
+      ${d.people.map(p => `<div class="sec ygp"><div class="ghd"><b>${esc(titleCase(p.name))}</b><span class="pill ${p.submittedAt ? 'Approved' : p.list.length ? 'Pending' : 'Cancelled'}">${p.submittedAt ? 'Submitted ' + esc(nice(p.submittedAt.slice(0, 10))) : p.list.length ? 'Started, not submitted' : 'No goals yet'}</span></div>
+        <div class="small muted">${esc(p.role)}${p.updatedAt ? ' &middot; updated ' + esc(myAt(p.updatedAt)) : ''}</div>
+        ${p.list.map(g => `<div class="ygg"><div class="ghd"><b>${esc(g.title || '(no title)')}</b>${goalPill(g.status)}</div>
+          ${g.goal ? `<p style="margin:2px 0">${esc(g.goal)}</p>` : ''}
+          ${g.byWhen || g.measure ? `<p class="small muted" style="margin:2px 0">${g.byWhen ? 'By ' + esc(nice(g.byWhen)) : ''}${g.byWhen && g.measure ? ' &middot; ' : ''}${g.measure ? 'Done when: ' + esc(g.measure) : ''}</p>` : ''}
+          ${g.note ? `<p class="small" style="margin:2px 0"><b>Progress:</b> ${esc(g.note)}</p>` : ''}${goalComments(g)}
+          ${ed ? `<div class="ygc"><input type="text" data-ygc="${esc(g.id)}" maxlength="500" placeholder="Comment for ${esc(titleCase(p.name))}"><button class="btn ghost" data-ygcs="${esc(g.id)}">Comment</button></div>` : ''}</div>`).join('')}</div>`).join('')}`
+    : `<div class="sub" role="group" aria-label="Filter" style="margin-top:-4px">${[['open','Open'],['done','Done'],['all','All']].map(([k, l]) => `<button class="chip" data-ygf="${k}" aria-pressed="${k === f}">${l}</button>`).join('')}</div>
+      ${fbs.length ? fbs.map(x => `<div class="sec fbi"><div class="ghd"><b>${esc(x.title)}</b>${fbPill(x.status)}</div>
+        <div class="small muted">${esc(titleCase(x.name))} (${esc(x.role)}) &middot; ${esc(myAt(x.at))}${x.seenBy ? ' &middot; seen by ' + esc(titleCase(x.seenBy)) : ''}</div>
+        <p style="margin:6px 0 0;white-space:pre-wrap">${esc(x.message)}</p>
+        ${x.reply && !ed ? `<div class="fbr"><b>Reply from ${esc(titleCase(x.replyBy))}</b> <span class="small muted">${esc(myAt(x.replyAt))}</span><p style="margin:4px 0 0;white-space:pre-wrap">${esc(x.reply)}</p></div>` : ''}
+        ${ed ? `<label class="f" style="margin:10px 0 6px"><span>Reply${x.replyBy ? ' (last by ' + esc(titleCase(x.replyBy)) + ', ' + esc(myAt(x.replyAt)) + ')' : ''}</span><textarea data-fbr="${esc(x.id)}" rows="2" maxlength="2000" placeholder="They see this in My Year (and are emailed)">${esc(x.reply || '')}</textarea></label>
+          <div class="fba"><button class="btn" data-fbsend="${esc(x.id)}">Send reply</button>${x.status !== 'Seen' ? `<button class="btn ghost" data-fbst="${esc(x.id)}|Seen">Mark seen</button>` : ''}${x.status !== 'Done' ? `<button class="btn ghost" data-fbst="${esc(x.id)}|Done">Mark done</button>` : `<button class="btn ghost" data-fbst="${esc(x.id)}|Seen">Reopen</button>`}</div>` : ''}</div>`).join('')
+        : `<div class="sec"><p class="muted" style="margin:0">${d.feedback.length ? 'Nothing in this view.' : 'No Heart To Heart Talks yet.'}</p></div>`}`}`;
+  A().querySelectorAll('[data-ygs]').forEach(b => b.onclick = () => { S.ygSub = b.dataset.ygs; drawYg(); });
+  A().querySelectorAll('[data-ygf]').forEach(b => b.onclick = () => { S.ygF = b.dataset.ygf; drawYg(); });
+  A().querySelectorAll('[data-ygy]').forEach(b => b.onclick = () => { S.ygY = b.dataset.ygy; admYg(); });
+  A().querySelectorAll('[data-ygcs]').forEach(b => b.onclick = async () => {
+    const inp = A().querySelector(`[data-ygc="${CSS.escape(b.dataset.ygcs)}"]`), t = inp.value.trim();
+    if (!t) { toast('Write the comment first.', true); return inp.focus(); }
+    busy(b, true);
+    try { S.yg = await call('goalComment', S.token, b.dataset.ygcs, t); toast('Comment added'); drawYg(); } catch(x){ busy(b, false); fail(x); }
+  });
+  const upd = async (b, id, f2, msg) => { busy(b, true); try { S.yg = await call('feedbackUpdate', S.token, id, f2); toast(msg); drawYg(); } catch(x){ busy(b, false); fail(x); } };
+  A().querySelectorAll('[data-fbsend]').forEach(b => b.onclick = () => { const id = b.dataset.fbsend, t = A().querySelector(`[data-fbr="${CSS.escape(id)}"]`).value.trim();
+    if (!t) { toast('Write the reply first.', true); return; } upd(b, id, { reply: t }, 'Reply sent'); });
+  A().querySelectorAll('[data-fbst]').forEach(b => b.onclick = () => { const [id, st] = b.dataset.fbst.split('|'); upd(b, id, { status: st }, st === 'Done' ? 'Marked done' : 'Marked seen'); });
 }
 
 /* ---------- Duty Manager roster (planned by another department; pasted in here) ---------- */
@@ -3915,6 +4101,7 @@ function viewAdmin(){
     [['team','Team'],['staff','Staff'],['alg','Allergo'],['changes','Changes']],
     [['oil','OIL Update'],['dm','Duty Manager'],['inc','Incident Report'],['sup','Supervising']],
     [['duty','Duty Count'],['away','Away List'],['clr','Clearance'],['vc','Vehicle Checks']]];
+  if (isYgReader()) rows.push([['yg','Goals & Heart To Heart']]);           // Managers, DY Managers, the PD (not the Admin account)
   V().innerHTML = `<h2>Admin</h2><div class="subrows">${rows.map(r => `<div class="subrow">${r.map(([k,l]) =>
     `<button class="chip" data-a="${k}" aria-pressed="${k===S.adminTab}">${l}</button>`).join('')}</div>`).join('')}</div><div id="adm"></div>
     <p style="margin-top:24px;text-align:center"><button class="linkbtn" id="spd">Speed check</button></p>`;
@@ -3926,7 +4113,7 @@ const A = () => $('#adm');
 /* "Loading" placeholder for an Admin sub-tab; skipped on a background refresh so the page does not collapse and jump */
 const loadingA = () => { if (!S.quiet) A().innerHTML = '<div class="loading">Loading\u2026</div>'; };
 /* (re)load the open Admin sub-tab only */
-function admLoad(){ return ({ pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, duty:admDuty, away:admAway, clr:admClearance, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges, vc:admVc })[S.adminTab](); }
+function admLoad(){ if (S.adminTab === 'yg' && !isYgReader()) S.adminTab = 'pending'; return ({ yg:admYg, pending:admPending, att:admAtt, dm:() => admDm(), inc:viewInc, sup:admSup, duty:admDuty, away:admAway, clr:admClearance, alg:admAllergo, trn:admTraining, team:admTeam, staff:admStaff, oil:admOil, lib:admLib, changes:admChanges, vc:admVc })[S.adminTab](); }
 
 async function admPending(){
   loadingA();
@@ -5532,6 +5719,12 @@ const MOCK = (() => {
     g.fillStyle = '#fff'; g.fillRect(0, 0, 360, 120); g.strokeStyle = '#0F2A44'; g.lineWidth = 4; g.beginPath(); g.moveTo(30, 80);
     for (let i = 0; i < 7; i++) g.bezierCurveTo(40 + i * 40, 20, 60 + i * 40, 110, 80 + i * 40, 60); g.stroke(); return (c = cv.toDataURL('image/png')); }; })();
   const mVc = [], mVcMon = [], mVcPh = {};
+  /* My Year (demo): goals and feedback */
+  const mGoals = [], mFb = [{ id:'FB1', at: addD(today, -3) + ' 18:02', name:'ARIF', role:'APO', title:'Water at 100M2', message:'The water cooler at 100M2 has been empty since Monday. Can we get it refilled?', status:'New', reply:'', replyBy:'', replyAt:'', seenBy:'', seenAt:'' }];
+  const mMyRoles = ['APO','APO Supervisor','Non-APO','Medic','Medic Certis'], mGSt = ['Ongoing','Achieved','Try Again'];
+  const mMyEd = () => { const y = +today.slice(0, 4), m = +today.slice(5, 7); return [String(y)].concat(m === 12 ? [String(y + 1)] : [], m === 1 ? [String(y - 1)] : []).sort().reverse(); };
+  const mGOut = rows => { const L = rows.slice().sort((a, b) => a.no - b.no); return { submittedAt: L.length ? L[0].sub : '', updatedAt: L.reduce((a, r) => r.upd > a ? r.upd : a, ''), list: L.map(r => ({ id: r.id, title: r.title, goal: r.goal, byWhen: r.byWhen, measure: r.measure, status: r.status, note: r.note, comments: r.comments.slice() })) }; };
+  const mNow = () => today + ' ' + hhmm() + ':00';
   (() => { const ym = today.slice(0, 7); let sig1 = null; for (let d = 1; ; d++) { const ds = ym + '-' + String(d).padStart(2, '0'); if (ds >= today || pd(ds).getMonth() !== pd(today).getMonth()) break;
     const drv = mVcDrv(ds); if (!drv || pd(ds).getDate() === 23) continue;
     const items = mVcItems.map(x => x.t === 'select' ? { id: x.id, s: x.s, n: x.n, t: 'select', v: ['FULL','3/4','1/2','2/3'][d % 4] } : { id: x.id, s: x.s, n: x.n, t: 'tick', ok: true, f: '' });
@@ -5756,12 +5949,33 @@ const MOCK = (() => {
     ping: () => ({ v: String(window.__mockVer || '1'), today }),
     getHome: () => ({ me:S.me, balances:{ oilAvailable:oil.filter(o=>o.name===S.me.name).reduce((a,o)=>a+o.available,0), oilReserved:0, pending:1 },
       lib: SNAP.lib[S.me.name] || null, upcoming: mockSched(today, 14),
+      myYear: mMyRoles.includes(S.me.role) ? ((+today.slice(5, 7) === 12 && !mGoals.some(r => r.name === S.me.name && r.year === String(+today.slice(0, 4) + 1) && r.sub)) ? { kind:'set', year: String(+today.slice(0, 4) + 1) } : null)
+        : MGR_ROLES.includes(S.me.role) && mFb.some(x => x.status === 'New') ? { kind:'feedback', n: mFb.filter(x => x.status === 'New').length } : null,
       news: mNewsList(), monthSum: (x => ({ ym: x.ym, ext: x.ext.length, wkend: x.wkend.length }))(mMonth(today.slice(0, 7))), attendance: isPD() ? { date: today, lateAfter, clockIn: '', status: '', viewOnly: true } : NOSTAFF(S.me.role) ? null : mockMyAtt(S.me.name), inspections: canView() ? mockInsp() : null, grab: canView() ? mockGrab() : null, reports: canView() || isMeDm(mDm[today]) ? mRep : null, allergo: NOSTAFF(S.me.role) ? null : mAlg.filter(x => x.name === S.me.name && !x.ticked).map(x => Object.assign({}, x, { state: today > x.due ? 'late' : 'todo' })),
       dmMap: (() => { const o = {}; for (let i = -1; i <= 8; i++) { const x = addD(today, i); if (mDm[x]) o[x] = mDm[x]; } return o; })(),
       birthdays: mBdays(), sid: MID[S.me.name] || '', training: TRAINEES.includes(S.me.role) ? mTrn(true) : null, vc: mVcHome() }),
     vcForm: (t, d) => ({ date: d, items: mVcCfg, fuel: ['Red Light','1/16','1/8','3/16','1/4','5/16','1/3','3/8','7/16','1/2','9/16','5/8','2/3','11/16','3/4','13/16','7/8','15/16','FULL'], trucks: mAm.trucks.filter(x => x.active).map(x => ({ id: x.id, plate: x.plate, name: x.name })), driverOn: mVcDrv(d),
       carry: Object.fromEntries(mAm.trucks.filter(x => x.active).map(x => [x.id, mVcCarry(d, x.id)])),
       recs: mVc.filter(r => r.date === d).map(r => mVcOut(r, true)) }),
+    myYear: () => { if (!mMyRoles.includes(S.me.role)) throw new Error('My Year is for APOs and medics.'); const rows = mGoals.filter(r => r.name === S.me.name), ed = mMyEd();
+      const years = ed.concat(rows.map(r => r.year)).filter((y, i, a) => a.indexOf(y) === i).sort().reverse(), goals = {}; years.forEach(y => goals[y] = mGOut(rows.filter(r => r.year === y)));
+      return JSON.parse(JSON.stringify({ today, years, editable: ed, goals, statuses: mGSt, max: 5, feedback: mFb.filter(x => x.name === S.me.name).slice().reverse() })); },
+    goalsSave: (t, y, list, submit) => { if (!mMyEd().includes(y)) throw new Error('Goals for ' + y + ' can no longer be changed.');
+      const L = (list || []).slice(0, 5).filter(g => (g.title || '').trim() || (g.goal || '').trim());
+      if (submit && !L.length) throw new Error('Write at least one goal first.'); if (submit && L.some(g => !(g.title || '').trim())) throw new Error('Give each goal a title.');
+      const mine = mGoals.filter(r => r.name === S.me.name && r.year === y), sub = (mine[0] && mine[0].sub) || (submit ? mNow() : ''), cm = {}; mine.forEach(r => cm[r.id] = r.comments);
+      for (let i = mGoals.length - 1; i >= 0; i--) if (mGoals[i].name === S.me.name && mGoals[i].year === y) mGoals.splice(i, 1);
+      L.forEach((g, i) => mGoals.push({ id: g.id, year: y, name: S.me.name, no: i + 1, title: (g.title || '').trim(), goal: g.goal || '', byWhen: g.byWhen || '', measure: g.measure || '', status: mGSt.includes(g.status) ? g.status : 'Ongoing', note: g.note || '', sub, upd: mNow(), comments: cm[g.id] || [] }));
+      return MOCK.myYear(); },
+    goalComment: (t, id, text) => { if (isPD()) throw new Error('View only'); const r = mGoals.find(x => x.id === id); r.comments.push({ by: S.me.name, at: mNow(), text }); return MOCK.myOverview(t, r.year); },
+    feedbackSend: (t, title, msg) => { if (!(title || '').trim()) throw new Error('Give your Heart To Heart Talk a title.'); mFb.push({ id:'FB' + Date.now(), at: mNow(), name: S.me.name, role: S.me.role, title: title.trim(), message: msg.trim(), status:'New', reply:'', replyBy:'', replyAt:'', seenBy:'', seenAt:'' }); return MOCK.myYear(); },
+    feedbackUpdate: (t, id, f) => { if (isPD()) throw new Error('View only'); const x = mFb.find(y => y.id === id);
+      if (f.status) x.status = f.status; if (f.reply != null) { x.reply = f.reply; x.replyBy = S.me.name; x.replyAt = mNow(); if (x.status === 'New') x.status = 'Seen'; }
+      if (x.status !== 'New' && !x.seenBy) { x.seenBy = S.me.name; x.seenAt = mNow(); } return MOCK.myOverview(t); },
+    myOverview: (t, year) => { const yrs = mMyEd().concat(mGoals.map(r => r.year)).filter((y, i, a) => a.indexOf(y) === i).sort().reverse(); year = yrs.includes(year) ? year : today.slice(5, 7) === '12' ? String(+today.slice(0, 4) + 1) : today.slice(0, 4);
+      return JSON.parse(JSON.stringify({ today, year, years: yrs, statuses: mGSt, canEdit: !isPD(),
+        people: staffList.filter(p => mMyRoles.includes(p.role) && p.active).map(p => Object.assign({ name: p.name, role: p.role }, mGOut(mGoals.filter(r => r.name === p.name && r.year === year)))),
+        feedback: mFb.slice().reverse() })); },
     vcPhotoUp: (t, d, data) => { const id = 'PHDEMO' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12); mVcPh[id] = data; return { id }; },
     vcPhotos: (t, ids) => (ids || []).filter(i => mVcPh[i]).map(i => ({ id: i, data: mVcPh[i] })),
     vcRecord: (t, id) => { const r = mVc.find(x => x.id === id); if (!r) throw new Error('That checklist was not found.'); return mVcOut(r, true); },
