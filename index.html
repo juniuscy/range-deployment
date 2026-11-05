@@ -1999,7 +1999,8 @@ async function viewMyYear(){
     S.myG[y] = L;
   });
   const y0 = d.today.slice(0, 4), next = String(+y0 + 1);
-  if (!S.myY || !d.years.includes(S.myY)) S.myY = d.editable.includes(next) && !(d.goals[next] || {}).submittedAt ? next : d.years.includes(y0) ? y0 : d.years[0];
+  // opens on this year; in December on next year until it is submitted (next year can be set from 1 Oct with the year chips)
+  if (!S.myY || !d.years.includes(S.myY)) S.myY = d.today.slice(5, 7) === '12' && d.editable.includes(next) && !(d.goals[next] || {}).submittedAt ? next : d.years.includes(y0) ? y0 : d.years[0];
   if (S.view !== 'myyear') return;
   drawMyYear();
   if (S.myDirty) myAutoSave(0);                                  // finish a save that did not go through last time
@@ -2030,7 +2031,7 @@ function drawMyYear(){
       <p class="small muted" id="g-saved" style="margin:8px 0">${S.myDirty === y ? 'Saving\u2026' : info.updatedAt ? 'Saved ' + esc(myAt(info.updatedAt)) : ''}</p>
       ${info.submittedAt ? '' : `<button class="btn go block" id="g-sub" ${L.length ? '' : 'disabled'}>Submit my ${esc(y)} goals</button>`}` : ''}
     <h3 style="margin-top:22px">Heart To Heart Talk</h3>
-    <p class="small muted" style="margin:-4px 0 10px">Anything you want to share with the managers: a concern, an idea, something that went well. Your name goes with it; only the Managers, DY Managers and the PD can read it, and they can reply here.</p>
+    <p class="small muted" style="margin:-4px 0 10px">Anything you want to share with the managers: a concern, an idea, something that went well.</p>
     <div class="sec"><label class="f"><span>Title</span><input type="text" id="fb-t" maxlength="100" placeholder="Type a short title" value="${esc(S.fbDraft ? S.fbDraft.t : '')}"></label>
       <label class="f"><span>What's on your mind</span><textarea id="fb-m" rows="4" maxlength="2000">${esc(S.fbDraft ? S.fbDraft.m : '')}</textarea></label>
       <button class="btn block" id="fb-go">Send</button></div>
@@ -5722,7 +5723,7 @@ const MOCK = (() => {
   /* My Year (demo): goals and feedback */
   const mGoals = [], mFb = [{ id:'FB1', at: addD(today, -3) + ' 18:02', name:'ARIF', role:'APO', title:'Water at 100M2', message:'The water cooler at 100M2 has been empty since Monday. Can we get it refilled?', status:'New', reply:'', replyBy:'', replyAt:'', seenBy:'', seenAt:'' }];
   const mMyRoles = ['APO','APO Supervisor','Non-APO','Medic','Medic Certis'], mGSt = ['Ongoing','Achieved','Try Again'];
-  const mMyEd = () => { const y = +today.slice(0, 4), m = +today.slice(5, 7); return [String(y)].concat(m === 12 ? [String(y + 1)] : [], m === 1 ? [String(y - 1)] : []).sort().reverse(); };
+  const mMyEd = () => { const y = +today.slice(0, 4), m = +today.slice(5, 7); return [String(y)].concat(m >= 10 ? [String(y + 1)] : [], m === 1 ? [String(y - 1)] : []).sort().reverse(); };
   const mGOut = rows => { const L = rows.slice().sort((a, b) => a.no - b.no); return { submittedAt: L.length ? L[0].sub : '', updatedAt: L.reduce((a, r) => r.upd > a ? r.upd : a, ''), list: L.map(r => ({ id: r.id, title: r.title, goal: r.goal, byWhen: r.byWhen, measure: r.measure, status: r.status, note: r.note, comments: r.comments.slice() })) }; };
   const mNow = () => today + ' ' + hhmm() + ':00';
   (() => { const ym = today.slice(0, 7); let sig1 = null; for (let d = 1; ; d++) { const ds = ym + '-' + String(d).padStart(2, '0'); if (ds >= today || pd(ds).getMonth() !== pd(today).getMonth()) break;
