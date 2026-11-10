@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17212B">
+<meta name="robots" content="noindex">
+<title>Range Deployment v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js">
+<script>
+  /* 1. The v2 sync script's web app link (ends in /exec). Paste it here after deploying it (SETUP-v2.md, step 5). */
+  window.V2_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxuBga4qvXzyi0BsFEziu0CBIiHQf4EbaauWZQ6eaRu9ybVgb_FjjMaAZeyOTB-ED9gkA/exec';
+  /* 2. Your Firebase project (public settings, not a password: the database rules do the protecting). */
+  window.V2_FIREBASE = {
+    apiKey: 'AIzaSyAYClAyG8gMCp1vpoYlz1PbJec2fTgiPCc',
+    authDomain: 'range-deployment-v2.firebaseapp.com',
+    projectId: 'range-deployment-v2',
+    storageBucket: 'range-deployment-v2.firebasestorage.app',
+    messagingSenderId: '640389687498',
+    appId: '1:640389687498:web:ecee811a63194e3b3c6c33'
+  };
+</script>
+<style>
+:root{
+  --ink:#17212B; --paper:#EEF1EC; --card:#FFFFFF; --line:#D3DAD2; --muted:#5B6874;
+  --steel:#2C5378; --steel-soft:#E3ECF4; --flag:#B3261E; --flag-soft:#F9E3E1;
+  --go:#2E7A4C; --go-soft:#E1F0E6; --wait:#A26A0A; --wait-soft:#F6EBD5;
+  --dep:#22C55E; --dep-soft:#DCFCE7; --ext:#059669; --ext-soft:#D1FAE5;
+  --r-sm:6px; --r-md:10px;
+  --cond:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow","Segoe UI",Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.4 var(--body);-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+header.top{background:var(--ink);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 0 10px}
+header.top .wrap{display:flex;align-items:center;gap:10px}
+.brand{font:700 20px/1.1 var(--cond);letter-spacing:.3px;flex:1;min-width:0}
+.brand small{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;background:#FACC15;color:var(--ink);font:700 12px/1.4 var(--body);vertical-align:2px}
+.who{font-size:13px;opacity:.9;text-align:right;line-height:1.2}
+.who button{margin-left:8px;background:none;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:var(--r-sm);padding:4px 8px;font-size:13px;cursor:pointer}
+.status{background:var(--card);border-bottom:1px solid var(--line)}
+.status .wrap{display:flex;align-items:center;gap:10px;padding-top:8px;padding-bottom:8px;font-size:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dep);flex:none;box-shadow:0 0 0 3px var(--dep-soft)}
+.dot.warn{background:var(--wait);box-shadow:0 0 0 3px var(--wait-soft)}
+.dot.bad{background:var(--flag);box-shadow:0 0 0 3px var(--flag-soft)}
+.status .txt{flex:1;min-width:0;color:var(--muted)}
+.status .txt b{color:var(--ink);font-weight:600}
+.btn{background:var(--steel);color:#fff;border:0;border-radius:var(--r-sm);padding:9px 14px;font-weight:600;cursor:pointer;min-height:40px}
+.btn.ghost{background:var(--card);color:var(--steel);border:1px solid var(--line)}
+.btn.small{padding:6px 10px;min-height:34px;font-size:14px}
+.btn[disabled]{opacity:.55;cursor:default}
+nav.tabs{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+nav.tabs .wrap{display:flex;gap:4px}
+nav.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:12px 6px 9px;font:700 17px/1 var(--cond);letter-spacing:.3px;color:var(--muted);cursor:pointer}
+nav.tabs button[aria-current=page]{color:var(--steel);border-bottom-color:var(--steel)}
+main{padding:14px 0 40px}
+h2{font:700 22px/1.15 var(--cond);margin:0 0 10px}
+h3{font:700 17px/1.2 var(--cond);margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.note{background:var(--wait-soft);border-left:4px solid var(--wait);padding:10px 12px;border-radius:var(--r-sm);font-size:14px;margin:0 0 12px}
+.note.blue{background:var(--steel-soft);border-left-color:var(--steel)}
+.note.red{background:var(--flag-soft);border-left-color:var(--flag)}
+/* My Deploy */
+.days{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.drow{display:flex;gap:12px;padding:11px 12px;border-top:1px solid var(--line)}
+.drow:first-child{border-top:0}
+.drow.today{background:var(--steel-soft)}
+.drow.we .dd{color:var(--flag)}
+.dd{width:62px;flex:none;font:700 16px/1.15 var(--cond)}
+.dd small{display:block;font:500 13px/1.3 var(--body);color:var(--muted)}
+.dc{flex:1;min-width:0}
+.post{margin:0 0 6px}
+.post:last-child{margin:0}
+.post b{font-weight:700}
+.tag{display:inline-block;padding:1px 7px;border-radius:4px;font:700 13px/1.5 var(--body);margin-right:6px;vertical-align:1px}
+.tag.rg{background:var(--dep-soft);color:#14532D}
+.tag.du{background:var(--steel-soft);color:var(--steel)}
+.tag.md{background:#FCE7F3;color:#9D174D}
+.tag.aw{background:var(--wait-soft);color:#7A4F06}
+.tag.ext{background:var(--ext-soft);color:#065F46}
+.det{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.next{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--dep);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px}
+.next .k{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.next .v{font:700 22px/1.2 var(--cond);margin-top:2px}
+/* Deployment Plan */
+.daybar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.daybar h2{flex:1;margin:0;text-align:center}
+.daybar .btn{min-width:44px}
+.rc{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px}
+.rc.me{border-left:5px solid var(--dep)}
+.rc.ro{border-style:dashed;background:#FBFCFA}
+.rh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rn{font:700 20px/1 var(--cond);min-width:56px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font:600 12.5px/1.5 var(--body);background:var(--steel-soft);color:var(--steel)}
+.pill.wd{background:var(--go-soft);color:var(--go)}
+.pill.ext{background:var(--ext-soft);color:#065F46}
+.pill.cxl{background:var(--flag-soft);color:var(--flag)}
+.rl{display:grid;grid-template-columns:48px 1fr;gap:2px 8px;margin-top:6px;font-size:15px}
+.rl dt{color:var(--muted);font-size:13px;padding-top:1px}
+.rl dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.rl dd.apo{font-weight:700}
+.rl dd.apo.mine{color:#15803D}
+.rl dd.none{color:var(--wait);font-weight:600}
+.cmp{margin-top:8px;padding:7px 9px;border-radius:var(--r-sm);background:var(--wait-soft);font-size:13.5px}
+.cmp b{font-weight:700}
+.cmp.ok{background:none;padding:0;color:var(--go);font-size:12.5px;margin-top:6px}
+table.t{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;font-size:15px}
+table.t td,table.t th{padding:8px 10px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+table.t th{font:600 13px/1.2 var(--body);color:var(--muted);background:#F7F9F6;border-top:0}
+table.t tr.mine td{background:var(--dep-soft)}
+table.t td:first-child{font-weight:600;white-space:nowrap}
+.awl{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md)}
+.awl div{padding:8px 12px;border-top:1px solid var(--line);font-size:15px}
+.awl div:first-child{border-top:0}
+.awl div.mine{background:var(--dep-soft)}
+/* Login */
+.login{max-width:380px;margin:0 auto;padding:40px 16px}
+.login h1{font:700 30px/1.1 var(--cond);margin:0 0 4px}
+.login form{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:16px;margin-top:18px}
+label.f{display:block;margin-bottom:12px}
+label.f span{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
+label.f input{width:100%;font:inherit;font-size:17px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;color:var(--ink)}
+label.f input:focus{outline:2px solid var(--steel);outline-offset:1px}
+.err{color:var(--flag);font-size:14px;min-height:20px;margin:0 0 8px}
+.login .btn{width:100%}
+.load{padding:60px 16px;text-align:center;color:var(--muted)}
+.spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--steel);animation:sp 0.8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:var(--r-md);font-size:14px;max-width:calc(100% - 32px);z-index:20;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.foot{margin-top:22px;font-size:13px;color:var(--muted);text-align:center}
+@media (max-width:420px){ .who span.role{display:none} .rl{grid-template-columns:44px 1fr} }
+@media (prefers-reduced-motion:reduce){ .spin{animation:none} }
+</style>
+</head>
+<body>
+<div id="app"><div class="load"><div class="spin"></div>Opening&hellip;</div></div>
+<script type="module">
+/* Range Deployment v2 (trial): My Deploy and the Deployment Plan, read live from Firestore.
+   Firestore is filled by the v2 sync script from your sheet and the Range Office workplans.
+   View only: changes are still made in the current app. */
+const FBV = '10.12.2';
+const DEMO = window.V2_DEMO || null;                 // local preview only (never on GitHub)
+const SYNC_URL = /^https:\/\/script\.google\.com\/.+\/exec$/.test(String(window.V2_SYNC_URL || '')) ? window.V2_SYNC_URL : '';
+const RANGES = ['25M', '50M1', '50M2', '100M1', '100M2', 'MTR1', 'MTR2', 'UOR', 'MTR1A', 'MTR2A'];
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const SESS = { 'WD': 'Whole day', 'AM PM': 'AM + PM', 'AM': 'AM only', 'PM': 'PM only' };
+
+const $ = (s, el) => (el || document).querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+const sgToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const D = s => new Date(s + 'T00:00:00Z');
+const addD = (s, n) => { const d = D(s); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const monOf = s => addD(s, -((D(s).getUTCDay() + 6) % 7));
+const dow = s => D(s).getUTCDay();
+const nice = s => DOW[dow(s)] + ' ' + D(s).getUTCDate() + ' ' + MON[D(s).getUTCMonth()];
+const hhmm = iso => { if (!iso) return ''; const t = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso)); return t.replace(':', ''); };
+const titleCase = s => String(s || '').toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
+const norm = s => String(s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+const norm2 = s => String(s || '').toUpperCase().replace(/[\s()]+/g, '');
+
+const S = { me: null, view: store.get('v2_view') === 'plan' ? 'plan' : 'mine', day: null, docs: {}, subs: {}, today: sgToday(), uid: '' };
+
+/* ---------------- Data: Firebase (or the local demo) ---------------- */
+let FB = null;          // { app, auth, db, A (auth module), F (firestore module) }
+async function loadFirebase() {
+  const base = 'https://www.gstatic.com/firebasejs/' + FBV + '/';
+  const [appM, A, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+  const app = appM.initializeApp(window.V2_FIREBASE);
+  let db;
+  try { db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); }
+  catch (e) { db = F.getFirestore(app); }          // private window etc.: no saved copy, still works
+  return { app, auth: A.getAuth(app), db, A, F };
+}
+/** Listen to one document; cb(data or null). Returns a stop function. */
+function watch(path, cb, onErr) {
+  if (DEMO) {
+    const t = setTimeout(() => cb(DEMO[path] || null), 30);
+    return () => clearTimeout(t);
+  }
+  const ref = FB.F.doc(FB.db, ...path.split('/'));
+  return FB.F.onSnapshot(ref, { includeMetadataChanges: false }, snap => {
+    if (!snap.exists()) return cb(null);
+    const d = snap.data();
+    const out = {};
+    Object.keys(d).forEach(k => { out[k] = d[k] && typeof d[k].toDate === 'function' ? d[k].toDate().toISOString() : d[k]; });
+    cb(out);
+  }, err => (onErr || dataErr)(err));
+}
+function dataErr(err) {
+  if (err && err.code === 'permission-denied') { stopAll(); S.me = null; showLogin('Your sign-in on this phone has ended. Sign in again.'); }
+  else toast('Could not load: ' + ((err && err.message) || err));
+}
+function stopAll() { Object.keys(S.subs).forEach(k => { try { S.subs[k](); } catch (e) {} }); S.subs = {}; S.docs = {}; }
+/** Make sure a document is being listened to; returns what we have so far (undefined = still loading) */
+function need(path) {
+  if (!S.subs[path]) {
+    S.subs[path] = watch(path, d => {
+      let v = null;
+      if (d) { try { v = Object.assign({}, d, d.json ? { data: JSON.parse(d.json) } : {}); } catch (e) { v = d; } }
+      S.docs[path] = v;
+      schedule();
+    });
+  }
+  return S.docs[path];
+}
+let raf = 0;
+function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
+
+/** Week of a date: undefined while loading, null if not copied yet, else { days } */
+function weekOf(ds) {
+  const d = need('weeks/' + monOf(ds));
+  if (d === undefined) return undefined;
+  return d && d.data && !d.data.missing ? d.data : null;
+}
+function dayOf(ds) { const w = weekOf(ds); return w ? w.days.find(x => x.date === ds) || null : w; }
+/** Range Office rows for a month: undefined loading, null not out yet, else [] */
+function recceOf(ym) {
+  const d = need('recce/' + ym);
+  if (d === undefined) return undefined;
+  return d && d.data && !d.data.missing ? d.data.rows : null;
+}
+function roOf(ds, rg) { const rows = recceOf(ds.slice(0, 7)); return rows ? rows.find(r => r.d === ds && r.rg === rg) || null : rows; }
+
+async function call(fn, args) {
+  if (DEMO) { await new Promise(r => setTimeout(r, 300)); return fn === 'syncNow' ? { at: new Date().toISOString(), changed: [] } : { name: 'IVAN LIM', role: 'APO' }; }
+  if (!SYNC_URL) throw new Error('The v2 sync link is not in this page yet (V2_SYNC_URL near the top of index.html).');
+  const user = FB.auth.currentUser;
+  const idToken = user ? await user.getIdToken() : '';
+  const res = await fetch(SYNC_URL, { method: 'POST', credentials: 'omit', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args: Object.assign({ idToken }, args || {}) }) });
+  let o;
+  try { o = await res.json(); } catch (e) { throw new Error('The sync script did not answer. Try again.'); }
+  if (!o.ok) throw new Error(o.error === 'SIGNED_OUT' ? 'Your sign-in on this phone has ended. Sign in again.' : o.error);
+  return o.result;
+}
+
+/* ---------------- Start ---------------- */
+async function start() {
+  if (DEMO) { S.me = { name: (new URLSearchParams(location.search).get('me') || 'IVAN LIM').toUpperCase(), role: 'APO' }; return openApp(); }
+  try { FB = await loadFirebase(); }
+  catch (e) { return fatal('Could not load the app. Check your internet connection and open it again.'); }
+  let sessStop = null, tried = false;
+  FB.A.onAuthStateChanged(FB.auth, user => {
+    if (sessStop) { sessStop(); sessStop = null; }
+    if (!user) { FB.A.signInAnonymously(FB.auth).catch(e => fatal('Could not start: ' + e.message)); return; }
+    S.uid = user.uid;
+    sessStop = watch('sessions/' + user.uid, s => {
+      const ok = s && s.name && s.exp && new Date(s.exp) > new Date();
+      if (ok) {
+        const was = S.me && S.me.name;
+        S.me = { name: s.name, role: s.role || '', viewOnly: !!s.viewOnly, realName: s.realName || '' };
+        if (was !== s.name) openApp();
+        return;
+      }
+      if (S.me) { stopAll(); S.me = null; }
+      // first try the current app's saved sign-in on this phone (same website), then ask for the PIN
+      const t = store.get('rdp_token');
+      if (t && !tried) {
+        tried = true;
+        call('login', { mainToken: t }).then(r => { if (r && r.needPin) showLogin(); }).catch(() => showLogin());
+      } else showLogin();
+    }, () => showLogin());
+  });
+}
+function fatal(msg) { $('#app').innerHTML = '<div class="login"><h1>Range Deployment</h1><div class="note red" style="margin-top:16px">' + esc(msg) + '</div></div>'; }
+
+function showLogin(msg) {
+  if ($('#lg-form')) { if (msg) $('#lg-err').textContent = msg; return; }
+  $('#app').innerHTML = `<div class="login"><h1>Range Deployment</h1><div class="muted">New faster version (trial)</div>
+    <form id="lg-form" autocomplete="on">
+      <label class="f"><span>Your name</span><input id="lg-name" name="username" autocomplete="username" autocapitalize="characters" required></label>
+      <label class="f"><span>PIN</span><input id="lg-pin" name="password" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" required></label>
+      <p class="err" id="lg-err" role="alert">${esc(msg || '')}</p>
+      <button class="btn" id="lg-go">Sign in</button>
+    </form>
+    <p class="small muted" style="margin-top:12px">Same name and PIN as the current app. You stay signed in on this phone for 30 days.</p></div>`;
+  $('#lg-form').onsubmit = async e => {
+    e.preventDefault();
+    const b = $('#lg-go'); b.disabled = true; b.textContent = 'Signing in...';
+    $('#lg-err').textContent = '';
+    try {
+      await call('login', { name: $('#lg-name').value.trim(), pin: $('#lg-pin').value.trim() });
+      // the session arrives through the listener and opens the app
+    } catch (x) { $('#lg-err').textContent = x.message; b.disabled = false; b.textContent = 'Sign in'; }
+  };
+  setTimeout(() => { const n = $('#lg-name'); if (n) n.focus(); }, 50);
+}
+
+function openApp() {
+  S.today = sgToday();
+  if (!S.day) S.day = S.today;
+  const me = S.me;
+  $('#app').innerHTML = `<header class="top"><div class="wrap"><div class="brand">Range Deployment<small>v2 trial</small></div>
+      <div class="who">${esc(titleCase(me.realName || me.name))}<span class="role">${me.viewOnly ? ' (view as ' + esc(titleCase(me.name)) + ')' : ''}</span><button id="out">Sign out</button></div></div></header>
+    <div class="status"><div class="wrap"><span class="dot" id="st-dot"></span><span class="txt" id="st-txt">Connecting&hellip;</span><button class="btn small ghost" id="st-go">Get latest now</button></div></div>
+    <nav class="tabs" aria-label="Sections"><div class="wrap"><button data-v="mine">My Deploy</button><button data-v="plan">Deployment Plan</button></div></nav>
+    <main><div class="wrap" id="view"></div></main>`;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { S.view = b.dataset.v; store.set('v2_view', S.view); window.scrollTo(0, 0); render(); });
+  $('#out').onclick = async () => { stopAll(); S.me = null; if (FB) await FB.A.signOut(FB.auth); else showLogin(); };
+  $('#st-go').onclick = getLatest;
+  render();
+}
+
+async function getLatest() {
+  const b = $('#st-go'); if (!b) return;
+  b.disabled = true; b.textContent = 'Checking...';
+  try {
+    const r = await call('syncNow', {});
+    toast(r.busy ? 'A check is already running. Changes show up by themselves.' : r.changed && r.changed.length ? 'Updated.' : 'Already up to date.');
+  } catch (x) { toast(x.message); }
+  b.disabled = false; b.textContent = 'Get latest now';
+}
+
+let toastT = 0;
+function toast(msg) {
+  let t = $('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = msg; clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 3500);
+}
+
+/* ---------------- Render ---------------- */
+function render() {
+  if (!S.me || !$('#view')) return;
+  const t = sgToday();
+  if (t !== S.today) { if (S.day === S.today) S.day = t; S.today = t; }
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.v === S.view ? 'page' : 'false'));
+  renderStatus();
+  $('#view').innerHTML = S.view === 'plan' ? viewPlan() : viewMine();
+  wire();
+}
+
+function renderStatus() {
+  const m = need('meta/sync');
+  const dot = $('#st-dot'), txt = $('#st-txt');
+  if (!dot) return;
+  dot.className = 'dot';
+  if (m === undefined) { txt.innerHTML = 'Connecting&hellip;'; return; }
+  if (!m) { dot.className = 'dot warn'; txt.textContent = 'Not copied yet: run setupV2 in the sync script.'; return; }
+  if (m.err) { dot.className = 'dot bad'; txt.innerHTML = '<b>Sync problem</b> &middot; ' + esc(m.err.slice(0, 120)); return; }
+  const age = (Date.now() - new Date(m.at).getTime()) / 60000;
+  const h = Number(hhmm(new Date().toISOString()).slice(0, 2));
+  if (!navigator.onLine) { dot.className = 'dot warn'; txt.innerHTML = '<b>Offline</b> &middot; saved copy from ' + esc(hhmm(m.at)) + 'hrs'; return; }
+  if (age > 25 && h >= 6 && h <= 22) { dot.className = 'dot warn'; txt.innerHTML = '<b>Last check ' + esc(hhmm(m.at)) + 'hrs</b> &middot; tap Get latest now'; return; }
+  txt.innerHTML = '<b>Live</b> &middot; last change ' + esc(hhmm(m.changedAt || m.at)) + 'hrs';
+}
+
+/* ---------- helpers for one range ---------- */
+function sessOfRmk(rmk) {
+  const k = ' ' + norm(rmk).replace(/[^A-Z0-9]+/g, ' ') + ' ';
+  if (/ WD /.test(k)) return 'WD';
+  if (/ AM /.test(k) && / PM /.test(k)) return 'AM PM';
+  if (/ AM /.test(k)) return 'AM';
+  if (/ PM /.test(k)) return 'PM';
+  return '';
+}
+function rmkExtra(rmk) {   // what's in Rmk besides the session code: EXT 1300, CXL ...
+  return String(rmk || '').replace(/\n/g, ' ').replace(/\b(WD|AM|PM)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+function tfText(am, pm) {
+  const p = norm(pm) === 'WHOLE DAY' ? '' : pm;
+  if (am && p) return 'AM ' + am + ' / PM ' + p;
+  if (p) return 'PM ' + p;
+  return am || '';
+}
+function sessPill(code) { return code ? `<span class="pill${code === 'WD' ? ' wd' : ''}">${esc(SESS[code] || code)}</span>` : ''; }
+/** What the Range Office workplan says differently from your sheet ('' when the same) */
+function roDiff(r, ro) {
+  const d = [];
+  if (norm2(r.sup) !== norm2(ro.rso)) d.push('RSO <b>' + esc(ro.rso || '(none)') + '</b>');
+  if (norm(r.unit) !== norm(ro.unit)) d.push('Unit <b>' + esc(ro.unit || '(none)') + '</b>');
+  const roPm = ro.sess === 'WD' ? 'WHOLE DAY' : ro.pm;
+  if (norm(r.tf) !== norm(ro.am) || (norm(r.dur) !== norm(roPm) && !(ro.sess === 'WD' && !r.dur)))
+    d.push('TF <b>' + esc(tfText(ro.am, roPm) || '(none)') + '</b>');
+  return d.join(' &middot; ');
+}
+
+/* ---------- My Deploy ---------- */
+function postingsOf(day, me) {
+  const out = [];
+  day.ranges.forEach(r => {
+    const am = r.split && r.split.amNames.indexOf(me) >= 0, pm = r.split && r.split.pmNames.indexOf(me) >= 0;
+    if (r.people.indexOf(me) >= 0 || am || pm) out.push({ k: 'rg', r, shift: am && !pm ? 'AM' : pm && !am ? 'PM' : '' });
+  });
+  day.duties.forEach(x => {
+    if (x.mainPeople.indexOf(me) >= 0) out.push({ k: 'du', label: x.duty, sub: 'Main' });
+    if (x.sparePeople.indexOf(me) >= 0) out.push({ k: 'du', label: x.duty, sub: 'Spare' });
+  });
+  day.medics.forEach(m => { if (m.people.indexOf(me) >= 0) out.push({ k: 'md', label: m.role, sub: m.loc }); });
+  day.absences.forEach(a => { if (a.people.indexOf(me) >= 0) out.push({ k: 'aw', label: a.label, sub: a.text }); });
+  return out;
+}
+function postHtml(p, ds, day) {
+  if (p.k === 'rg') {
+    const r = p.r, ro = roOf(ds, r.range);
+    const sess = (ro && ro.sess) || sessOfRmk(r.rmk);
+    const bits = [tfText(r.tf, r.dur), SESS[sess] || '', r.unit, r.sup ? 'RSO ' + r.sup : ''].filter(Boolean).map(esc).join(' &middot; ');
+    return `<div class="post"><span class="tag rg">${esc(r.range)}</span><b>APO${p.shift ? ' (' + p.shift + ')' : ''}</b>${r.ext ? ` <span class="tag ext">EXT ${esc(r.ext.replace(':', ''))}hrs</span>` : ''}<span class="det">${bits}</span></div>`;
+  }
+  const cls = p.k;
+  const sub = p.k === 'aw' ? p.sub : p.sub;
+  return `<div class="post"><span class="tag ${cls}">${esc(p.label)}</span>${p.k === 'du' ? '<b>' + esc(p.sub) + '</b>' : ''}${p.k === 'md' && sub ? '<b>' + esc(sub) + '</b>' : ''}${p.k === 'aw' && sub ? '<span class="det">' + esc(sub) + '</span>' : ''}</div>`;
+}
+function viewMine() {
+  const me = S.me.name;
+  const rows = [];
+  let next = null, loading = false;
+  for (let i = 0; i < 14; i++) {
+    const ds = addD(S.today, i), day = dayOf(ds);
+    let html;
+    if (day === undefined) { loading = true; html = '<span class="muted">Loading&hellip;</span>'; }
+    else if (!day) html = '<span class="muted">No weekly tab for this day yet</span>';
+    else {
+      const ps = postingsOf(day, me);
+      const rep = day.report && day.report[me];
+      if (ps.length && !next && ps.some(p => p.k !== 'aw')) next = { ds, p: ps.find(p => p.k !== 'aw') };
+      html = ps.length ? ps.map(p => postHtml(p, ds, day)).join('') + (rep ? `<div class="det">Report at <b>${esc(rep.replace(':', ''))}hrs</b></div>` : '')
+        : `<span class="muted">${dow(ds) === 0 || dow(ds) === 6 ? 'Off' : 'Not on the plan'}</span>`;
+    }
+    rows.push(`<div class="drow${ds === S.today ? ' today' : ''}${dow(ds) === 0 || dow(ds) === 6 ? ' we' : ''}"><div class="dd">${esc(DOW[dow(ds)])} ${D(ds).getUTCDate()}<small>${ds === S.today ? 'Today' : esc(MON[D(ds).getUTCMonth()])}</small></div><div class="dc">${html}</div></div>`);
+  }
+  const nx = next ? `<div class="next"><div class="k">${next.ds === S.today ? 'Today' : 'Next: ' + esc(nice(next.ds))}</div><div class="v">${next.p.k === 'rg' ? esc(next.p.r.range) + ' APO' : esc(next.p.label) + (next.p.sub && next.p.k !== 'aw' ? ' ' + esc(next.p.sub) : '')}</div></div>` : '';
+  return `<h2>Hi ${esc(titleCase(S.me.name))}</h2>${nx}<div class="days">${rows.join('')}</div>
+    <p class="foot">Trial version: view only. Leave, swaps and changes are still done in the current app.</p>`;
+}
+
+/* ---------- Deployment Plan ---------- */
+function viewPlan() {
+  const ds = S.day, day = dayOf(ds), me = S.me.name;
+  const bar = `<div class="daybar"><button class="btn ghost" data-go="-1" aria-label="Previous day">&lsaquo;</button><h2>${esc(nice(ds))}${ds === S.today ? ' <span class="pill">Today</span>' : ''}</h2><button class="btn ghost" data-go="1" aria-label="Next day">&rsaquo;</button></div>
+    ${ds !== S.today ? '<p style="text-align:center;margin:-4px 0 12px"><button class="btn small ghost" data-go="0">Back to today</button></p>' : ''}`;
+  if (day === undefined) return bar + '<div class="load"><div class="spin"></div>Loading&hellip;</div>';
+  if (!day) return bar + '<div class="note blue">This day is outside what the trial copies (last week to 5 weeks ahead), or its weekly tab isn\'t made yet.</div>';
+  const rows = recceOf(ds.slice(0, 7));
+  const out = [bar];
+  if (day.title && !/^(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY$/i.test(day.title.trim())) out.push(`<div class="note blue">${esc(day.title)}</div>`);
+  if (rows === null) out.push(`<div class="note blue">The Range Office workplan for ${esc(MON[D(ds).getUTCMonth()])} isn't out yet, so there's nothing to check against.</div>`);
+  // ranges: yours, then any the Range Office has that your sheet doesn't
+  const cards = [];
+  let diffs = 0;
+  RANGES.forEach(rg => {
+    const r = day.ranges.find(x => x.range === rg);
+    const ro = rows ? rows.find(x => x.d === ds && x.rg === rg) || null : null;
+    if (r && r.active) {
+      const mine = r.people.indexOf(me) >= 0 || (r.split && (r.split.amNames.indexOf(me) >= 0 || r.split.pmNames.indexOf(me) >= 0));
+      const sess = (ro && ro.sess) || sessOfRmk(r.rmk);
+      const extra = rmkExtra(r.rmk);
+      const cx = /\bCXL\b/i.test(extra);
+      const diff = ro ? roDiff(r, ro) : '';
+      if (diff || (rows && !ro)) diffs++;
+      cards.push(`<div class="rc${mine ? ' me' : ''}"><div class="rh"><span class="rn">${esc(rg)}</span>${sessPill(sess)}${r.ext ? `<span class="pill ext">EXT ${esc(r.ext.replace(':', ''))}hrs</span>` : ''}${cx ? '<span class="pill cxl">CXL</span>' : extra && !r.ext ? `<span class="pill">${esc(extra)}</span>` : ''}</div>
+        <dl class="rl">
+          ${tfText(r.tf, r.dur) ? `<dt>TF</dt><dd>${esc(tfText(r.tf, r.dur))}</dd>` : ''}
+          ${r.unit ? `<dt>Unit</dt><dd>${esc(r.unit)}</dd>` : ''}
+          ${r.sup ? `<dt>RSO</dt><dd>${esc(r.sup)}</dd>` : ''}
+          <dt>APO</dt>${r.emp ? `<dd class="apo${mine ? ' mine' : ''}">${esc(r.emp)}</dd>` : '<dd class="none">Not posted yet</dd>'}
+          ${r.note ? `<dt>Note</dt><dd>${esc(r.note)}</dd>` : ''}
+        </dl>
+        ${diff ? `<div class="cmp">Range Office workplan has: ${diff}</div>` : rows && !ro ? '<div class="cmp">Not in the Range Office workplan for this day.</div>' : ro ? '<div class="cmp ok">&check; Same as Range Office workplan</div>' : ''}</div>`);
+    } else if (ro) {
+      diffs++;
+      cards.push(`<div class="rc ro"><div class="rh"><span class="rn">${esc(rg)}</span>${sessPill(ro.sess)}</div>
+        <dl class="rl">
+          ${tfText(ro.am, ro.pm) ? `<dt>TF</dt><dd>${esc(tfText(ro.am, ro.pm))}</dd>` : ''}
+          ${ro.unit ? `<dt>Unit</dt><dd>${esc(ro.unit)}</dd>` : ''}
+          ${ro.rso ? `<dt>RSO</dt><dd>${esc(ro.rso)}</dd>` : ''}
+        </dl><div class="cmp">In the Range Office workplan, <b>not in your sheet yet</b>.</div></div>`);
+    }
+  });
+  if (rows && diffs) out.push(`<div class="note">${diffs} range${diffs > 1 ? 's differ' : ' differs'} from the Range Office workplan. See the yellow lines below.</div>`);
+  out.push('<h3>Ranges</h3>' + (cards.length ? cards.join('') : '<p class="muted">No ranges on this day.</p>'));
+  // duties
+  const du = day.duties.filter(x => x.main || x.spare);
+  if (du.length) out.push('<h3>Duties</h3><table class="t"><tr><th>Duty</th><th>Main</th><th>Spare</th></tr>' + du.map(x =>
+    `<tr class="${x.mainPeople.concat(x.sparePeople).indexOf(me) >= 0 ? 'mine' : ''}"><td>${esc(x.duty)}</td><td>${esc(x.main)}</td><td>${esc(x.spare)}</td></tr>`).join('') + '</table>');
+  const md = day.medics.filter(x => x.who);
+  if (md.length) out.push('<h3>Medics</h3><table class="t"><tr><th>Post</th><th>Who</th><th>Where</th></tr>' + md.map(x =>
+    `<tr class="${x.people.indexOf(me) >= 0 ? 'mine' : ''}"><td>${esc(x.role)}</td><td>${esc(x.who)}</td><td>${esc(x.loc)}</td></tr>`).join('') + '</table>');
+  if (day.absences.length) out.push('<h3>Away</h3><div class="awl">' + day.absences.map(a =>
+    `<div class="${a.people.indexOf(me) >= 0 ? 'mine' : ''}"><span class="tag aw">${esc(a.label)}</span>${esc(a.text)}</div>`).join('') + '</div>');
+  out.push('<p class="foot">Trial version: view only. Changes are still made in the current app or the sheet.</p>');
+  // load the next and previous day's week in the background, so swiping days is instant
+  need('weeks/' + monOf(addD(ds, 7))); need('weeks/' + monOf(addD(ds, -7)));
+  return out.join('');
+}
+
+function wire() {
+  document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
+    const n = Number(b.dataset.go);
+    S.day = n === 0 ? S.today : addD(S.day, n);
+    render();
+  });
+}
+window.addEventListener('online', schedule);
+window.addEventListener('offline', schedule);
+setInterval(schedule, 60000);   // keeps "today" and the status line current
+start();
+</script>
+</body>
+</html>
