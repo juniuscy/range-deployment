@@ -5720,6 +5720,11 @@ const MOCK = (() => {
     g.fillStyle = '#fff'; g.fillRect(0, 0, 360, 120); g.strokeStyle = '#0F2A44'; g.lineWidth = 4; g.beginPath(); g.moveTo(30, 80);
     for (let i = 0; i < 7; i++) g.bezierCurveTo(40 + i * 40, 20, 60 + i * 40, 110, 80 + i * 40, 60); g.stroke(); return (c = cv.toDataURL('image/png')); }; })();
   const mVc = [], mVcMon = [], mVcPh = {};
+  const mRepsOf = (remarks, marks, cond) => { const out = [], seen = {}, line = n => (String(remarks || '').split('\n').map(l => new RegExp('^\\s*' + n + '\\s*[.):\\-]\\s*(.*)$').exec(l)).filter(Boolean)[0] || [])[1];
+    (marks || []).slice().sort((a, b) => a.n - b.n).forEach(m => { if (seen[m.n]) return; seen[m.n] = 1; out.push({ n: m.n, view: AM_VNAME[m.v], fault: (line(m.n) || 'Fault ' + m.n).replace(/^\([^)]*\)\s*/, '') }); });
+    String(remarks || '').split('\n').forEach(l => { const x = /^\s*(\d{1,2})\s*[.):\-]\s*(.+)$/.exec(l); if (x && !seen[+x[1]]) { seen[+x[1]] = 1; out.push({ n: +x[1], view: '', fault: x[2].replace(/^\([^)]*\)\s*/, '').trim() }); } });
+    if (!out.length && cond !== 'Usable' && String(remarks || '').trim()) out.push({ n: 1, view: '', fault: String(remarks).trim().replace(/\s+/g, ' ').slice(0, 300) });
+    return out.sort((a, b) => a.n - b.n); };
   /* My Year (demo): goals and feedback */
   const mGoals = [], mFb = [{ id:'FB1', at: addD(today, -3) + ' 18:02', name:'ARIF', role:'APO', title:'Water at 100M2', message:'The water cooler at 100M2 has been empty since Monday. Can we get it refilled?', status:'New', reply:'', replyBy:'', replyAt:'', seenBy:'', seenAt:'' }];
   const mMyRoles = ['APO','APO Supervisor','Non-APO','Medic','Medic Certis'], mGSt = ['Ongoing','Achieved','Try Again'];
@@ -6119,10 +6124,14 @@ const MOCK = (() => {
       const id = 'AF' + Date.now(); mAmSig[id] = { c: f.sigChecked, a: f.sigAck || '' }; mAmPh[id] = (f.photos || []).slice(0, 10); window.__ammoPhotos = mAmPh[id].length; if (f.draftId) { const k = mAmDr.findIndex(x => x.id === f.draftId); if (k >= 0) mAmDr.splice(k, 1); } window.__ammoPdf = (f.pdf || '').length; window.__ammoPdfData = f.pdf;
       mAm.faults.unshift({ id, date: f.date, time: f.time, truckId: tk.id, plate: tk.plate, mileage: f.mileage, condition: f.condition, checkedBy: S.me.name, createdBy: S.me.name, remarks: f.remarks, marks: f.marks, ackBy: f.sigAck ? f.ackBy : '', ackAt: '', pdf: 'x', photos: mAmPh[id].length });
       const VN = AM_VNAME;
-      f.marks.forEach(m => { const ln = String(f.remarks || '').split('\n').map(l => new RegExp('^\\s*' + m.n + '\\s*[.):\\-]\\s*(.*)$').exec(l)).filter(Boolean)[0];
-        mAm.repairs.push({ id: 'AR' + Date.now() + m.n, faultId: id, no: m.n, truckId: tk.id, plate: tk.plate, view: VN[m.v], fault: ln ? ln[1].replace(/^\([^)]*\)\s*/, '') : 'Fault ' + m.n, found: f.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '' }); });
+      const reps = mRepsOf(f.remarks, f.marks, f.condition);
+      reps.forEach(x => mAm.repairs.push({ id: 'AR' + Date.now() + x.n, faultId: id, no: x.n, truckId: tk.id, plate: tk.plate, view: x.view, fault: x.fault, found: f.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '', updatedBy: S.me.name, updated: '' }));
       if (f.vcId) { const vr = mVc.find(x => x.id === f.vcId); if (vr) vr.ammoFault = id; }
-      return Object.assign(MOCK.ammoGet(), { savedId: id, notified: staffList.filter(p => MGR_ROLES.includes(p.role)).length }); },
+      return Object.assign(MOCK.ammoGet(), { savedId: id, added: reps.length, notified: staffList.filter(p => MGR_ROLES.includes(p.role)).length }); },
+    ammoAddRepairs: (t, id) => { const x = mAm.faults.find(y => y.id === id); if (mAm.repairs.some(r => r.faultId === id)) throw new Error('This fault list already has its repairs.');
+      const reps = mRepsOf(x.remarks, x.marks, x.condition); if (!reps.length) throw new Error('There is no fault written in its Remarks to follow up.');
+      reps.forEach(y => mAm.repairs.push({ id: 'AR' + Date.now() + y.n, faultId: id, no: y.n, truckId: x.truckId, plate: x.plate, view: y.view, fault: y.fault, found: x.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '', updatedBy: S.me.name, updated: '' }));
+      return Object.assign(MOCK.ammoGet(), { added: reps.length }); },
     ammoFaultPhotos: (t, id) => (mAmPh[id] || []).map((p, i) => ({ id: id + 'P' + i, name: 'photo ' + (i + 1) + '.jpg', mime: 'image/jpeg', url: '#', data: p.data })),
     ammoDraftSave: (t, f, id) => { const at = S.today + ' ' + new Date().toTimeString().slice(0, 5); let d = id && mAmDr.find(x => x.id === id);
       const tk = mAm.trucks.find(x => x.id === f.truckId) || {};
@@ -7059,7 +7068,7 @@ async function amSaveFault(btn, s1){
     x.pdf = await amFaultPdf(x, true);
     const r = await call('ammoSaveFault', S.token, x);
     S.amF = null; S.amPh = []; try { localStorage.removeItem('rdp_ammo_draft'); } catch(e) {}
-    toast((f.draftId ? 'Draft finished; fault list submitted' : 'Fault list submitted') + (f.marks.length ? '; ' + f.marks.length + ' repair' + (f.marks.length === 1 ? '' : 's') + ' added' : '') + (r.notified ? '. Managers emailed (' + r.notified + ').' : ''));
+    toast((f.draftId ? 'Draft finished; fault list submitted' : 'Fault list submitted') + ((r.added != null ? r.added : f.marks.length) ? '; ' + (r.added != null ? r.added : f.marks.length) + ' repair' + ((r.added != null ? r.added : f.marks.length) === 1 ? '' : 's') + ' added to Repairs' : '') + (r.notified ? '. Managers emailed (' + r.notified + ').' : ''));
     amSet(r);
   } catch(e){ busy(btn, false); fail(e); }
 }
@@ -7133,7 +7142,9 @@ async function amFaultView(id){
     <div class="src">${x.time ? esc(x.time) + 'hrs &middot; ' : ''}${x.mileage ? esc(x.mileage) + ' km &middot; ' : ''}${esc(x.condition)} &middot; checked by ${esc(titleCase(x.checkedBy))}</div>
     <div class="am-views ro">${AM_VIEWS.filter(([v]) => (x.marks || []).some(m => m.v === v)).map(([v, l]) => `<div class="am-view${AM_WIDE.includes(v) ? ' wide' : ''}"><span class="am-vh">${amTileHead(v, l)}</span>${amSvg(v, x.marks)}</div>`).join('') || '<p class="muted">No fault circled.</p>'}</div>
     ${x.remarks ? `<div class="sec" style="white-space:pre-wrap;margin-top:10px">${esc(x.remarks)}</div>` : ''}
-    ${reps.length ? `<div class="small" style="margin:8px 0">${reps.map(r => `<div>${r.no}. ${esc(r.fault)} &middot; <b>${esc(r.status)}</b></div>`).join('')}</div>` : ''}
+    ${reps.length ? `<div class="small" style="margin:8px 0">${reps.map(r => `<div>${r.no}. ${esc(r.fault)} &middot; <b>${esc(r.status)}</b></div>`).join('')}</div>`
+      : x.condition !== 'Usable' && x.remarks && canDel ? `<div class="note" style="margin:8px 0">No repairs were made from this fault list (nothing was circled), so there is nothing to follow up in Repairs.
+        <div style="margin-top:8px"><button class="btn" id="fv-rep" style="min-height:38px">Add to Repairs</button></div><small class="muted">Each numbered line in the Remarks ("1. ...") becomes a repair; if there are none, the Remarks become one.</small></div>` : ''}
     ${x.photos ? `<div class="f" style="margin-top:10px"><span>Photos (${x.photos})</span></div><div class="am-pics" id="fv-pics"><p class="muted small" style="margin:0">Loading photos\u2026</p></div>` : ''}
     <div class="am-sigs" style="margin-top:12px"><div><div class="f"><span>Checked by: ${esc(titleCase(x.checkedBy))}</span></div>${x.sigChecked ? `<img class="am-sigimg" src="${x.sigChecked}" alt="">` : '<p class="muted small" style="margin:0">No signature picture.</p>'}</div>
       <div><div class="f"><span>Acknowledged by${x.ackBy ? ': ' + esc(titleCase(x.ackBy)) : ' (Manager)'}</span></div>${x.sigAck ? `<img class="am-sigimg" src="${x.sigAck}" alt="">` : x.ackBy ? '<p class="muted small" style="margin:0">No signature picture.</p>' :
@@ -7141,6 +7152,9 @@ async function amFaultView(id){
     <div class="acts"><button class="btn ghost" id="fv-x">Close</button><button class="btn ghost" id="fv-pdf">Share PDF</button>${canAck ? '<button class="btn go" id="fv-ack">Acknowledge</button>' : ''}</div>
     ${canDel ? (fixed ? '<p class="small muted" style="margin:10px 0 0">A repair on this list is Fixed, so it cannot be deleted.</p>' : '<p style="text-align:center;margin:12px 0 0"><button class="linkbtn" id="fv-del" style="color:var(--flag)">Delete this fault list</button></p>') : ''}`;
   $('#fv-x', bg).onclick = () => bg.remove();
+  if ($('#fv-rep', bg)) $('#fv-rep', bg).onclick = async e => { busy(e.target, true);
+    try { const r = await call('ammoAddRepairs', S.token, id); bg.remove(); amSet(r); toast(r.added + ' repair' + (r.added === 1 ? '' : 's') + ' added. Update them in the Repairs tab.'); }
+    catch(err){ busy(e.target, false); fail(err); } };
   /* its photos (shown here, and put back into the PDF when it is shared or acknowledged) */
   const phP = x.photos ? call('ammoFaultPhotos', S.token, id).then(L => (L || []).filter(p => p.data)).catch(() => []) : Promise.resolve([]);
   if (x.photos) phP.then(L => { const box = $('#fv-pics', bg); if (!box) return;
@@ -7175,10 +7189,10 @@ function amRepTab(){
       <select id="ar-st">${[['open','Not fixed yet'],['Fixed','Fixed'],['Not needed','Not needed'],['all','All']].map(([k, l]) => `<option value="${k}" ${k === fl.st ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     ${L.length ? L.map(r => { const c = amCon(r.contractorId);
       return `<div class="am-rep"><span class="am-num">${r.no}</span><div class="b"><div class="h"><b>${esc(r.fault)}</b><span class="pill ${pill(r.status)}">${esc(r.status)}</span></div>
-        <div class="small muted">${esc(r.plate)} &middot; ${esc(r.view)} &middot; found ${esc(nice(r.found))}</div>
+        <div class="small muted">${esc(r.plate)}${r.view ? ' &middot; ' + esc(r.view) : ''} &middot; found ${esc(nice(r.found))}</div>
         <div class="small muted">${c ? esc(c.company) : 'No contractor yet'}${r.sentOn ? ' &middot; sent ' + esc(nice(r.sentOn)) : ''}${r.fixedOn && r.status === 'Fixed' ? ' &middot; fixed ' + esc(nice(r.fixedOn)) : ''}${r.total !== '' && r.total != null ? ' &middot; <b style="color:var(--ink)">' + amMoney(r.total) + '</b>' : ''}${(r.receipts || []).length ? ' &middot; ' + r.receipts.length + ' receipt file' + (r.receipts.length === 1 ? '' : 's') : ''}</div>
         <div class="am-acts sm"><button class="btn ghost" data-are="${esc(r.id)}">${amCan() ? 'Open' : 'View'}</button>${amCan() && r.status !== 'Fixed' && r.status !== 'Not needed' ? `<button class="btn go" data-arx="${esc(r.id)}">Mark fixed</button>` : ''}</div></div></div>`; }).join('')
-      : `<p class="muted">${all.length ? 'Nothing here with these filters.' : 'No repairs yet. Circled faults on a saved fault list show up here.'}</p>`}`;
+      : `<p class="muted">${all.length ? 'Nothing here with these filters.' : 'No repairs yet. The faults of a saved fault list (circled or numbered in the Remarks) show up here.'}</p>`}`;
   $('#ar-tk').onchange = e => { fl.truck = e.target.value; amRepTab(); };
   $('#ar-st').onchange = e => { fl.st = e.target.value; amRepTab(); };
   V().querySelectorAll('[data-are]').forEach(b => b.onclick = () => amRepEdit(b.dataset.are));
@@ -7193,9 +7207,9 @@ async function amRepEdit(id, setStatus){
   const add = [];
   const bg = document.createElement('div'); bg.className = 'sheet-bg am-sh';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><h3>Repair ${r.no}: ${esc(r.fault)}</h3>
-    <div class="src">${esc(r.plate)} &middot; ${esc(r.view)} &middot; found ${esc(nice(r.found))}</div>
+    <div class="src">${esc(r.plate)}${r.view ? ' &middot; ' + esc(r.view) : ''} &middot; found ${esc(nice(r.found))}</div>
     <fieldset ${can ? '' : 'disabled'} style="border:0;padding:0;margin:0">
-    <div class="am-thumb">${amSvg(amViewKey(r.view), ((S.am.faults.find(f => f.id === r.faultId) || {}).marks || []), r.no)}</div>
+    ${r.view ? `<div class="am-thumb">${amSvg(amViewKey(r.view), ((S.am.faults.find(f => f.id === r.faultId) || {}).marks || []), r.no)}</div>` : ''}
     <label class="f"><span>Fault</span><input id="re-ft" value="${esc(r.fault)}"></label>
     <label class="f"><span>Contractor</span><select id="re-c"><option value="">${cons.length ? 'Pick' : 'None yet (add in Contractors)'}</option>${cons.map(c => `<option value="${esc(c.id)}" ${c.id === r.contractorId ? 'selected' : ''}>${esc(c.company)}</option>`).join('')}</select></label>
     <div class="row2"><label class="f am-full"><span>Status</span><select id="re-s">${AM_STATUS.map(s => `<option ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
@@ -7264,7 +7278,7 @@ async function amRepPdf(r, imgs, pdfCount, asData){
   const f = (S.am.faults || []).find(x => x.id === r.faultId) || {};
   rows('Fault', [['Found', amDmy(r.found) + (f.checkedBy ? ' by ' + titleCase(f.checkedBy) : '')], ['Where', r.view], ['Status', r.status], ['Sent on', amDmy(r.sentOn)], ['Fixed on', amDmy(r.fixedOn)], ['Work done', r.workDone]]);
   const vk = amViewKey(r.view);
-  const im = await amPng(vk, f.marks || [], r.no, 700);
+  const im = r.view ? await amPng(vk, f.marks || [], r.no, 700) : null;     // a repair from the Remarks has no picture of the truck
   if (im) { const w = AM_WIDE.includes(vk) ? 110 : 70, h = w * im.h / im.w; doc.addImage(im.data, 'JPEG', M, y, w, h, undefined, 'FAST'); doc.setDrawColor(210); doc.rect(M, y, w, h); y += h + 6; }
   const c = amCon(r.contractorId) || {};
   rows('Contractor', [['Company', c.company || '-'], ['Trade', c.trade], ['Contact', [c.contact, c.phone].filter(Boolean).join(', ')], ['Email', c.email], ['UEN no.', c.uen], ['GST reg. no.', c.gstNo], ['Address', c.address]]);
