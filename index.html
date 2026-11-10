@@ -5742,7 +5742,7 @@ const MOCK = (() => {
       status: nF ? (d === 7 ? 'Usable' : '') : 'Usable', statusBy: nF && d === 7 ? 'CHAN YANG' : '', statusAt: nF && d === 7 ? ds + ' 07:40' : '', statusRemark: '', ammoFault: '' }); } })();
   const mVcSt = (r, n) => { const rp = r && r.ammoFault ? mAm.repairs.find(a => a.faultId === r.ammoFault && Number(a.no) === n) : null;
     const st2 = !r || !r.ammoFault ? 'Not reported' : !rp ? 'Open' : rp.status === 'Fixed' ? 'Repaired' : rp.status === 'At contractor' ? 'At repair' : rp.status === 'Not needed' ? 'Not needed' : 'Open';
-    return { status: st2, sentOn: rp ? rp.sentOn : '', fixedOn: rp ? rp.fixedOn : '', repUpdated: '' }; };
+    return { status: st2, sentOn: rp ? rp.sentOn : '', fixedOn: rp ? rp.fixedOn : '', repUpdated: '', noRep: !!(r && r.ammoFault) && !rp && !mAm.repairs.some(a => a.faultId === r.ammoFault), ammoFault: r ? r.ammoFault || '' : '' }; };
   const mVcFaults = r => { let own = 0; return r.items.filter(x => x.t !== 'select' && x.ok === false).map(x => x.from && x.from.id
     ? Object.assign({ n: 0, item: x.n, text: x.f, ph: x.ph || [], carried: true, since: x.from.d, fromId: x.from.id, fromN: x.from.n }, mVcSt(mVc.find(y => y.id === x.from.id), x.from.n))
     : (n => Object.assign({ n, item: x.n, text: x.f, ph: x.ph || [], carried: false, since: r.date }, mVcSt(r, n)))(++own)); };
@@ -6129,7 +6129,7 @@ const MOCK = (() => {
       if (f.vcId) { const vr = mVc.find(x => x.id === f.vcId); if (vr) vr.ammoFault = id; }
       return Object.assign(MOCK.ammoGet(), { savedId: id, added: reps.length, notified: staffList.filter(p => MGR_ROLES.includes(p.role)).length }); },
     ammoAddRepairs: (t, id) => { const x = mAm.faults.find(y => y.id === id); if (mAm.repairs.some(r => r.faultId === id)) throw new Error('This fault list already has its repairs.');
-      const reps = mRepsOf(x.remarks, x.marks, x.condition); if (!reps.length) throw new Error('There is no fault written in its Remarks to follow up.');
+      const reps = mRepsOf(x.remarks, x.marks, ''); if (!reps.length) throw new Error('There is no fault written in its Remarks to follow up.');
       reps.forEach(y => mAm.repairs.push({ id: 'AR' + Date.now() + y.n, faultId: id, no: y.n, truckId: x.truckId, plate: x.plate, view: y.view, fault: y.fault, found: x.date, status: 'Open', contractorId: '', sentOn: '', fixedOn: '', workDone: '', invoiceNo: '', invoiceDate: '', net: '', pct: '', gst: '', total: '', receipts: [], pdf: '', updatedBy: S.me.name, updated: '' }));
       return Object.assign(MOCK.ammoGet(), { added: reps.length }); },
     ammoFaultPhotos: (t, id) => (mAmPh[id] || []).map((p, i) => ({ id: id + 'P' + i, name: 'photo ' + (i + 1) + '.jpg', mime: 'image/jpeg', url: '#', data: p.data })),
@@ -7143,7 +7143,7 @@ async function amFaultView(id){
     <div class="am-views ro">${AM_VIEWS.filter(([v]) => (x.marks || []).some(m => m.v === v)).map(([v, l]) => `<div class="am-view${AM_WIDE.includes(v) ? ' wide' : ''}"><span class="am-vh">${amTileHead(v, l)}</span>${amSvg(v, x.marks)}</div>`).join('') || '<p class="muted">No fault circled.</p>'}</div>
     ${x.remarks ? `<div class="sec" style="white-space:pre-wrap;margin-top:10px">${esc(x.remarks)}</div>` : ''}
     ${reps.length ? `<div class="small" style="margin:8px 0">${reps.map(r => `<div>${r.no}. ${esc(r.fault)} &middot; <b>${esc(r.status)}</b></div>`).join('')}</div>`
-      : x.condition !== 'Usable' && x.remarks && canDel ? `<div class="note" style="margin:8px 0">No repairs were made from this fault list (nothing was circled), so there is nothing to follow up in Repairs.
+      : x.remarks && canDel ? `<div class="note" style="margin:8px 0">No repairs were made from this fault list (nothing was circled), so there is nothing to follow up in Repairs.
         <div style="margin-top:8px"><button class="btn" id="fv-rep" style="min-height:38px">Add to Repairs</button></div><small class="muted">Each numbered line in the Remarks ("1. ...") becomes a repair; if there are none, the Remarks become one.</small></div>` : ''}
     ${x.photos ? `<div class="f" style="margin-top:10px"><span>Photos (${x.photos})</span></div><div class="am-pics" id="fv-pics"><p class="muted small" style="margin:0">Loading photos\u2026</p></div>` : ''}
     <div class="am-sigs" style="margin-top:12px"><div><div class="f"><span>Checked by: ${esc(titleCase(x.checkedBy))}</span></div>${x.sigChecked ? `<img class="am-sigimg" src="${x.sigChecked}" alt="">` : '<p class="muted small" style="margin:0">No signature picture.</p>'}</div>
@@ -8017,13 +8017,17 @@ function vcFaultsTab(box, D){
   box.innerHTML = `${open.length ? open.map(r => r.faults.map(f => `<div class="sec vc-fc"><div class="vc-fh"><b>${esc(f.item)} &middot; ${esc(nice(r.date))}</b>${vcFaultPill(f)}</div>
       <div class="small muted">${esc(r.plate)} &middot; ${esc(r.driver)}: &ldquo;${esc(f.text)}&rdquo;</div>
       <div class="small" style="margin-top:4px">${f.status === 'Not reported' ? `Not in Ammo Truck yet &middot; <button class="linkbtn" data-vcrep="${esc(r.id)}">Report it</button>`
-        : 'Ammo Truck fault #' + f.n + (f.sentOn ? ' &middot; Sent for repair ' + esc(nice(f.sentOn)) : ' &middot; not sent yet')}</div>
+        : f.noRep ? `In an Ammo Truck fault list, but <b>not in Repairs</b> (nothing was circled) &middot; <button class="linkbtn" data-vcaddrep="${esc(f.ammoFault)}">Add to Repairs</button>`
+        : 'Ammo Truck fault #' + (f.carried ? f.fromN : f.n) + (f.sentOn ? ' &middot; Sent for repair ' + esc(nice(f.sentOn)) : ' &middot; not sent yet') + ' &middot; update it in Ammo Truck &rarr; Repairs'}</div>
       ${f.lastOn ? `<div class="small muted">Still unticked on the checklist of ${esc(nice(f.lastOn))}</div>` : ''}${vcPhImgs(f.ph)}</div>`).join('')).join('')
     : '<div class="sec"><p class="muted" style="margin:0">No faults waiting for repair.</p></div>'}
     ${recs.length ? `<h3>Repaired (${esc(vcMonName(D.month))})</h3><div class="sec" style="padding:0">${recs.map(r => r.faults.filter(done).map(f =>
       `<div class="vc-day"><span><b>${esc(f.item)}</b> &middot; ${esc(nice(r.date))}</span><span class="pill Approved">${f.status === 'Repaired' ? 'Repaired ' + esc(f.fixedOn ? nice(f.fixedOn) : '') : 'Not needed'}</span></div>`).join('')).join('')}</div>` : ''}
     <p class="small muted">Sent for repair and Repaired come from the repair in Ammo Truck (Repairs tab), and go into the month PDF.</p>`;
   box.querySelectorAll('[data-vcrep]').forEach(b => b.onclick = async () => { try { const r = await call('vcRecord', S.token, b.dataset.vcrep); vcToAmmo(r); } catch(e){ fail(e); } });
+  box.querySelectorAll('[data-vcaddrep]').forEach(b => b.onclick = async () => { busy(b, true);
+    try { const r = await call('ammoAddRepairs', S.token, b.dataset.vcaddrep); toast(r.added + ' repair' + (r.added === 1 ? '' : 's') + ' added in Ammo Truck \u2192 Repairs'); admVc(); }
+    catch(e){ busy(b, false); fail(e); } });
   vcPhFill(box);
 }
 function vcItemsTab(box, D){
