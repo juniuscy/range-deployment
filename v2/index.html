@@ -1669,7 +1669,8 @@ const S = { token:null, me:null, types:[], today:null, view:'home', monday:null,
    ============================================================ */
 const V2C = (() => {
   const CONF = window.V2_FIREBASE, HELPER = String(window.API_URL || ''), FBV = '10.12.2';
-  const st = { fb: null, uid: '', sess: undefined, rt: null, unsubs: [], expired: false, waiters: [] };
+  const st = { fb: null, uid: '', sess: undefined, rt: null, unsubs: [], expired: false, why: '', waiters: [] };
+  const note = why => { st.why = why; try { console.warn('v2:', why); localStorage.setItem('rdp2_why', new Date().toISOString() + ' ' + why); } catch (e) {} };
   let fbP = null;
   function firebase(){
     if (fbP) return fbP;
@@ -1685,7 +1686,7 @@ const V2C = (() => {
         let stopSess = null;
         A.onAuthStateChanged(st.fb.auth, user => {
           if (stopSess) { stopSess(); stopSess = null; }
-          if (!user) { A.signInAnonymously(st.fb.auth).catch(() => {}); return; }
+          if (!user) { A.signInAnonymously(st.fb.auth).catch(e => note('Firebase sign-in failed: ' + (e.code || e.message))); return; }
           st.uid = user.uid;
           stopSess = F.onSnapshot(F.doc(db, 'sessions', user.uid), s => {
             const d = s.exists() ? s.data() : null;
@@ -1693,7 +1694,7 @@ const V2C = (() => {
             st.sess = d && exp && exp > new Date() ? { name: d.name, role: d.role, ro: !!d.ro, real: d.real || '' } : null;
             st.waiters.splice(0).forEach(f => f());
             res();
-          }, () => { st.sess = null; st.waiters.splice(0).forEach(f => f()); res(); });
+          }, e => { note('could not read this phone\'s sign-in: ' + (e.code || e.message)); st.sess = null; st.waiters.splice(0).forEach(f => f()); res(); });
         });
       });
       return st.fb;
@@ -1709,7 +1710,7 @@ const V2C = (() => {
     const res = await fetch(HELPER, { method: 'POST', credentials: 'omit', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args: Object.assign({ idToken }, args || {}) }) });
     let o;
     try { o = await res.json(); } catch (e) { throw new Error('Google is busy or the app is being updated. Wait a minute and try again.'); }
-    if (!o.ok) throw new Error(o.error === 'SIGNED_OUT' ? 'SESSION_EXPIRED' : o.error);
+    if (!o.ok) { if (o.error === 'SIGNED_OUT' || /SESSION_EXPIRED/.test(o.error)) { note('helper (' + fn + (args && args.fn ? ' ' + args.fn : '') + '): ' + o.error); throw new Error('SESSION_EXPIRED: ' + st.why); } throw new Error(o.error); }
     return o.result;
   }
   /* ---- Firestore <-> the runtime ---- */
@@ -1727,7 +1728,7 @@ const V2C = (() => {
           initial = false;
           onDocs(got.wb.concat([{ id: 'props', data: got.props }]), true);
         };
-        const denied = err => { if (err && err.code === 'permission-denied') { st.expired = true; } };
+        const denied = err => { note('database refused (' + ((err && (err.code || err.message)) || 'error') + ')'); if (err && err.code === 'permission-denied') st.expired = true; };
         st.unsubs.push(F.onSnapshot(F.collection(db, 'wb'), snap => {
           const list = snap.docChanges().map(ch => ({ id: ch.doc.id, data: ch.type === 'removed' ? null : ch.doc.data() }));
           if (initial) { got.wb = list; flush(); } else if (list.length) onDocs(list, false);
@@ -1804,12 +1805,12 @@ const V2C = (() => {
     }
     if (fn === 'resume') {
       const s = await waitSession();
-      if (!s || args[0] !== token()) throw new Error('SESSION_EXPIRED');
+      if (!s || args[0] !== token()) throw new Error('SESSION_EXPIRED');   // signed out on this phone: the sign-in screen
       const rt = startRuntime(); rt.setSession(args[0], s);
       return rt.call('resume', args);
     }
     if (fn === 'getLoginInfo') return { title: 'Range Deployment Portal', auto: null };
-    if (st.expired) throw new Error('SESSION_EXPIRED');
+    if (st.expired) throw new Error('SESSION_EXPIRED: ' + st.why);
     const rt = st.rt || startRuntime();
     if (st.sess && args && typeof args[0] === 'string' && args[0] === token()) rt.setSession(args[0], st.sess);
     return rt.call(fn, args || []);
@@ -1924,7 +1925,7 @@ function toast(msg, err){
 }
 function fail(e){
   const m = (e && e.message) || String(e);
-  if (m.indexOf('SESSION_EXPIRED') >= 0) { S.token = null; saveToken(''); toast('Your session ended. Sign in again.', true); return renderLogin(); }
+  if (m.indexOf('SESSION_EXPIRED') >= 0) { S.token = null; saveToken(''); toast('Your session ended. Sign in again.' + (m.indexOf('SESSION_EXPIRED: ') >= 0 ? ' [' + m.split('SESSION_EXPIRED: ')[1] + ']' : ''), true); return renderLogin(); }
   toast(m.replace(/^Error:\s*/, ''), true);
 }
 function busy(btn, on){ if (btn) { btn.disabled = on; btn.classList.toggle('wait', !!on); btn.setAttribute('aria-busy', on ? 'true' : 'false'); } }
