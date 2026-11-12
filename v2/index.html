@@ -2317,6 +2317,153 @@ async function v2StaffGridView(data){
   };
 }
 
+/* ============================================================
+   v2 only: Week view of the Deployment Plan. The whole week side by side, like the weekly tab in the sheet:
+   days across, ranges / duties / medics / away down. Tap a cell to change it (same editor as the day view).
+   Changes from others show up by themselves.
+   ============================================================ */
+function v2WkPref(v){ try { if (v === undefined) return localStorage.getItem('rdp2_wkview') === '1'; localStorage.setItem('rdp2_wkview', v ? '1' : '0'); } catch(e){} return !!v; }
+function drawBoard(wk){
+  if (S.wkView === undefined) S.wkView = v2WkPref();
+  if (S.wkView && wk && wk.days && wk.days.length) return v2WeekView(wk);
+  drawBoardDay(wk);
+  v2ViewToggle();
+}
+function v2ToggleHtml(){
+  return `<span class="v2seg" role="group" aria-label="Show"><button id="v2-day" aria-pressed="${!S.wkView}">Day</button><button id="v2-wk" aria-pressed="${!!S.wkView}">Week</button></span>`;
+}
+function v2WireToggle(wk){
+  const set = on => { S.wkView = on; v2WkPref(on); drawBoard(wk || S.cache[S.monday]); };
+  if ($('#v2-day')) $('#v2-day').onclick = () => set(false);
+  if ($('#v2-wk')) $('#v2-wk').onclick = () => set(true);
+}
+function v2ViewToggle(){
+  const r = $('#wr'); if (!r || $('#v2-wk')) return;
+  const row = r.parentElement;
+  row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center'; row.style.gap = '8px';
+  row.insertAdjacentHTML('afterbegin', v2ToggleHtml());
+  v2WireToggle();
+}
+function v2WeekView(wk){
+  const end = addD(wk.monday, 6);
+  const admin = canManage(), medOnly = !admin && isMedCertis();
+  const me = S.me.name;
+  const days = wk.days;
+  const away = days.map(d => awayOn(d));
+  const order = (get, key) => { const seen = [], out = []; days.forEach(d => get(d).forEach(x => { const k = x[key]; if (seen.indexOf(k) < 0) { seen.push(k); out.push(k); } })); return out; };
+  const find = (d, list, key, k) => list(d).find(x => x[key] === k);
+  const can = kind => admin || (medOnly && kind === 'medic');
+  const cell = (i, kind, label, cls, inner) => `<td class="${cls}${can(kind) ? ' tap' : ''}" data-i="${i}" data-slot="${kind}|${esc(label)}">${inner}</td>`;
+  const small = parts => { const t = parts.filter(Boolean).map(esc).join(' \u00b7 '); return t ? `<div class="sm">${t}</div>` : ''; };
+
+  // header: one column per day
+  const th = days.map((d, i) => {
+    const n = d.ranges.filter(r => r.active).length, nc = clashesOn(d).length, ng = noApoOn(d).length;
+    const bd = (wk.bdays || {})[d.date] || [];
+    const flags = [nc && `<span class="f red">${nc} to cover</span>`, ng && `<span class="f yel">${ng} no APO</span>`].filter(Boolean).join('');
+    return `<th class="${d.date === S.today ? 'tdy' : ''}${n >= 6 ? ' full' : n === 5 ? ' busy' : ''}"><div class="dh"><b>${DOW[dowIdx(d.date)]} ${pd(d.date).getDate()}</b><span>${n} rng</span></div>
+      ${S.dm && S.dm[d.date] ? `<div class="sm">DM ${esc(S.dm[d.date])}</div>` : ''}${bd.length ? `<div class="sm">\u1f382 ${esc(bd.map(titleCase).join(', '))}</div>` : ''}${flags}</th>`;
+  }).join('');
+
+  // ranges
+  const rangeRows = order(d => d.ranges, 'range').map(label => `<tr><th class="rl">${esc(label)}</th>${days.map((d, i) => {
+    const r = find(d, x => x.ranges, 'range', label);
+    if (!r) return '<td class="none"></td>';
+    if (!r.active) return cell(i, 'range', label, 'idle', '<span class="muted">\u2013</span>');
+    const gap = !String(r.emp || '').trim(), sp = splitOf(r.emp);
+    const bad = r.people.some(n => away[i][n]), mine = r.people.indexOf(me) >= 0;
+    const ext = (!!extOf(r.rmk) || !!sp) && !gap, aps = !gap && !ext && isApsTf(r.tf);
+    const cls = bad ? 'clash' : gap ? 'noapo' : mine ? 'mine' : ext ? 'ext' : aps ? 'aps' : '';
+    const who = sp ? splitHtml(sp) : gap ? '<span class="none">No APO</span>' : `<b>${esc(r.emp)}</b>`;
+    const tags = (!sp && extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : '') + (aps ? ' <span class="apstag">APS</span>' : '');
+    const why = r.people.filter(n => away[i][n]).map(n => `<div class="why">\u26a0 ${esc(n)}: ${esc(away[i][n].join(', '))}</div>`).join('');
+    return cell(i, 'range', label, cls, who + tags + why + small([r.sup, r.tf && 'TF ' + r.tf, r.unit, r.dur, r.rmk && !extOf(r.rmk) ? r.rmk : '', r.note]));
+  }).join('')}</tr>`).join('');
+
+  // duties
+  const dutyRows = order(d => d.duties, 'duty').filter(k => admin || days.some(d => { const x = find(d, y => y.duties, 'duty', k); return x && (x.main || x.spare); }))
+    .map(label => `<tr><th class="rl">${esc(label)}</th>${days.map((d, i) => {
+      const x = find(d, y => y.duties, 'duty', label);
+      if (!x) return '<td class="none"></td>';
+      const ppl = x.mainPeople.concat(x.sparePeople), bad = ppl.some(n => away[i][n]), mine = ppl.indexOf(me) >= 0;
+      const main = splitOf(x.main) ? splitHtml(splitOf(x.main)) : x.main ? `<b>${esc(x.main)}</b>` : '';
+      const why = ppl.filter(n => away[i][n]).map(n => `<div class="why">\u26a0 ${esc(n)}: ${esc(away[i][n].join(', '))}</div>`).join('');
+      return cell(i, 'duty', label, bad ? 'clash' : mine ? 'mine' : '', (main || '<span class="muted">\u2013</span>') + (x.spare ? `<div class="sm">Spare ${esc(x.spare)}</div>` : '') + why);
+    }).join('')}</tr>`).join('');
+
+  // medics
+  const medicRows = order(d => d.medics, 'role').filter(k => admin || medOnly || days.some(d => { const x = find(d, y => y.medics, 'role', k); return x && x.who; }))
+    .map(label => `<tr><th class="rl">${esc(label)}</th>${days.map((d, i) => {
+      const x = find(d, y => y.medics, 'role', label);
+      if (!x) return '<td class="none"></td>';
+      const bad = x.people.some(n => away[i][n]), mine = x.people.indexOf(me) >= 0;
+      return cell(i, 'medic', label, bad ? 'clash' : mine ? 'mine' : '', (x.who ? `<b>${esc(x.who)}</b>` : '<span class="muted">\u2013</span>') + small([x.loc]));
+    }).join('')}</tr>`).join('');
+
+  // away and notes, and who is free
+  const labels = []; days.forEach(d => d.absences.forEach(a => { if (labels.indexOf(a.label) < 0) labels.push(a.label); }));
+  const awayRows = labels.map(label => `<tr><th class="rl">${esc(label)}</th>${days.map(d => {
+    const a = d.absences.find(x => x.label === label);
+    return `<td class="${a && a.people.indexOf(me) >= 0 ? 'mine' : ''}">${a ? esc(awayTxt(d.date, a.label, a.text)) : ''}</td>`;
+  }).join('')}</tr>`).join('');
+  const freeRow = (role, title) => `<tr><th class="rl">${title}</th>${days.map(d => { const f = freeOn(d, role); return `<td>${f.length ? esc(f.join(', ')) : '<span class="muted">none</span>'}</td>`; }).join('')}</tr>`;
+  const sec = (t, rows) => rows ? `<tr class="sec"><th colspan="${days.length + 1}">${t}</th></tr>${rows}` : '';
+
+  V().innerHTML = `<div class="wkbar">
+      <button class="btn ghost" id="wp" aria-label="Previous week">Prev</button>
+      <h2>${pd(wk.monday).getDate()} ${MON[pd(wk.monday).getMonth()]} to ${pd(end).getDate()} ${MON[pd(end).getMonth()]}</h2>
+      <button class="btn ghost" id="wn" aria-label="Next week">Next</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:-4px 0 10px">${v2ToggleHtml()}<button class="btn ghost" id="wr" style="min-height:34px;padding:4px 12px;font-size:14px">Refresh</button></div>
+    ${admin || medOnly ? `<p class="small muted" style="margin:0 0 8px">${admin ? 'Tap any range, duty or medic cell to change who is posted.' : 'Tap a medic cell to change the name or location.'} Changes by others show up by themselves.</p>` : ''}
+    <div class="v2wk"><div class="scroll"><table class="v2wkt">
+      <thead><tr><th class="rl corner"></th>${th}</tr></thead>
+      <tbody>${sec('Ranges', rangeRows)}${sec('Duties', dutyRows)}${sec('Medics', medicRows)}${sec('Away and notes', awayRows)}
+        ${sec('Not posted', freeRow('APO', 'APO') + freeRow('Medic', 'Medics'))}</tbody></table></div></div>`;
+  v2WireToggle(wk);
+  $('#wr').onclick = () => viewBoard(true);
+  $('#wp').onclick = () => moveWeek(-1);
+  $('#wn').onclick = () => moveWeek(1);
+  V().querySelectorAll('.v2wkt td.tap').forEach(el => el.onclick = () => {
+    const i = +el.dataset.i, [kind, label] = el.dataset.slot.split('|');
+    S.dayIdx = i;
+    openSlotEditor(wk, days[i], kind, label);
+  });
+}
+(function(){
+  const css = `
+.v2seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
+.v2seg button{border:0;background:transparent;padding:6px 16px;min-height:34px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
+.v2seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.v2wk{position:relative;left:50%;transform:translateX(-50%);width:min(1500px, calc(100vw - 32px))}
+.v2wk .scroll{overflow:auto;max-height:calc(100vh - 230px);border:1px solid var(--line);border-radius:var(--r-md, 12px);background:var(--card)}
+.v2wkt{border-collapse:separate;border-spacing:0;font-size:14px;min-width:100%}
+.v2wkt th,.v2wkt td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top;text-align:left;min-width:140px;max-width:220px}
+.v2wkt thead th{position:sticky;top:0;z-index:3;background:var(--card);font-weight:600}
+.v2wkt thead th.tdy{background:var(--dep-soft, #E8F1FB)}
+.v2wkt thead th.busy{box-shadow:inset 0 -3px 0 #F0D98A}
+.v2wkt thead th.full{box-shadow:inset 0 -3px 0 #EDB3AC}
+.v2wkt .dh{display:flex;justify-content:space-between;gap:6px}
+.v2wkt .dh span{font-weight:400;color:var(--muted);font-size:12px}
+.v2wkt .f{display:inline-block;font-size:11px;border-radius:6px;padding:0 5px;margin:3px 4px 0 0;font-weight:600}
+.v2wkt .f.red{background:var(--flag-soft);color:var(--flag)}
+.v2wkt .f.yel{background:var(--noapo-soft);color:#854D0E}
+.v2wkt th.rl{position:sticky;left:0;z-index:2;background:var(--card);min-width:84px;max-width:120px;font-weight:600}
+.v2wkt thead th.corner{z-index:4}
+.v2wkt tr.sec th{position:sticky;left:0;background:var(--paper, #F4F6F3);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:5px 8px}
+.v2wkt .sm{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.3}
+.v2wkt .why{font-size:12px;color:var(--flag);margin-top:2px}
+.v2wkt .none{color:var(--muted)}
+.v2wkt td.tap{cursor:pointer}
+.v2wkt td.tap:hover{outline:2px solid var(--ink);outline-offset:-2px}
+.v2wkt td.idle{background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.025) 6px 12px)}
+.v2wkt td.clash{background:var(--flag-soft)}
+.v2wkt td.noapo{background:var(--noapo-soft)}
+.v2wkt td.mine{background:var(--dep-soft, #E8F1FB)}
+.v2wkt td.ext{background:var(--ext-soft)}
+.v2wkt td.aps{background:var(--aps-soft)}`;
+  const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+})();
+
 const $ = (s, el=document) => el.querySelector(s);
 const MGR_ROLES = ['Manager','DY Manager'];   /* DY Manager = same rights as Manager */
 const MEDIC_ROLES = ['Medic','Medic Certis'];   /* Medic Certis = a medic who can also edit the medics part of the plan */
@@ -4660,7 +4807,7 @@ async function boardTill(key){
 const PARTY_CAP = '<svg class="pcap" viewBox="0 0 24 28" aria-hidden="true"><path d="M12 3 L21 25 L3 25 Z" fill="#F43F5E"/>'
   + '<path d="M8.6 11.3 L15.4 11.3 L16.6 14.2 L7.4 14.2 Z M6.2 17 L17.8 17 L19 19.9 L5 19.9 Z" fill="#FDE047"/>'
   + '<rect x="2" y="24" width="20" height="3" rx="1.5" fill="#6D28D9"/><circle cx="12" cy="3" r="2.6" fill="#22C55E"/></svg>';
-function drawBoard(wk){
+function drawBoardDay(wk){        // v2: drawBoard (v2ui.js) shows this or the week view
   const end = addD(wk.monday, 6);
   const admin = canManage();
   const isAdmAcct = S.me && S.me.role === 'Admin';
