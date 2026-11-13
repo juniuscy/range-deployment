@@ -2427,7 +2427,7 @@ function v2WeekView(wk){
   const labels = []; days.forEach(d => d.absences.forEach(a => { if (labels.indexOf(a.label) < 0) labels.push(a.label); }));
   const awayRows = labels.map(label => `<tr><th class="rl">${esc(label)}</th>${days.map(d => {
     const a = d.absences.find(x => x.label === label);
-    return `<td class="${a && a.people.indexOf(me) >= 0 ? 'mine' : ''}">${a ? esc(awayTxt(d.date, a.label, a.text)) : ''}</td>`;
+    return `<td class="${a && a.people.indexOf(me) >= 0 ? 'mine' : ''}">${a ? v2AwayHtml(d.date, a.label, a.text) : ''}</td>`;
   }).join('')}</tr>`).join('');
   const freeRow = (role, title) => `<tr><th class="rl">${title}</th>${days.map(d => { const f = freeOn(d, role); return `<td>${f.length ? esc(f.join(', ')) : '<span class="muted">none</span>'}</td>`; }).join('')}</tr>`;
   const sec = (t, rows) => rows ? `<tr class="sec"><th colspan="${days.length + 1}">${t}</th></tr>${rows}` : '';
@@ -2886,6 +2886,33 @@ function v2WireMyGrab(list){
 .gcamt label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
 .gcamt input{min-height:38px;width:130px}
 .note.green{background:#F0FDF4;border-color:#86EFAC}`;
+  document.head.appendChild(st);
+})();
+
+/* ============================================================
+   v2 only: the away list, easy to read: one person per line, the name in bold,
+   then what it is ("OIL (PM) \u00b7 clears OIL of 28/3/26 \u00b7 till 11/11/26"). Display only: the sheet keeps its text.
+   ============================================================ */
+function v2AwayHtml(ds, label, text){
+  const full = awayTxt(ds, label, text);
+  const parts = String(full || '').split(/\s*,\s*/).filter(Boolean);
+  return parts.map(part => {
+    let p = part.replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/\)\(/g, ') (').replace(/\s+/g, ' ').trim();
+    // the person's name at the front (as written, or their staff name)
+    let name = '';
+    const up = p.toUpperCase();
+    (namesIn(p) || []).concat(String(p).split(' ').slice(0, 1)).some(n => { if (n && up.startsWith(String(n).toUpperCase() + ' ')) { name = p.slice(0, n.length); return true; } return false; });
+    let rest = name ? p.slice(name.length).trim() : p;
+    let till = '';
+    rest = rest.replace(/\s*\bTILL\s+(\S+)\s*$/i, (m, d) => { till = d; return ''; });
+    rest = rest.replace(/\(CLEAR OIL FOR ([^)]*)\)/i, (m, d) => '\u00b7 clears OIL of ' + d.trim());
+    return `<div class="awl">${name ? `<b>${esc(name)}</b> ` : ''}${esc(rest)}${till ? ` <span class="awt">\u00b7 till ${esc(till)}</span>` : ''}</div>`;
+  }).join('');
+}
+(function(){
+  const st = document.createElement('style');
+  window.v2AwayHtml = v2AwayHtml;   // (for checks)
+  st.textContent = `.awl{line-height:1.35}.awl + .awl{margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}.awl .awt{color:var(--muted);white-space:nowrap}`;
   document.head.appendChild(st);
 })();
 
@@ -5297,7 +5324,7 @@ function drawBoardDay(wk){        // v2: drawBoard (v2ui.js) shows this or the w
     const rgs = reportGroups(d);
     const awayT = (d.absences.length || rgs.length) ? `<h3>Away and notes</h3><div class="scroll"><table class="t">
       ${rgs.map(g => `<tr class="${g.names.indexOf(me)>=0?'mine':''}"><th style="width:34%"><span class="extag">EXT</span> Report ${esc(hrs(g.t))}</th><td>${esc(g.names.join(', '))}</td></tr>`).join('')}
-      ${d.absences.map(x => `<tr class="${x.people.indexOf(me)>=0?'mine':''}"><th style="width:34%">${esc(x.label)}</th><td>${esc(awayTxt(d.date, x.label, x.text))}</td></tr>`).join('')}</table></div>` : '';
+      ${d.absences.map(x => `<tr class="${x.people.indexOf(me)>=0?'mine':''}"><th style="width:34%">${esc(x.label)}</th><td>${v2AwayHtml(d.date, x.label, x.text)}</td></tr>`).join('')}</table></div>` : '';   // v2: one person per line
     const editbar = medOnly ? `<div class="editbar">
         <span class="small muted">${ed ? 'Tap a medic row to change the name or location.' : ''}</span>
         <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ${ed ? '' : 'ghost'}" id="edt">${ed ? 'Done editing' : 'Edit medics'}</button></span></div>` : admin ? `<div class="editbar">
