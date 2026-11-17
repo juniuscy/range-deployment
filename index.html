@@ -3717,7 +3717,7 @@ function v2AmSumExtra(yr){
   // diesel
   const F = K.fm.filter((m, i) => !cur || i < Number(S.today.slice(5, 7))).filter(m => m.litres != null || m.km > 0);
   const kmL = K.litres ? K.yrKm / K.litres : null;
-  const rows = F.map(m => `<tr><td>${m.m}</td><td class="n">${m.litres != null ? ltTxt(m.litres) : '\u2014'}</td><td class="n">${m.cost != null ? fuelMoney(m.cost) : '\u2014'}</td><td class="n">${m.cost != null ? fuelMoney(fuelNet(m.cost)) : '\u2014'}</td><td class="n">${kmTxt(m.km)}</td><td class="n e">${m.litres ? (m.km / m.litres).toFixed(1) : '\u2014'}</td></tr>`).join('');
+  const rows = F.map(m => `<tr><td>${m.m}</td><td class="n">${m.litres != null ? ltTxt(m.litres) : '\u2014'}</td><td class="n">${m.cost != null ? fuelMoney(m.cost) : '\u2014'}</td><td class="n">${m.cost != null ? fuelMoney(fuelNet(m.cost)) : '\u2014'}</td><td class="n">${kmTxt(m.km)}</td><td class="n e">${m.cost != null && m.km ? (fuelNet(m.cost) / m.km).toFixed(2) : '\u2014'}</td></tr>`).join('');
   return `<div class="sec am-km">
       <div class="am-kmh"><h3>Mileage, ${yr}</h3>${trucks.length > 1 ? `<select id="am-kmtk" aria-label="Truck">${trucks.map(t => `<option value="${esc(t.id)}"${t.id === tk.id ? ' selected' : ''}>${esc(t.plate)}</option>`).join('')}</select>` : `<span class="srv-tkn">${esc(tk.plate)}</span>`}</div>
       <div class="small muted">From the Vehicle First Parade checklists (Ended &minus; Starting Mileage).</div>
@@ -3731,8 +3731,8 @@ function v2AmSumExtra(yr){
       ${cur ? fuelNote(tk.id, amCan()) : ''}
       <div class="am-km3"><div><b>${ltTxt(K.litres)} L</b><span>LITRES</span></div><div><b>S$ ${fuelMoney(K.net)}</b><span>ACTUAL COST</span></div><div><b>${K.yrKm ? 'S$ ' + (K.net / K.yrKm).toFixed(2) : '\u2014'}</b><span>PER KM</span></div></div>
       ${K.litres ? `<div class="small muted" style="margin:-2px 0 8px">Actual cost is after the ${Math.round(FUEL_REBATE * 100)}% rebate (S$ ${fuelMoney(K.cost)} before). Average S$ ${(K.net / K.litres).toFixed(2)} per litre${kmL ? ' &middot; ' + kmL.toFixed(1) + ' km/L' : ''}</div>` : ''}
-      ${F.length ? `<div class="am-dtab"><table class="t"><colgroup><col class="c0"><col class="c1"><col class="c2"><col class="c2"><col class="c1"><col class="c1"></colgroup><tr><th>Month</th><th class="n">Litres</th><th class="n">Cost (S$)</th><th class="n rb">After Rebate ${Math.round(FUEL_REBATE * 100)}%</th><th class="n">km</th><th class="n">km/L</th></tr>${rows}
-        <tr class="tot"><td>Total</td><td class="n">${ltTxt(K.litres)}</td><td class="n">$${fuelMoney(K.cost)}</td><td class="n">$${fuelMoney(K.net)}</td><td class="n">${kmTxt(K.yrKm)}</td><td class="n e">${kmL ? kmL.toFixed(1) : '\u2014'}</td></tr></table></div>` : `<p class="muted small" style="margin:0">No diesel recorded for ${esc(tk.plate)} in ${yr} yet.</p>`}
+      ${F.length ? `<div class="am-dtab"><table class="t"><colgroup><col class="c0"><col class="c1"><col class="c2"><col class="c2"><col class="c1"><col class="c1"></colgroup><tr><th>Month</th><th class="n">Litres</th><th class="n">Cost (S$)</th><th class="n rb">After Rebate ${Math.round(FUEL_REBATE * 100)}%</th><th class="n">km</th><th class="n">Per km (S$)</th></tr>${rows}
+        <tr class="tot"><td>Total</td><td class="n">${ltTxt(K.litres)}</td><td class="n">$${fuelMoney(K.cost)}</td><td class="n">$${fuelMoney(K.net)}</td><td class="n">${kmTxt(K.yrKm)}</td><td class="n e">${K.yrKm && K.fuelN ? '$' + (K.net / K.yrKm).toFixed(2) : '\u2014'}</td></tr></table></div>` : `<p class="muted small" style="margin:0">No diesel recorded for ${esc(tk.plate)} in ${yr} yet.</p>`}
     </div>`;
 }
 function v2AmSumWire(yr){
@@ -3762,7 +3762,7 @@ async function v2AmSumPdfExtra(doc, yr, M, W){
     // by month: km (with a bar), litres, cost, km/L
     let y = 58;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); ink(); doc.text('By month', M, y); y += 3.5;
-    const cols = [['Month', 0, 'l'], ['Mileage (km)', 0.42, 'r'], ['Litres', 0.54, 'r'], ['Cost (S$)', 0.69, 'r'], ['After Rebate ' + Math.round(FUEL_REBATE * 100) + '%', 0.88, 'r'], ['km/L', 1, 'r']], mxKm = Math.max(1, ...K.month.map(m => m.km));
+    const cols = [['Month', 0, 'l'], ['Mileage (km)', 0.42, 'r'], ['Litres', 0.54, 'r'], ['Cost (S$)', 0.69, 'r'], ['After Rebate ' + Math.round(FUEL_REBATE * 100) + '%', 0.88, 'r'], ['Per km (S$)', 1, 'r']], mxKm = Math.max(1, ...K.month.map(m => m.km));
     const row = (cells, head, bold, m) => {
       if (head) { doc.setFillColor(238, 242, 238); doc.rect(M, y, W, 6.4, 'F'); }
       if (bold) { doc.setFillColor(227, 236, 244); doc.rect(M, y, W, 6.4, 'F'); }
@@ -3771,10 +3771,10 @@ async function v2AmSumPdfExtra(doc, yr, M, W){
       cells.forEach((tx, i) => { const [, f2, al] = cols[i]; doc.text(String(tx), al === 'r' ? M + f2 * W - 2 : M + 2, y + 4.4, al === 'r' ? { align: 'right' } : undefined); });
       y += 6.4; doc.setDrawColor(222, 227, 222); doc.line(M, y, M + W, y); };
     row(cols.map(c => c[0]), true);
-    K.fm.slice(0, last).forEach(m => row([m.m, m.km ? vcKmTxt(m.km) : '-', m.litres != null ? ltTxt(m.litres) : '-', m.cost != null ? fuelMoney(m.cost) : '-', m.cost != null ? fuelMoney(fuelNet(m.cost)) : '-', m.litres ? (m.km / m.litres).toFixed(1) : '-'], false, false, m));
-    row(['Total', vcKmTxt(K.yrKm), ltTxt(K.litres), '$' + fuelMoney(K.cost), '$' + fuelMoney(K.net), kmL ? kmL.toFixed(1) : '-'], false, true);
+    K.fm.slice(0, last).forEach(m => row([m.m, m.km ? vcKmTxt(m.km) : '-', m.litres != null ? ltTxt(m.litres) : '-', m.cost != null ? fuelMoney(m.cost) : '-', m.cost != null ? fuelMoney(fuelNet(m.cost)) : '-', m.cost != null && m.km ? (fuelNet(m.cost) / m.km).toFixed(2) : '-'], false, false, m));
+    row(['Total', vcKmTxt(K.yrKm), ltTxt(K.litres), '$' + fuelMoney(K.cost), '$' + fuelMoney(K.net), K.yrKm && K.fuelN ? '$' + (K.net / K.yrKm).toFixed(2) : '-'], false, true);
     y += 6;
-    if (K.litres) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); grey(); const nt = doc.splitTextToSize('Actual cost is after the ' + Math.round(FUEL_REBATE * 100) + '% rebate (S$ ' + fuelMoney(K.cost) + ' before).  Average S$ ' + (K.net / K.litres).toFixed(2) + ' per litre' + (kmL ? ', ' + kmL.toFixed(1) + ' km/L' : '') + '.  km/L = the month\u2019s mileage \u00f7 the litres pumped that month.', W); doc.text(nt, M, y); y += 4 * nt.length + 4; }
+    if (K.litres) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); grey(); const nt = doc.splitTextToSize('Actual cost is after the ' + Math.round(FUEL_REBATE * 100) + '% rebate (S$ ' + fuelMoney(K.cost) + ' before).  Average S$ ' + (K.net / K.litres).toFixed(2) + ' per litre' + (kmL ? ', ' + kmL.toFixed(1) + ' km/L' : '') + '.  Per km = the month\u2019s actual cost \u00f7 the km driven that month.', W); doc.text(nt, M, y); y += 4 * nt.length + 4; }
     // the fill-ups
     const fl = fuelList(t.id).filter(x => x.date.slice(0, 4) === yr).reverse();
     if (fl.length) {
