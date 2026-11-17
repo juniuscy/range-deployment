@@ -3729,10 +3729,10 @@ function v2AmSumExtra(yr){
     <div class="sec am-dsl">
       <h3>Diesel, ${yr}</h3>
       ${cur ? fuelNote(tk.id, amCan()) : ''}
-      <div class="am-km3"><div><b>${ltTxt(K.litres)} L</b><span>LITRES</span></div><div><b>S$ ${Math.round(K.cost).toLocaleString('en-SG')}</b><span>COST</span></div><div><b>${kmL ? kmL.toFixed(1) + ' km/L' : '\u2014'}</b><span>AVERAGE</span></div></div>
-      ${K.litres ? `<div class="small muted" style="margin:-2px 0 8px">Average price S$ ${(K.cost / K.litres).toFixed(2)} per litre${K.yrKm ? ' &middot; S$ ' + (K.cost / K.yrKm).toFixed(2) + ' per km' : ''}</div>` : ''}
-      ${F.length ? `<div class="am-dtab"><table class="t"><colgroup><col class="c0">${'<col>'.repeat(5)}</colgroup><tr><th>Month</th><th class="n">Litres</th><th class="n">Cost (S$)</th><th class="n rb">After Rebate ${Math.round(FUEL_REBATE * 100)}%</th><th class="n">km</th><th class="n">km/L</th></tr>${rows}
-        <tr class="tot"><td>Total</td><td class="n">${ltTxt(K.litres)}</td><td class="n">${fuelMoney(K.cost)}</td><td class="n">${fuelMoney(K.net)}</td><td class="n">${kmTxt(K.yrKm)}</td><td class="n e">${kmL ? kmL.toFixed(1) : '\u2014'}</td></tr></table></div>` : `<p class="muted small" style="margin:0">No diesel recorded for ${esc(tk.plate)} in ${yr} yet.</p>`}
+      <div class="am-km3"><div><b>${ltTxt(K.litres)} L</b><span>LITRES</span></div><div><b>S$ ${fuelMoney(K.net)}</b><span>ACTUAL COST</span></div><div><b>${K.yrKm ? 'S$ ' + (K.net / K.yrKm).toFixed(2) : '\u2014'}</b><span>PER KM</span></div></div>
+      ${K.litres ? `<div class="small muted" style="margin:-2px 0 8px">Actual cost is after the ${Math.round(FUEL_REBATE * 100)}% rebate (S$ ${fuelMoney(K.cost)} before). Average S$ ${(K.net / K.litres).toFixed(2)} per litre${kmL ? ' &middot; ' + kmL.toFixed(1) + ' km/L' : ''}</div>` : ''}
+      ${F.length ? `<div class="am-dtab"><table class="t"><colgroup><col class="c0"><col class="c1"><col class="c2"><col class="c2"><col class="c1"><col class="c1"></colgroup><tr><th>Month</th><th class="n">Litres</th><th class="n">Cost (S$)</th><th class="n rb">After Rebate ${Math.round(FUEL_REBATE * 100)}%</th><th class="n">km</th><th class="n">km/L</th></tr>${rows}
+        <tr class="tot"><td>Total</td><td class="n">${ltTxt(K.litres)}</td><td class="n">$${fuelMoney(K.cost)}</td><td class="n">$${fuelMoney(K.net)}</td><td class="n">${kmTxt(K.yrKm)}</td><td class="n e">${kmL ? kmL.toFixed(1) : '\u2014'}</td></tr></table></div>` : `<p class="muted small" style="margin:0">No diesel recorded for ${esc(tk.plate)} in ${yr} yet.</p>`}
     </div>`;
 }
 function v2AmSumWire(yr){
@@ -3756,7 +3756,7 @@ async function v2AmSumPdfExtra(doc, yr, M, W){
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); ink(); doc.text('MILEAGE AND DIESEL ' + yr, M, 20);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); grey(); doc.text(t.plate + (t.name ? ' \u00b7 ' + t.name : '') + '. Mileage from the Vehicle First Parade checklists. As at ' + amDmy(S.today) + '.', M, 26);
     const kmL = K.litres ? K.yrKm / K.litres : null;
-    const kp = [[vcKmTxt(K.yrKm) + ' km', 'Mileage used in ' + yr], [ltTxt(K.litres) + ' L', 'Diesel pumped'], ['S$ ' + K.cost.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'Diesel cost'], [kmL ? kmL.toFixed(1) + ' km/L' : '-', 'Average']], kw = (W - 9) / 4;
+    const kp = [[vcKmTxt(K.yrKm) + ' km', 'Mileage used in ' + yr], [ltTxt(K.litres) + ' L', 'Diesel pumped'], ['S$ ' + fuelMoney(K.net), 'Actual cost'], [K.yrKm ? 'S$ ' + (K.net / K.yrKm).toFixed(2) : '-', 'Per km']], kw = (W - 9) / 4;
     kp.forEach(([v, l], i) => { const x = M + i * (kw + 3); doc.setDrawColor(214, 220, 214); i ? doc.setFillColor(247, 249, 247) : doc.setFillColor(227, 236, 244); doc.roundedRect(x, 31, kw, 17, 2, 2, 'FD');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5); i ? ink() : steel(); doc.text(v, x + 4, 39); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); grey(); doc.text(l, x + 4, 44.5); });
     // by month: km (with a bar), litres, cost, km/L
@@ -3772,9 +3772,9 @@ async function v2AmSumPdfExtra(doc, yr, M, W){
       y += 6.4; doc.setDrawColor(222, 227, 222); doc.line(M, y, M + W, y); };
     row(cols.map(c => c[0]), true);
     K.fm.slice(0, last).forEach(m => row([m.m, m.km ? vcKmTxt(m.km) : '-', m.litres != null ? ltTxt(m.litres) : '-', m.cost != null ? fuelMoney(m.cost) : '-', m.cost != null ? fuelMoney(fuelNet(m.cost)) : '-', m.litres ? (m.km / m.litres).toFixed(1) : '-'], false, false, m));
-    row(['Total', vcKmTxt(K.yrKm), ltTxt(K.litres), fuelMoney(K.cost), fuelMoney(K.net), kmL ? kmL.toFixed(1) : '-'], false, true);
+    row(['Total', vcKmTxt(K.yrKm), ltTxt(K.litres), '$' + fuelMoney(K.cost), '$' + fuelMoney(K.net), kmL ? kmL.toFixed(1) : '-'], false, true);
     y += 6;
-    if (K.litres) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); grey(); doc.text('Average price S$ ' + (K.cost / K.litres).toFixed(2) + ' per litre' + (K.yrKm ? '  \u00b7  S$ ' + (K.cost / K.yrKm).toFixed(2) + ' per km' : '') + '.  km/L = the month\u2019s mileage \u00f7 the litres pumped that month.', M, y); y += 8; }
+    if (K.litres) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); grey(); const nt = doc.splitTextToSize('Actual cost is after the ' + Math.round(FUEL_REBATE * 100) + '% rebate (S$ ' + fuelMoney(K.cost) + ' before).  Average S$ ' + (K.net / K.litres).toFixed(2) + ' per litre' + (kmL ? ', ' + kmL.toFixed(1) + ' km/L' : '') + '.  km/L = the month\u2019s mileage \u00f7 the litres pumped that month.', W); doc.text(nt, M, y); y += 4 * nt.length + 4; }
     // the fill-ups
     const fl = fuelList(t.id).filter(x => x.date.slice(0, 4) === yr).reverse();
     if (fl.length) {
@@ -3849,7 +3849,7 @@ async function v2HubServ(){
 .fuel-3,.am-km3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center;margin:8px 0}
 .fuel-3>div,.am-km3>div{background:#F4F6F3;border-radius:8px;padding:6px 4px;min-width:0}
 .fuel-3 small{display:block;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}.fuel-3 b{font:700 18px/1.25 var(--cond)}
-.am-km3>div{padding:8px 4px}.am-km3 b{display:block;font:700 21px/1.15 var(--cond);white-space:nowrap}.am-km3 span{display:block;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.am-km3>div{padding:8px 4px}.am-km3 b{display:block;font:700 21px/1.15 var(--cond);font-size:clamp(17px,5.4vw,21px);white-space:nowrap}.am-km3 span{display:block;font-size:11.5px;font-size:clamp(10px,3.2vw,11.5px);font-weight:700;color:var(--muted);letter-spacing:.03em;white-space:nowrap}
 .am-km3 small{display:block;font-size:11.5px;color:var(--muted)}.am-km3>div.hi{background:var(--steel-soft)}.am-km3>div.hi b,.am-km3>div.hi span,.am-km3>div.hi small{color:var(--steel)}
 .fuel-more{font-size:13px;color:var(--muted)}.fuel-rmk{font-size:14px;margin-top:4px}
 .fuel-big{font:700 22px var(--cond)!important;letter-spacing:.02em}
@@ -3872,9 +3872,9 @@ async function v2HubServ(){
 .am-kmb .l small{display:block;font-size:10.5px;line-height:1.2}.am-dsl h3{margin-top:0}
 .am-kmb.on .b{background:var(--steel)}.am-kmb.on .v{color:var(--ink)}.am-kmb.on .l{color:var(--ink);font-weight:700}
 .am-kmsel{font-size:14px;background:#F4F6F3;border-radius:8px;padding:8px 10px;margin:6px 0 10px}
-@media (max-width:560px){.am-dtab th,.am-dtab td{padding:8px 5px!important;font-size:13.5px}.am-dtab th{font-size:12.5px;white-space:normal!important;line-height:1.25}.am-dtab th:first-child,.am-dtab td:first-child{padding-left:8px!important}.am-dtab th:last-child,.am-dtab td:last-child{padding-right:8px!important}}
+@media (max-width:560px){.am-dtab th,.am-dtab td{padding:8px 5px!important;font-size:13.5px}.am-dtab td.n{font:500 15px var(--cond)}.am-dtab tr.tot td.n{font-weight:700}.am-dtab th{font-size:12.5px;white-space:normal!important;line-height:1.25}.am-dtab th:first-child,.am-dtab td:first-child{padding-left:8px!important}.am-dtab th:last-child,.am-dtab td:last-child{padding-right:8px!important}}
 @media (max-width:359px){.am-kmc:not(.fx){width:max-content;min-width:100%}.am-kmc:not(.fx) .am-kmb{flex:none;width:32px}.am-dtab th,.am-dtab td{padding-left:3px!important;padding-right:3px!important;font-size:12.5px}.am-dtab th{font-size:11.5px}.am-dtab th:first-child,.am-dtab td:first-child{padding-left:6px!important}.am-dtab th:last-child,.am-dtab td:last-child{padding-right:6px!important}}
-.am-dtab{overflow-x:auto}.am-dtab th{vertical-align:bottom}.am-dtab table{table-layout:fixed}.am-dtab col{width:auto}.am-dtab col.c0{width:15%}.am-dtab th.rb{white-space:normal;min-width:62px}.am-dtab table{width:100%}.am-dtab .n{text-align:right;white-space:nowrap}.am-dtab .e{font-weight:700;color:var(--steel)}.am-dtab tr.tot td{font-weight:700;background:var(--steel-soft);color:var(--steel)}
+.am-dtab{overflow-x:auto}.am-dtab th{vertical-align:bottom}.am-dtab table{table-layout:fixed}.am-dtab col.c0{width:14%}.am-dtab col.c1{width:15%}.am-dtab col.c2{width:20.5%}.am-dtab th.rb{white-space:normal;min-width:62px}.am-dtab table{width:100%}.am-dtab .n{text-align:right;white-space:nowrap}.am-dtab .e{font-weight:700;color:var(--steel)}.am-dtab tr.tot td{font-weight:700;background:var(--steel-soft);color:var(--steel)}
 .srv-tk{margin:0 0 10px}
 .srv-cur{padding:14px}
 .srv-tkn{font-size:14px;color:var(--muted);font-weight:600}
