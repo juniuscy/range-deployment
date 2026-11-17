@@ -2267,6 +2267,14 @@ const V2C = (() => {
   return { call, signOut, _st: st };
 })();
 
+/* Two sessions in a range (TF AM, and a different TF PM in the sheet's "duration" box): one TF line, "LMG QUALIF SHOOT / CS (SP)".
+   WHOLE DAY / HALF DAY / AM / PM stay on their own; a duration that repeats the TF is not shown twice. */
+function v2TfLine(r) {
+  const kk = x => String(x || '').toUpperCase().replace(/\s+/g, ''), dur = String(r.dur || '').trim();
+  if (!dur || kk(dur) === kk(r.tf)) return { tf: r.tf || '', dur: r.tf ? '' : dur };
+  if (r.tf && !/^((WHOLE|FULL|HALF)\s*DAY|AM|PM|AM\s*\/?\s*PM)$/i.test(dur)) return { tf: r.tf + ' / ' + dur, dur: '' };
+  return { tf: r.tf || '', dur };
+}
 /* ============================================================
    v2 only: the staff and roles grid (Admin > Staff > Grid). Edit like a sheet; changed rows turn yellow;
    Save changes saves them all at once. Enter moves down; paste a column copied from Excel / Sheets.
@@ -2414,7 +2422,8 @@ function v2WeekView(wk){
     const who = sp ? splitHtml(sp) : gap ? '<span class="none">No APO</span>' : `<b>${esc(r.emp)}</b>`;
     const tags = (!sp && extOf(r.rmk) ? ` <span class="extag">EXT ${esc(hrs(extOf(r.rmk)))}</span>` : '') + (aps ? ' <span class="apstag">APS</span>' : '');
     const why = r.people.filter(n => away[i][n]).map(n => `<div class="why">\u26a0 ${esc(n)}: ${esc(away[i][n].join(', '))}</div>`).join('');
-    return cell(i, 'range', label, cls, who + tags + why + small([r.sup, r.tf && 'TF ' + r.tf, r.unit, r.dur, r.rmk && !extOf(r.rmk) ? r.rmk : '', r.note]));
+    const tl = v2TfLine(r);
+    return cell(i, 'range', label, cls, who + tags + why + small([r.sup, tl.tf && 'TF ' + tl.tf, r.unit, tl.dur, r.rmk && !extOf(r.rmk) ? r.rmk : '', r.note]));
   }).join('')}</tr>`).join('');
 
   // duties
@@ -6104,7 +6113,7 @@ function drawBoardDay(wk){        // v2: drawBoard (v2ui.js) shows this or the w
       const slot = `data-slot="range|${esc(r.range)}"`;
       if (!r.active) return `<div class="rg idle" ${slot}><div class="code">${esc(r.range)}</div><div class="body">Not in use</div></div>`;
       const mine = r.people.indexOf(me) >= 0;
-      const meta = [['TF', r.tf], ['Unit', r.unit], ['', r.dur], ['', r.rmk], ['Note', r.note]].filter(m => m[1])
+      const tl = v2TfLine(r), meta = [['TF', tl.tf], ['Unit', r.unit], ['', tl.dur], ['', r.rmk], ['Note', r.note]].filter(m => m[1])
         .map(m => `<span>${m[0] ? m[0]+' ' : ''}<b>${esc(m[1])}</b></span>`).join('');
       const bad = r.people.some(n => away[n]);
       const gap = !String(r.emp || '').trim();
