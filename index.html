@@ -3837,6 +3837,8 @@ async function v2HubServ(){
   st.textContent = `
 .am-dot{display:inline-block;width:8px;height:8px;border-radius:999px;margin-left:6px;vertical-align:middle;background:#B7791F;box-shadow:0 0 0 2px #fff}.am-dot.bad{background:#C0392B}
 .am-tabs button[aria-pressed=true] .am-dot{box-shadow:0 0 0 2px var(--ink)}
+.am-tabs{padding-left:12px;padding-right:12px}
+@media (min-width:760px){.am-tabs{overflow:visible;-webkit-mask-image:none!important;mask-image:none!important}.am-tabs button{flex:1 1 auto;padding:7px 6px;font-size:13.5px}}
 .fuel-note{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13.5px;color:#7A4F05;background:#FDF3E1;border:1px solid #E8C77E;border-radius:8px;padding:8px 10px;margin:0 0 10px}
 .fuel-note .linkbtn{white-space:nowrap;font-weight:700;min-height:32px}
 .fuel-3,.am-km3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center;margin:8px 0}
@@ -3858,7 +3860,7 @@ async function v2HubServ(){
 .am-kmscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .am-kmc{display:flex;align-items:stretch;gap:6px;height:180px}.am-kmc.fx{width:max-content;min-width:100%}
 .am-kmb{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;border:0;background:none;padding:0;cursor:pointer;font:inherit}
-.am-kmc.fx .am-kmb{flex:none;width:38px}
+.am-kmc.fx .am-kmb{flex:1 0 38px}
 .am-kmb .v{font:700 12px/1.3 var(--cond);color:var(--steel);text-align:center;white-space:nowrap;margin-bottom:2px}
 .am-kmb .b{display:block;background:#9DB6CE;border-radius:4px 4px 0 0}
 .am-kmb .l{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;border-top:1px solid #9AA6B2;padding-top:3px}
@@ -3881,7 +3883,7 @@ async function v2HubServ(){
 .srv-r small{display:block;font-size:11px;line-height:1.2;color:var(--muted);white-space:nowrap}.srv-r b{display:block;font-size:13px;line-height:1.35}
 .srv-r.sent{background:#EDF0EC;border-color:#EDF0EC}
 .srv-add{margin-top:12px;min-height:44px}
-.srv-hh{display:flex;align-items:baseline;justify-content:space-between;margin:4px 2px 8px}.srv-hh small{font-size:13px}
+.srv-hh{display:flex;align-items:baseline;justify-content:space-between;margin:4px 0 8px}.srv-hh small{font-size:13px}
 .srv-latest{background:#E3EAF2;color:var(--steel);font:700 12px/1 var(--body);border-radius:999px;padding:5px 9px;white-space:nowrap}
 .srv-ft{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}.srv-ft .ctupd{margin:0}
 .srv-acts{display:flex;gap:6px;flex:none}.srv-acts .btn{min-height:36px;padding:4px 12px}.srv-acts .btn.srv-del{color:var(--flag);border-color:#E6C3BF}
@@ -10629,19 +10631,20 @@ function amSumTab(){
   const yr = S.amYr && years.includes(S.amYr) ? S.amYr : years[0]; S.amYr = yr;
   const D = amSumData(yr), mx = Math.max(...D.month.map(m => m.total), 0);
   const step = mx <= 300 ? 100 : mx <= 600 ? 200 : mx <= 1500 ? 500 : mx <= 3000 ? 1000 : Math.ceil(mx / 4 / 1000) * 1000;
-  const top = Math.max(step, Math.ceil(mx / step) * step), H = 150, x0 = 40, bw = 21, gap = 5.5;
+  const CW = Math.max(260, Math.round(Math.min(document.documentElement.clientWidth, 760) - 58)), slot = (CW - 40) / 12;
+  const top = Math.max(step, Math.ceil(mx / step) * step), H = 150, x0 = 40, bw = slot * 0.8, gap = slot * 0.2;
   const sel = S.amMon == null ? null : S.amMon;
   const bars = D.month.map((m, i) => { const h = m.total / top * H, x = x0 + i * (bw + gap); const r = Math.min(4, h);
     return `<g class="am-bar${sel === i ? ' on' : ''}" data-amm="${i}"><rect x="${x - gap / 2}" y="8" width="${bw + gap}" height="${H + 22}" fill="transparent"/>
       ${m.total > 0 ? `<path d="M${x},${158} V${158 - h + r} Q${x},${158 - h} ${x + r},${158 - h} H${x + bw - r} Q${x + bw},${158 - h} ${x + bw},${158 - h + r} V158 Z"/>` : ''}
       <text x="${x + bw / 2}" y="174" text-anchor="middle">${m.m[0]}</text></g>`; }).join('');
-  const grid = [0, 1, 2, 3].map(k => { const v = top / 3 * k, yy = 158 - v / top * H; return `<line x1="${x0 - 4}" x2="352" y1="${yy}" y2="${yy}" stroke="${k ? '#E4E8E3' : '#9AA6B2'}"/><text x="${x0 - 8}" y="${yy + 4}" text-anchor="end">${Math.round(v)}</text>`; }).join('');
+  const grid = [0, 1, 2, 3].map(k => { const v = top / 3 * k, yy = 158 - v / top * H; return `<line x1="${x0 - 4}" x2="${CW}" y1="${yy}" y2="${yy}" stroke="${k ? '#E4E8E3' : '#9AA6B2'}"/><text x="${x0 - 8}" y="${yy + 4}" text-anchor="end">${Math.round(v)}</text>`; }).join('');
   const best = D.month.reduce((a, m) => m.total > a.total ? m : a, D.month[0]);
   const cur = yr === S.today.slice(0, 4) ? D.month[Number(S.today.slice(5, 7)) - 1] : null;
   V().innerHTML = `<div class="am-hrow"><h2 class="am-h">Summary</h2><select id="as-y">${years.map(y => `<option ${y === yr ? 'selected' : ''}>${y}</option>`).join('')}</select></div>
     <div class="am-kpi"><div><b>S$ ${Math.round(D.total).toLocaleString('en-SG')}</b><span>Spent</span></div><div><b>${D.count}</b><span>Repairs found</span></div><div><b>${D.open}</b><span>Not fixed yet</span></div></div>
     <div class="sec"><h3 style="margin:0">Monthly repair spend, ${yr}</h3><div class="small muted">Receipt totals (with GST), by invoice month. Tap a bar for that month's repairs.</div>
-      <svg class="am-chart" viewBox="0 0 360 184" role="img" aria-label="Monthly repair spend ${yr}">${grid}${bars}</svg>
+      <svg class="am-chart" viewBox="0 0 ${CW} 184" role="img" aria-label="Monthly repair spend ${yr}">${grid}${bars}</svg>
       <div class="small" id="as-tip">${sel != null ? '' : (mx ? `Highest: <b>${best.m}, ${amMoney(best.total)}</b>${cur ? ' &middot; ' + cur.m + ' so far: <b>' + amMoney(cur.total) + '</b>' : ''}` : 'No receipts entered for ' + yr + ' yet.')}</div>
       ${sel != null ? `<div class="am-msel"><b>${AM_MON[sel]} ${yr}: ${amMoney(D.month[sel].total)}</b>${D.month[sel].list.map(r => `<div>${esc(r.plate)} &middot; ${r.no}. ${esc(r.fault)} &middot; ${esc((amCon(r.contractorId) || {}).company || '')} &middot; <b>${amMoney(r.total)}</b></div>`).join('') || '<div class="muted">No repairs paid this month.</div>'}</div>` : ''}
       <div style="margin-top:8px"><button class="linkbtn" id="as-tb">${S.amTable ? 'Hide table' : 'Table view'}</button></div>
