@@ -3560,7 +3560,8 @@ function amFuelTab(){
     <div class="srv-hh"><span class="ctt">History</span><small class="muted">${list.length} fill-up${list.length === 1 ? '' : 's'}</small></div>
     ${list.map(x => `<div class="ctblk" data-fuelrow="${esc(x.id)}">
       <div class="cth"><span class="ctt">${esc(VC_DOW[pd(x.date).getDay()])} ${ctD(x.date)}</span><span class="srv-tkn">${esc(x.plate)}</span></div>
-      <div class="fuel-3"><div><small>LITRES</small><b>${ltTxt(x.litres)} L</b></div><div><small>COST</small><b>${amMoney(x.cost)}</b></div><div><small>PER LITRE</small><b>${x.litres ? 'S$ ' + (x.cost / x.litres).toFixed(2) : '\u2014'}</b></div></div>
+      <div class="fuel-3"><div><small>LITRES</small><b>${ltTxt(x.litres)} L</b></div><div><small>ACTUAL COST</small><b>${amMoney(fuelNet(x.cost || 0))}</b></div><div><small>PER LITRE</small><b>${x.litres ? 'S$ ' + (fuelNet(x.cost || 0) / x.litres).toFixed(2) : '\u2014'}</b></div></div>
+      <div class="fuel-reb">After the ${Math.round(FUEL_REBATE * 100)}% rebate. Before: ${amMoney(x.cost)}${x.litres ? ' (S$ ' + (x.cost / x.litres).toFixed(2) + ' per litre at the pump)' : ''}</div>
       <div class="fuel-more">${[x.km ? 'Mileage ' + vcKmTxt(Number(x.km)) + ' km' : '', x.where].filter(Boolean).map(esc).join(' &middot; ')}</div>
       ${x.rmk ? `<div class="fuel-rmk">${esc(x.rmk)}</div>` : ''}
       ${x.photos.length ? `<div class="ctphs">${x.photos.map((id, j) => `<button class="ctth" data-fuelph="${esc(x.id)}" data-i="${j}" data-id="${esc(id)}" aria-label="View photo ${j + 1}">${ctThumb[id] ? `<img src="${ctThumb[id]}" alt="">` : `<span>Photo ${j + 1}</span>`}</button>`).join('')}</div>` : ''}
@@ -3594,7 +3595,8 @@ function amFuelForm(){
   const f = S.amFuelF, trucks = fuelTrucks(), tk = (S.am.trucks || []).find(t => t.id === f.truckId) || {};
   const num = v => { const x = parseFloat(String(v || '').replace(/[^0-9.]/g, '')); return isNaN(x) ? null : x; };
   const ppHtml = () => { const l = num(f.litres), c = num(f.cost);
-    return `<span>PRICE PER LITRE</span><b>${l && c != null ? 'S$ ' + (c / l).toFixed(2) : '\u2014'}</b>`; };
+    const ok = l && c != null;
+    return `<div><span>PRICE PER LITRE</span><b>${ok ? 'S$ ' + (c / l).toFixed(2) : '\u2014'}</b></div><div class="net"><span>AFTER ${Math.round(FUEL_REBATE * 100)}% REBATE</span><b>${ok ? 'S$ ' + fuelMoney(fuelNet(c)) : '\u2014'}</b></div>`; };
   V().innerHTML = `<h2 class="am-h">${f.id ? 'Edit fill-up' : 'Record diesel'}</h2>
     <div class="ctform srv-form fuel-form">
       <div class="ctf2">
@@ -3674,9 +3676,9 @@ function kmData(tid, yr){
   const weeks = Object.values(wk).sort((a, b) => (a.mon < b.mon ? -1 : 1));
   const fuel = (S.am.diesel || []).filter(x => x.truckId === tid && String(x.date).slice(0, 4) === yr);
   const fm = AM_MON.map((m, i) => { const L = fuel.filter(x => Number(x.date.slice(5, 7)) === i + 1);
-    return { m, i, litres: L.length ? L.reduce((a, x) => a + (x.litres || 0), 0) : null, cost: L.length ? L.reduce((a, x) => a + (x.cost || 0), 0) : null, km: month[i].km }; });
+    return { m, i, litres: L.length ? L.reduce((a, x) => a + (x.litres || 0), 0) : null, cost: L.length ? L.reduce((a, x) => a + (x.cost || 0), 0) : null, net: L.length ? Math.round(L.reduce((a, x) => a + fuelNet(x.cost || 0), 0) * 100) / 100 : null, km: month[i].km }; });
   const yrKm = days.reduce((a, x) => a + x.km, 0), litres = fuel.reduce((a, x) => a + (x.litres || 0), 0), cost = fuel.reduce((a, x) => a + (x.cost || 0), 0);
-  const net = fm.reduce((a, m) => a + (m.cost != null ? fuelNet(m.cost) : 0), 0);
+  const net = Math.round(fm.reduce((a, m) => a + (m.net || 0), 0) * 100) / 100;   // = the Actual Cost of every fill-up added up
   return { tid, yr, days, month, weeks, fm, yrKm, litres, cost, net, open: days.filter(x => x.open), fuelN: fuel.length };
 }
 function v2AmSumExtra(yr){
@@ -3717,7 +3719,7 @@ function v2AmSumExtra(yr){
   // diesel
   const F = K.fm.filter((m, i) => !cur || i < Number(S.today.slice(5, 7))).filter(m => m.litres != null || m.km > 0);
   const kmL = K.litres ? K.yrKm / K.litres : null;
-  const rows = F.map(m => `<tr><td>${m.m}</td><td class="n">${m.litres != null ? ltTxt(m.litres) : '\u2014'}</td><td class="n">${m.cost != null ? '$' + fuelMoney(m.cost) : '\u2014'}</td><td class="n">${m.cost != null ? '$' + fuelMoney(fuelNet(m.cost)) : '\u2014'}</td><td class="n">${kmTxt(m.km)}</td><td class="n e">${m.cost != null && m.km ? '$' + (fuelNet(m.cost) / m.km).toFixed(2) : '\u2014'}</td></tr>`).join('');
+  const rows = F.map(m => `<tr><td>${m.m}</td><td class="n">${m.litres != null ? ltTxt(m.litres) : '\u2014'}</td><td class="n">${m.cost != null ? '$' + fuelMoney(m.cost) : '\u2014'}</td><td class="n">${m.net != null ? '$' + fuelMoney(m.net) : '\u2014'}</td><td class="n">${kmTxt(m.km)}</td><td class="n e">${m.net != null && m.km ? '$' + (m.net / m.km).toFixed(2) : '\u2014'}</td></tr>`).join('');
   return `<div class="sec am-km">
       <div class="am-kmh"><h3>Mileage, ${yr}</h3>${trucks.length > 1 ? `<select id="am-kmtk" aria-label="Truck">${trucks.map(t => `<option value="${esc(t.id)}"${t.id === tk.id ? ' selected' : ''}>${esc(t.plate)}</option>`).join('')}</select>` : `<span class="srv-tkn">${esc(tk.plate)}</span>`}</div>
       <div class="small muted">From the Vehicle First Parade checklists (Ended &minus; Starting Mileage).</div>
@@ -3771,7 +3773,7 @@ async function v2AmSumPdfExtra(doc, yr, M, W){
       cells.forEach((tx, i) => { const [, f2, al] = cols[i]; doc.text(String(tx), al === 'r' ? M + f2 * W - 2 : M + 2, y + 4.4, al === 'r' ? { align: 'right' } : undefined); });
       y += 6.4; doc.setDrawColor(222, 227, 222); doc.line(M, y, M + W, y); };
     row(cols.map(c => c[0]), true);
-    K.fm.slice(0, last).forEach(m => row([m.m, m.km ? vcKmTxt(m.km) : '-', m.litres != null ? ltTxt(m.litres) : '-', m.cost != null ? '$' + fuelMoney(m.cost) : '-', m.cost != null ? '$' + fuelMoney(fuelNet(m.cost)) : '-', m.cost != null && m.km ? '$' + (fuelNet(m.cost) / m.km).toFixed(2) : '-'], false, false, m));
+    K.fm.slice(0, last).forEach(m => row([m.m, m.km ? vcKmTxt(m.km) : '-', m.litres != null ? ltTxt(m.litres) : '-', m.cost != null ? '$' + fuelMoney(m.cost) : '-', m.net != null ? '$' + fuelMoney(m.net) : '-', m.net != null && m.km ? '$' + (m.net / m.km).toFixed(2) : '-'], false, false, m));
     row(['Total', vcKmTxt(K.yrKm), ltTxt(K.litres), '$' + fuelMoney(K.cost), '$' + fuelMoney(K.net), K.yrKm && K.fuelN ? '$' + (K.net / K.yrKm).toFixed(2) : '-'], false, true);
     y += 6;
     if (K.litres) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); grey(); const nt = doc.splitTextToSize('Actual cost is after the ' + Math.round(FUEL_REBATE * 100) + '% rebate (S$ ' + fuelMoney(K.cost) + ' before).  Average S$ ' + (K.net / K.litres).toFixed(2) + ' per litre' + (kmL ? ', ' + kmL.toFixed(1) + ' km/L' : '') + '.  Per km = the month\u2019s actual cost \u00f7 the km driven that month.', W); doc.text(nt, M, y); y += 4 * nt.length + 4; }
@@ -3780,15 +3782,15 @@ async function v2AmSumPdfExtra(doc, yr, M, W){
     if (fl.length) {
       if (y > 240) { doc.addPage(); y = 20; }
       doc.setFont('helvetica', 'bold'); doc.setFontSize(11); ink(); doc.text('Fill-ups', M, y); y += 3.5;
-      const fc = [['Date', 0, 'l'], ['Litres', 0.3, 'r'], ['Cost (S$)', 0.46, 'r'], ['Per litre', 0.6, 'r'], ['Mileage', 0.76, 'r'], ['Where', 0.79, 'l']];
+      const fc = [['Date', 0, 'l'], ['Litres', 0.22, 'r'], ['Cost (S$)', 0.36, 'r'], ['After Rebate ' + Math.round(FUEL_REBATE * 100) + '%', 0.54, 'r'], ['Per litre', 0.65, 'r'], ['Mileage', 0.8, 'r'], ['Where', 0.82, 'l']];
       const frow = (cells, head) => { if (y > 278) { doc.addPage(); y = 20; }
         if (head) { doc.setFillColor(238, 242, 238); doc.rect(M, y, W, 6.4, 'F'); }
         doc.setFont('helvetica', head ? 'bold' : 'normal'); doc.setFontSize(9); head ? grey() : ink();
-        cells.forEach((tx, i) => { const [, f2, al] = fc[i]; let s2 = String(tx); if (i === 5) { while (s2.length > 3 && doc.getTextWidth(s2) > W * 0.21 - 2) s2 = s2.slice(0, -2); if (s2 !== String(tx)) s2 += '\u2026'; }
+        cells.forEach((tx, i) => { const [, f2, al] = fc[i]; let s2 = String(tx); if (i === 6) { while (s2.length > 3 && doc.getTextWidth(s2) > W * 0.18 - 2) s2 = s2.slice(0, -2); if (s2 !== String(tx)) s2 += '\u2026'; }
           doc.text(s2, al === 'r' ? M + f2 * W - 2 : M + f2 * W + (i ? 2 : 2), y + 4.4, al === 'r' ? { align: 'right' } : undefined); });
         y += 6.4; doc.setDrawColor(222, 227, 222); doc.line(M, y, M + W, y); };
       frow(fc.map(c => c[0]), true);
-      fl.forEach(x => frow([VC_DOW[pd(x.date).getDay()] + ' ' + kmShort(x.date), ltTxt(x.litres), (x.cost || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), x.litres ? (x.cost / x.litres).toFixed(2) : '-', x.km ? vcKmTxt(Number(x.km)) : '-', x.where || '']));
+      fl.forEach(x => frow([VC_DOW[pd(x.date).getDay()] + ' ' + kmShort(x.date), ltTxt(x.litres), '$' + fuelMoney(x.cost || 0), '$' + fuelMoney(fuelNet(x.cost || 0)), x.litres ? '$' + (fuelNet(x.cost || 0) / x.litres).toFixed(2) : '-', x.km ? vcKmTxt(Number(x.km)) : '-', x.where || '']));
     }
   });
 }
@@ -3848,13 +3850,14 @@ async function v2HubServ(){
 .fuel-note .linkbtn{white-space:nowrap;font-weight:700;min-height:32px}
 .fuel-3,.am-km3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center;margin:8px 0}
 .fuel-3>div,.am-km3>div{background:#F4F6F3;border-radius:8px;padding:6px 4px;min-width:0}
-.fuel-3 small{display:block;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}.fuel-3 b{font:700 18px/1.25 var(--cond)}
+.fuel-3 small{display:block;font-size:11.5px;font-size:clamp(10px,3.2vw,11.5px);font-weight:700;color:var(--muted);letter-spacing:.03em;white-space:nowrap}.fuel-3 b{white-space:nowrap}.fuel-3 b{font:700 18px/1.25 var(--cond)}
 .am-km3>div{padding:8px 4px}.am-km3 b{display:block;font:700 21px/1.15 var(--cond);font-size:clamp(17px,5.4vw,21px);white-space:nowrap}.am-km3 span{display:block;font-size:11.5px;font-size:clamp(10px,3.2vw,11.5px);font-weight:700;color:var(--muted);letter-spacing:.03em;white-space:nowrap}
 .am-km3 small{display:block;font-size:11.5px;color:var(--muted)}.am-km3>div.hi{background:var(--steel-soft)}.am-km3>div.hi b,.am-km3>div.hi span,.am-km3>div.hi small{color:var(--steel)}
 .fuel-more{font-size:13px;color:var(--muted)}.fuel-rmk{font-size:14px;margin-top:4px}
 .fuel-big{font:700 22px var(--cond)!important;letter-spacing:.02em}
 .fuel-form .ctf2 input,.fuel-form .ctf2 select{height:48px;box-sizing:border-box;width:100%;min-width:0}
-.fuel-pp{display:flex;align-items:center;justify-content:space-between;border-radius:10px;padding:10px 12px;margin:2px 0 12px;background:var(--steel-soft);color:var(--steel)}
+.fuel-pp{border-radius:10px;padding:10px 12px;margin:2px 0 12px;background:var(--steel-soft);color:var(--steel);display:grid;gap:8px}.fuel-pp>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.fuel-pp>div.net{border-top:1px solid #C9D8E6;padding-top:8px}.fuel-pp b{white-space:nowrap;flex:none}
+.fuel-reb{font-size:13px;color:var(--muted);margin:-2px 0 2px}.am-dot[hidden]{display:none}
 .fuel-pp span{font-size:12.5px;font-weight:700;letter-spacing:.04em}.fuel-pp b{font:700 24px/1 var(--cond)}
 .fuel-hint{display:block;margin:-4px 0 12px}
 .am-kmh{display:flex;align-items:center;justify-content:space-between;gap:8px}.am-kmh h3{margin:0}.am-kmh select{min-height:40px}
